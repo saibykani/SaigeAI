@@ -137,14 +137,14 @@ export default function CommandCenter() {
           </CardHeader>
           <CardContent>
             {data.high_match_jobs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No jobs scored yet. Job import and matching arrive in Phase 2.</p>
+              <p className="text-sm text-muted-foreground">No high-match jobs yet. <Link href="/jobs" className="text-primary hover:underline">Add jobs</Link> to see how you match.</p>
             ) : (
               <ul className="divide-y">
                 {data.high_match_jobs.map((j) => (
                   <li key={j.id} className="flex items-center justify-between py-2 text-sm">
-                    <span>
+                    <Link href={`/jobs/${j.id}`} className="hover:underline">
                       {j.title} — <span className="text-muted-foreground">{j.company}</span>
-                    </span>
+                    </Link>
                     <Badge variant="success">{j.score}%</Badge>
                   </li>
                 ))}

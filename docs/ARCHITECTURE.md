@@ -52,6 +52,54 @@ When it's unsure, it leaves the field empty and adds a warning, so the UI shows 
 An LLM-assisted parser may be added later, but its output must pass the truth guard against
 the raw text.
 
+## Job intelligence (Phase 2)
+
+The pipeline is: import → JD analysis → duplicate check → match score → store.
+
+**Where jobs come from.** Only these sources are used:
+
+- JDs the user pastes. This works for any site, including LinkedIn and Naukri.
+- Official, public ATS job-board APIs: Greenhouse, Lever and Ashby.
+
+Request URLs are built from fixed hosts plus a validated board id, so there is no SSRF risk.
+URLs from LinkedIn, Naukri, Indeed and similar sites are refused with instructions to paste the
+JD instead. None of those sites is ever fetched.
+
+**JD analysis** (`jobs/jd_parser.py`) is deterministic. It extracts:
+
+- sections, and required vs. preferred skills
+- experience range
+- salary (LPA/INR and USD/EUR/GBP)
+- work mode and employment type
+- seniority, domains and degree
+- notice period and visa sponsorship
+
+**Optional Claude enrichment** (`agents/jd_agent.py`) runs only when `ANTHROPIC_API_KEY` is set.
+Its output is untrusted, so only grounded values are kept: skills that appear in the JD text,
+bullets that nearly quote the JD, and numbers present in the JD. Any failure falls back to the
+deterministic result.
+
+**Matching** (`jobs/matching.py`) scores these dimensions: skills, experience, role, domain,
+location, salary, notice period, education and work authorization.
+
+- Dimensions with missing data are UNKNOWN and are excluded from the weighted average.
+- Weights are configurable per user.
+- A concrete tool implies its umbrella skill for matching only (Rest Assured → API Testing).
+  The truth guard stays strict.
+- A JD with no recognizable skills is capped at 60, so it can't rank as a strong match.
+
+**Duplicate detection** (`jobs/dedupe.py`) treats two jobs as the same when any of these hold:
+
+- same source and external id
+- same canonical URL
+- same company, with a similar title, compatible location and description similarity
+  (5-word shingle Jaccard)
+
+Duplicates merge into one canonical job that keeps every source reference.
+
+**Board sync** runs as a recorded agent run (`agent_runs`) and respects the
+`job_discovery` pause. Postings are filtered by target role *before* the 200-per-sync cap.
+
 ## Automation safety
 
 Every future agent or worker must call `automation.service.is_allowed(db, user_id, capability)`

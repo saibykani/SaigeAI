@@ -11,6 +11,8 @@ from app.auth.router import router as auth_router
 from app.automation.router import router as automation_router
 from app.config import get_settings
 from app.database import mongo
+from app.jobs.router import agent_router
+from app.jobs.router import router as jobs_router
 from app.logging_setup import configure_logging, request_id_var
 from app.notifications.router import router as notifications_router
 from app.privacy.router import audit_router
@@ -87,8 +89,8 @@ def create_app() -> FastAPI:
             db_ok = False
         return {"status": "ok" if db_ok else "degraded", "database": db_ok}
 
-    for r in (auth_router, profile_router, resumes_router, analytics_router, automation_router,
-              notifications_router, privacy_router, audit_router):
+    for r in (auth_router, profile_router, resumes_router, jobs_router, analytics_router,
+              automation_router, agent_router, notifications_router, privacy_router, audit_router):
         api.include_router(r)
     app.include_router(api)
     return app

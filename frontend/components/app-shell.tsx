@@ -28,11 +28,11 @@ const NAV = [
   { href: "/", label: "Command Center", icon: LayoutDashboard },
   { href: "/profile", label: "Master Profile", icon: UserRound },
   { href: "/resumes", label: "Resumes", icon: FileText },
+  { href: "/jobs", label: "Jobs", icon: Briefcase },
   { href: "/settings", label: "Automation & Privacy", icon: Settings },
 ];
 
 const UPCOMING = [
-  { label: "Jobs", icon: Briefcase, phase: 2 },
   { label: "Applications", icon: Send, phase: 4 },
   { label: "Gmail", icon: Mail, phase: 5 },
   { label: "Recruiters", icon: Users, phase: 6 },

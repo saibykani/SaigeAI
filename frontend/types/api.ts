@@ -299,3 +299,85 @@ export const RESUME_KINDS = [
   "Java Automation Resume",
   "Other",
 ];
+
+export type JobStatus = "new" | "saved" | "shortlisted" | "archived" | "rejected";
+
+export interface JobSummary {
+  id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  country: string | null;
+  remote: boolean | null;
+  source: string;
+  sources: string[];
+  salary_min: number | null;
+  salary_max: number | null;
+  currency: string | null;
+  experience_required: string | null;
+  status: JobStatus;
+  score: number | null;
+  classification: string | null;
+  posted_date: string | null;
+  created_at: string;
+}
+
+export interface MatchResult {
+  overall: number;
+  classification: string;
+  breakdown: Record<string, number | null>;
+  matched_skills: string[];
+  missing_required_skills: string[];
+  missing_preferred_skills: string[];
+  experience_gap: string | null;
+  issues: string[];
+  weights: Record<string, number>;
+  computed_at: string;
+}
+
+export interface JDAnalysis {
+  skills: string[];
+  required_skills: string[];
+  preferred_skills: string[];
+  requirements: string[];
+  nice_to_have: string[];
+  responsibilities: string[];
+  experience_min: number | null;
+  experience_max: number | null;
+  seniority: string | null;
+  employment_type: string | null;
+  domains: string[];
+  education: string[];
+  notice_period_max_days: number | null;
+  no_visa_sponsorship: boolean;
+  extraction: string;
+}
+
+export interface JobDetail extends JobSummary {
+  employment_type: string | null;
+  description: string;
+  requirements: string[];
+  nice_to_have: string[];
+  skills: string[];
+  application_url: string | null;
+  deadline: string | null;
+  source_refs: { source: string; source_job_id: string | null; url: string | null; first_seen: string }[];
+  analysis: JDAnalysis;
+  match: MatchResult | null;
+  updated_at: string;
+  recommended_resume?: { id: string; name: string; kind: string; overlap: number; of: number } | null;
+}
+
+export interface JobSource {
+  id: string;
+  provider: "greenhouse" | "lever" | "ashby";
+  board: string;
+  company_name: string | null;
+  last_synced_at: string | null;
+  last_result: Record<string, number | string> | null;
+}
+
+export type MatchWeights = Record<
+  "skills" | "experience" | "role" | "domain" | "location" | "salary" | "notice_period" | "education" | "work_authorization",
+  number
+>;

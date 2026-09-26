@@ -39,3 +39,20 @@ export function linesToList(text: string): string[] {
     .map((l) => l.trim())
     .filter(Boolean);
 }
+
+export function formatSalary(min: number | null, max: number | null, currency: string | null): string {
+  if (!min && !max) return "—";
+  const cur = currency ?? "";
+  const fmt = (n: number) =>
+    cur === "INR" ? `${(n / 100000).toFixed(n % 100000 ? 1 : 0)}L` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
+  const range = min && max ? `${fmt(min)}–${fmt(max)}` : fmt((min ?? max)!);
+  return cur === "INR" ? `₹${range}` : `${cur} ${range}`.trim();
+}
+
+export function scoreTone(score: number | null | undefined): "success" | "default" | "warning" | "muted" {
+  if (score == null) return "muted";
+  if (score >= 85) return "success";
+  if (score >= 70) return "default";
+  if (score >= 55) return "warning";
+  return "muted";
+}

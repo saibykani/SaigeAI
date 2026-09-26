@@ -30,7 +30,7 @@ export function FunnelChart({ data }: { data: { stage: string; count: number }[]
       </ResponsiveContainer>
       {empty && (
         <p className="pointer-events-none absolute inset-0 grid place-items-center text-sm text-muted-foreground">
-          No pipeline data yet — job import arrives in Phase 2
+          No pipeline data yet — add jobs to start your funnel
         </p>
       )}
     </div>

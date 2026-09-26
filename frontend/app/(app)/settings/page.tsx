@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { MatchingWeightsCard } from "@/components/matching-weights";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -171,6 +172,9 @@ export default function SettingsPage() {
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <MatchingWeightsCard />
+        </div>
         <Card>
           <CardHeader>
             <CardTitle>Connected accounts</CardTitle>

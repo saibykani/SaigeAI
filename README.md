@@ -20,7 +20,7 @@ The build is incremental, following the 8 phases in the product spec.
 | Phase | Scope | Status |
 |---|---|---|
 | 1. Foundation | Auth (email/password, Google OAuth, JWT + rotating refresh tokens), master profile & knowledge base, MongoDB, resume upload/parse/versioning, dashboard | **Done** |
-| 2. Job Intelligence | Job import, JD parser, matching, duplicate detection | Planned |
+| 2. Job Intelligence | Paste-JD and ATS URL import, official Greenhouse/Lever/Ashby board sync, JD analysis, configurable match scoring, cross-source duplicate merging, jobs dashboard | **Done** |
 | 3. Resume AI | JD-tailored resumes, cover letters, ATS checks | Planned |
 | 4. Application Tracking | Tracker, application questions, interviews | Planned |
 | 5. Gmail | OAuth, sync, classification, status updates | Planned |
@@ -129,7 +129,8 @@ All routes are prefixed with `/api`.
 | Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`, `GET /auth/connections`, `GET /auth/google/authorize`, `GET /auth/google/callback` |
 | Profile | `GET /profile`, `PUT /profile`, `POST /profile/validate-claims` |
 | Resumes | `GET/POST /resumes`, `GET/PUT/DELETE /resumes/{id}`, `POST /resumes/{id}/duplicate`, `/archive`, `/unarchive`, `GET /resumes/{id}/versions`, `/compare?a=&b=`, `/download`, `POST /resumes/{id}/import-to-profile` |
-| Dashboard | `GET /analytics/dashboard` |
+| Jobs | `GET /jobs`, `GET /jobs/{id}`, `POST /jobs/import`, `POST /jobs/import-url`, `POST /jobs/{id}/match`, `POST /jobs/{id}/status`, `DELETE /jobs/{id}`, `POST /jobs/rematch-all`, `GET/PUT /jobs/matching/config`, `GET/POST /jobs/sources`, `DELETE /jobs/sources/{id}`, `POST /jobs/sources/{id}/sync` |
+| Dashboard | `GET /analytics/dashboard`, `GET /automation/runs` |
 | Automation | `GET /automation/status`, `PUT /automation/settings`, `POST /automation/pause-all`, `POST /automation/resume-all` |
 | Notifications | `GET /notifications`, `POST /notifications/{id}/read` |
 | Privacy | `GET /privacy/export`, `DELETE /privacy/account`, `DELETE /privacy/profile-history`, `GET /audit` |
@@ -148,4 +149,4 @@ All routes are prefixed with `/api`.
 - **Headers and logs:** security headers on every response, and structured JSON logs with
   request IDs. Credentials are never logged.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design decisions.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design decisions and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for hosting (Vercel + Render + Atlas).

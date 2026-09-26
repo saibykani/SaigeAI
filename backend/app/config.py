@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     google_redirect_uri: str = "http://localhost:3000/api/auth/google/callback"
 
     openai_api_key: str | None = None
+    # Optional Claude enrichment for job-description parsing. Everything works without it.
+    anthropic_api_key: str | None = None
+    llm_model: str = "claude-opus-5"
 
     frontend_url: str = "http://localhost:3000"
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
@@ -42,6 +45,10 @@ class Settings(BaseSettings):
     @property
     def google_oauth_enabled(self) -> bool:
         return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def llm_enabled(self) -> bool:
+        return bool(self.anthropic_api_key)
 
     @property
     def is_production(self) -> bool:

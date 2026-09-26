@@ -1,9 +1,13 @@
 import os
 
 # Test configuration must be in place before the app (and its settings) are imported.
-os.environ.setdefault("MONGODB_URI", "mongodb://unused-in-tests")
-os.environ.setdefault("JWT_SECRET", "test-secret-" + "x" * 40)
-os.environ.setdefault("ENVIRONMENT", "test")
+# Environment variables outrank the developer's .env file, so tests never use real credentials
+# (database, Google OAuth, LLM keys) regardless of what is configured locally.
+os.environ["MONGODB_URI"] = "mongodb://unused-in-tests"
+os.environ["JWT_SECRET"] = "test-secret-" + "x" * 40
+os.environ["ENVIRONMENT"] = "test"
+for _key in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+    os.environ[_key] = ""
 
 import httpx  # noqa: E402
 import pytest  # noqa: E402
