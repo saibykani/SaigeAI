@@ -41,6 +41,7 @@ const STRINGS: Record<string, Partial<Record<Lang, string>>> = {
   "Resume sync": { hi: "रिज़्यूमे सिंक", te: "రెజ్యూమే సింక్" },
   "Automation & privacy": { hi: "ऑटोमेशन और गोपनीयता", te: "ఆటోమేషన్ & గోప్యత" },
   Activity: { hi: "गतिविधि", te: "కార్యకలాపం" },
+  "Saige AI": { hi: "Saige AI", te: "Saige AI" },
   "Alerts & templates": { hi: "अलर्ट और टेम्पलेट", te: "అలర్ట్‌లు & టెంప్లేట్‌లు" },
   Agent: { hi: "एजेंट", te: "ఏజెంట్" },
   "Hiring portals": { hi: "हायरिंग पोर्टल", te: "హైరింగ్ పోర్టల్‌లు" },

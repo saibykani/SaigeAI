@@ -59,7 +59,7 @@ export function useApi<T>(path: string | null) {
   return { data, setData, error, loading, reload };
 }
 
-/** While Saige is open (and the tab visible), sync Gmail + portal alerts every 3 minutes and refresh the job feed. */
+/** While Saige is open (and the tab visible), sync Gmail + portal alerts every minute and refresh the job feed every 5. */
 export function useLiveSync(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
@@ -74,7 +74,7 @@ export function useLiveSync(enabled: boolean) {
       }
     };
     const first = window.setTimeout(tick, 8000);
-    const every = window.setInterval(tick, 180_000);
+    const every = window.setInterval(tick, 60_000);
     return () => { stopped = true; window.clearTimeout(first); window.clearInterval(every); };
   }, [enabled]);
 }

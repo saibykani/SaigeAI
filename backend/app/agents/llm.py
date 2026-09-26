@@ -55,6 +55,20 @@ class AnthropicProvider:
             return None
         return response.parsed_output
 
+    async def chat(self, *, system: str, messages: list[dict]) -> str | None:
+        """Plain conversational reply (the Saige assistant). None on any failure."""
+        try:
+            response = await self.client.messages.create(
+                model=self.model, max_tokens=2000, system=system, messages=messages,
+                output_config={"effort": "low"},  # quick, conversational answers
+            )
+        except (anthropic.RateLimitError, anthropic.APIStatusError, anthropic.APIConnectionError) as exc:
+            logger.warning("Assistant LLM call failed: %s", type(exc).__name__)
+            return None
+        if response.stop_reason == "refusal":
+            return None
+        return "".join(b.text for b in response.content if b.type == "text").strip() or None
+
 
 _provider: LLMProvider | None = None
 _provider_set = False

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Activity,
   Briefcase,
   createLucideIcon,
   FileText,
@@ -11,6 +10,7 @@ import {
   Menu,
   Send,
   Settings,
+  Sparkles,
   UserRound,
   Users,
   X,
@@ -26,6 +26,8 @@ import { Loader3D } from "@/components/loader3d";
 import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeSwitcher } from "@/components/theme";
+import { AssistantBubble } from "@/components/assistant";
+import { Effects } from "@/components/effects";
 import { Button } from "@/components/ui/button";
 import { useLiveSync } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
@@ -49,7 +51,7 @@ const NAV: NavItem[] = [
   { href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
   { href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
   { href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
-  { href: "/activity", label: "Activity", icon: Activity, tone: "purple" },
+  { href: "/assistant", label: "Saige AI", icon: Sparkles, tone: "purple" },
   { href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [{ href: "/profiles", label: "LinkedIn & Naukri" }, { href: "/profile-sync", label: "Resume sync" }] },
   { href: "/alerts", label: "Settings", icon: Settings, tone: "red", tabs: [
     { href: "/alerts", label: "Alerts & templates" }, { href: "/integrations", label: "Integrations" },
@@ -208,6 +210,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SectionTabs pathname={pathname} />
           {children}
         </main>
+        {pathname !== "/assistant" && <AssistantBubble />}
+        <Effects tone={sectionFor(pathname)?.tone ?? "green"} />
       </div>
     </div>
   );

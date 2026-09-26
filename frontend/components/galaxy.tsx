@@ -9,8 +9,9 @@ import { useEffect, useRef } from "react";
  *  - Hover: stars near the pointer are nudged aside and brighten.
  *  - Click: nearby stars gently spread apart and drift back. No flash, ring or spin burst.
  *  - Drag: orbit the camera (tilt / yaw) in 3D; releases with inertia.
- *  - Seen at a steep angle and rolled so the disc runs top-to-bottom across the screen, like a
- *    photograph of the Milky Way; strong perspective makes the near side larger and brighter.
+ *  - Seen almost edge-on and standing vertically in the middle of the screen: a thin, flat disc with
+ *    a glowing bulge and a dark dust lane through its midplane, like a real edge-on galaxy.
+ *  - Comets fall slowly across the sky, and a small solar system orbits far away in the corner.
  *  - Slow, stately rotation. Reduced motion: still frame.
  * Performance: stars are pre-sorted into a few colour buckets, so each frame sets fillStyle only a
  * handful of times; glows are pre-rendered sprites (no canvas filters).
@@ -120,7 +121,14 @@ export function Galaxy({ className }: { className?: string }) {
 
     const mouse = { x: -9999, y: -9999, inside: false };
     const look = { x: 0, y: 0 };
-    const orbit = { yaw: 0.6, tilt: 0.42, vYaw: 0, vTilt: 0, dragging: false, lx: 0, ly: 0, moved: 0 };
+    const orbit = { yaw: 0.6, tilt: 0.16, vYaw: 0, vTilt: 0, dragging: false, lx: 0, ly: 0, moved: 0 };
+    // A distant solar system: a warm star with planets on tilted orbits (radius, size, speed, colour).
+    const planets = [
+      { r: 18, s: 1.6, v: 0.9, c: "214,170,120" }, { r: 30, s: 2.2, v: 0.55, c: "240,200,150" },
+      { r: 44, s: 2.0, v: 0.36, c: "150,200,180" }, { r: 62, s: 3.2, v: 0.22, c: "230,190,130" }, { r: 80, s: 2.6, v: 0.15, c: "200,210,200" },
+    ].map((p) => ({ ...p, a: Math.random() * Math.PI * 2 }));
+    const comets: { x: number; y: number; vx: number; vy: number; life: number; size: number }[] = [];
+    const ripples: { x: number; y: number; t: number }[] = [];
     const spreads: { x: number; y: number }[] = [];
 
     const rect = () => canvas.getBoundingClientRect();
@@ -156,6 +164,7 @@ export function Galaxy({ className }: { className?: string }) {
       if (isInteractive(e.target) || orbit.moved > 6) return; // a drag isn't a click
       const r = rect();
       spreads.push({ x: e.clientX - r.left, y: e.clientY - r.top });
+      ripples.push({ x: e.clientX - r.left, y: e.clientY - r.top, t: 0 });
     };
     const onLeave = () => { mouse.inside = false; mouse.x = mouse.y = -9999; };
 
@@ -184,7 +193,7 @@ export function Galaxy({ className }: { className?: string }) {
 
       if (!orbit.dragging) { orbit.vYaw *= 0.94; orbit.vTilt *= 0.9; }
       orbit.yaw += orbit.vYaw;
-      orbit.tilt = Math.max(0.3, Math.min(1.42, orbit.tilt + orbit.vTilt));
+      orbit.tilt = Math.max(0.04, Math.min(1.42, orbit.tilt + orbit.vTilt));
       if (orbit.dragging) { orbit.vYaw *= 0.6; orbit.vTilt *= 0.6; }
 
       ctx.fillStyle = "#000";
@@ -204,14 +213,52 @@ export function Galaxy({ className }: { className?: string }) {
       }
       ctx.globalAlpha = 1;
 
+      // Far solar system in the upper-left sky, with slight parallax.
+      {
+        const sx = w * 0.14 - look.x * 18, sy = h * 0.2 - look.y * 18, inc = 0.32;
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.9;
+        ctx.drawImage(warmGlow, sx - 26, sy - 26, 52, 52);
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = "rgba(255,255,255,0.07)";
+        ctx.lineWidth = 1;
+        for (const p of planets) {
+          ctx.beginPath();
+          ctx.ellipse(sx, sy, p.r, p.r * inc, -0.35, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        const cosR = Math.cos(-0.35), sinR = Math.sin(-0.35);
+        const drawPlanet = (p: (typeof planets)[number]) => {
+          const ang = p.a + time * p.v * 0.35;
+          const ex = Math.cos(ang) * p.r, ey = Math.sin(ang) * p.r * inc;
+          const px = sx + ex * cosR - ey * sinR, py = sy + ex * sinR + ey * cosR;
+          const depth = 0.75 + 0.25 * Math.sin(ang);
+          ctx.globalAlpha = 0.55 + 0.45 * depth;
+          ctx.fillStyle = `rgb(${p.c})`;
+          ctx.beginPath();
+          ctx.arc(px, py, p.s * depth, 0, Math.PI * 2);
+          ctx.fill();
+        };
+        const behind = planets.filter((p) => Math.sin(p.a + time * p.v * 0.35) < 0);
+        const front = planets.filter((p) => Math.sin(p.a + time * p.v * 0.35) >= 0);
+        behind.forEach(drawPlanet);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "rgb(255,236,200)";
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        front.forEach(drawPlanet);
+        ctx.globalAlpha = 1;
+      }
+
       const cx = w / 2 - look.x * 12, cy = h / 2 - look.y * 12;
-      const scale = Math.max(w, h) * (small ? 0.62 : 0.5);
+      const scale = Math.max(w, h) * (small ? 0.62 : 0.52);
       const tilt = orbit.tilt + look.y * 0.12 + Math.sin(time * 0.05) * 0.04;
       const yaw = orbit.yaw + time * 0.008 + look.x * 0.2;
       const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
       const focal = 2; // stronger perspective: the near side of the disc is visibly closer
       // Roll the whole galaxy so its long axis runs top-to-bottom (slightly diagonal).
-      const roll = -1.12 + look.x * 0.04;
+      const roll = -1.5 + look.x * 0.04; // nearly vertical, like the Milky Way standing across the sky
       const cr = Math.cos(roll), sr = Math.sin(roll);
       const toLocal = (x: number, y: number) => ({ x: (x - cx) * cr + (y - cy) * sr, y: -(x - cx) * sr + (y - cy) * cr });
       const reach = Math.hypot(w, h) / 2 + 8;
@@ -245,7 +292,7 @@ export function Galaxy({ className }: { className?: string }) {
       for (const d of lanes) {
         const p = project(d.r, d.a + time * (0.11 / (0.24 + d.r)) * ROT, d.y, yaw, cosT, sinT, focal);
         const size = d.size * scale * p.persp;
-        ctx.globalAlpha = d.alpha * 0.55;
+        ctx.globalAlpha = d.alpha * 0.8; // dust lane through the midplane of the edge-on disc
         ctx.drawImage(darkDust, p.x * scale * p.persp - size / 2, p.y * scale * p.persp - size * 0.3, size, size * 0.6);
       }
       ctx.globalAlpha = 1;
@@ -329,6 +376,44 @@ export function Galaxy({ className }: { className?: string }) {
           ctx.stroke();
         }
         while (meteors.length && meteors[0].life <= 0) meteors.shift();
+
+        // Slow comets falling across the sky: a glowing head with a long fading tail.
+        if (Math.random() < dt * 0.09) {
+          const fromLeft = Math.random() < 0.5;
+          comets.push({ x: fromLeft ? Math.random() * w * 0.5 : w * 0.5 + Math.random() * w * 0.5, y: -20,
+                        vx: (fromLeft ? 1 : -1) * (40 + Math.random() * 50), vy: 70 + Math.random() * 60, life: 1, size: 1.4 + Math.random() * 1.2 });
+        }
+        for (const c of comets) {
+          c.x += c.vx * dt; c.y += c.vy * dt; c.life -= dt * 0.12;
+          const tx = c.x - c.vx * 1.1, ty = c.y - c.vy * 1.1;
+          const tail = ctx.createLinearGradient(c.x, c.y, tx, ty);
+          tail.addColorStop(0, `rgba(255,244,225,${Math.max(0, c.life) * 0.55})`);
+          tail.addColorStop(1, "rgba(255,244,225,0)");
+          ctx.strokeStyle = tail;
+          ctx.lineWidth = c.size * 1.6;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(c.x, c.y);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.globalAlpha = Math.max(0, c.life);
+          ctx.drawImage(starHalo, c.x - c.size * 6, c.y - c.size * 6, c.size * 12, c.size * 12);
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = "source-over";
+        }
+        for (let i = comets.length - 1; i >= 0; i--) if (comets[i].life <= 0 || comets[i].y > h + 60) comets.splice(i, 1);
+
+        // Soft click ripple (no flash): one thin ring that fades out.
+        for (const r of ripples) {
+          r.t += dt;
+          ctx.strokeStyle = `rgba(255,240,220,${Math.max(0, 0.35 - r.t * 0.5)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(r.x, r.y, 10 + r.t * 120, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        while (ripples.length && ripples[0].t > 0.8) ripples.shift();
       }
 
       if (!reduce) frame = requestAnimationFrame(draw);

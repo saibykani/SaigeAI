@@ -345,12 +345,28 @@ body {
   transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
 }
 .lift:hover {
-  transform: translateY(-3px);
+  /* 3D tilt toward the pointer (--rx / --ry set by components/effects.tsx) */
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
   box-shadow: var(--shadow-lift);
 }
+
+/* Assistant orb */
+.orb-ring { animation: orb-spin 3.2s linear infinite; }
+.orb-float { animation: orb-float 4.5s ease-in-out infinite; }
+@keyframes orb-spin { from { transform: rotateX(70deg) rotateZ(0deg); } to { transform: rotateX(70deg) rotateZ(360deg); } }
+@keyframes orb-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+
+/* Click effect: a small ring plus sparks in the section's colour */
+.click-ring { position: fixed; pointer-events: none; z-index: 9999; width: 10px; height: 10px; margin: -5px 0 0 -5px;
+  border-radius: 9999px; border: 2px solid var(--click-tone, var(--tone-green)); animation: click-ring 0.55s ease-out forwards; }
+.click-spark { position: fixed; pointer-events: none; z-index: 9999; width: 4px; height: 4px; margin: -2px 0 0 -2px;
+  border-radius: 9999px; background: var(--click-tone, var(--tone-green)); animation: click-spark 0.6s ease-out forwards; }
+@keyframes click-ring { to { transform: scale(5.5); opacity: 0; } }
+@keyframes click-spark { to { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .animate-gradient, .animate-float, .animate-pop, .animate-grow-x, .skeleton { animation: none; }
   .lift, .lift:hover { transition: none; transform: none; }
+  .orb-ring, .orb-float, .click-ring, .click-spark { animation: none; display: none; }
 }
 
 /* ---------------- 3D login scene ---------------- */

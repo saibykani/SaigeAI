@@ -1,4 +1,5 @@
 import logging
+import re
 import secrets
 from datetime import timedelta
 
@@ -226,16 +227,23 @@ class WhatsAppIn(BaseModel):
 
 @router.put("/integrations/whatsapp")
 async def save_whatsapp(body: WhatsAppIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    import httpx
+
     from app.services import whatsapp
 
     phone = whatsapp.normalize_phone(body.phone)
+    if len(re.sub(r"\D", "", phone)) < 11:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Enter your number with the country code, e.g. +91 98765 43210.")
+    warning = None
     try:
         await whatsapp.send(phone, body.apikey.strip(), whatsapp.format_message(
             "WhatsApp connected", "You'll get a message here for applications, emails, replies and scheduler updates."))
-    except Exception as exc:  # noqa: BLE001 - surface CallMeBot's answer to the user
+    except whatsapp.WhatsAppError as exc:  # CallMeBot rejected the number / key: show its exact answer
         raise HTTPException(status.HTTP_400_BAD_REQUEST,
-                            f"CallMeBot didn't accept this phone and API key ({str(exc)[:120]}). "
-                            "Check the number includes the country code and the key from CallMeBot's reply.") from exc
+                            f"CallMeBot said: “{exc}”. Use the number you messaged CallMeBot from (with country code) "
+                            "and the API key from its reply.") from exc
+    except httpx.HTTPError:  # slow or unreachable: save anyway, the test message may still arrive
+        warning = "CallMeBot didn't answer in time. Saved; the test message may arrive in a minute. Use “Send test” to retry."
     now = utcnow()
     await db[c.INTEGRATIONS].update_one(
         {"user_id": user["_id"], "provider": "whatsapp"},
@@ -245,7 +253,25 @@ async def save_whatsapp(body: WhatsAppIn, user: dict = Depends(get_current_user)
         upsert=True)
     await log_action(db, user_id=user["_id"], action="integration.connected", entity="integration",
                      details={"provider": "whatsapp"})
-    return {"connected": True, "phone": phone, "enabled": body.enabled}
+    return {"connected": True, "phone": phone, "enabled": body.enabled, "warning": warning}
+
+
+@router.post("/integrations/whatsapp/test")
+async def test_whatsapp(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Send a test message now and report CallMeBot's exact answer."""
+    from app.services import whatsapp
+
+    integ = await db[c.INTEGRATIONS].find_one({"user_id": user["_id"], "provider": "whatsapp"})
+    if not integ:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Connect WhatsApp first")
+    try:
+        said = await whatsapp.send(integ["phone"], crypto.decrypt(integ["apikey_enc"]),
+                                   whatsapp.format_message("Test message", "WhatsApp alerts from Saige are working."))
+    except Exception as exc:  # noqa: BLE001 - report the exact failure
+        await db[c.INTEGRATIONS].update_one({"_id": integ["_id"]}, {"$set": {"error": str(exc)[:200]}})
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Not sent: {str(exc)[:200]}") from exc
+    await db[c.INTEGRATIONS].update_one({"_id": integ["_id"]}, {"$set": {"error": None, "last_sent_at": utcnow()}})
+    return {"sent": True, "answer": said}
 
 
 @router.post("/integrations/whatsapp/toggle")

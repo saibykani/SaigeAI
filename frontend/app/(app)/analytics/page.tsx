@@ -6,6 +6,7 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, X
 
 import { Notice, PageHeader } from "@/components/app-shell";
 import { CountKpi, RateKpi } from "@/components/kpi";
+import { InsightsGrid } from "@/components/insights";
 import { KIND_LABEL } from "@/components/outreach";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,7 +113,7 @@ export default function AnalyticsPage() {
   const { data, error } = useApi<Breakdowns>("/analytics/breakdowns");
   const [weeklyTable, setWeeklyTable] = useState(false);
 
-  if (error) return <Notice tone="error">{error}</Notice>;
+  if (error) return <><PageHeader title="Analytics" /><Notice tone="error">{error}</Notice><div className="mt-6"><InsightsGrid /></div></>;
   if (!data) return <div className="flex flex-col gap-6"><div className="skeleton h-28 rounded-2xl" /><div className="skeleton h-80 rounded-3xl" /></div>;
 
   const o = data.overall;
@@ -121,7 +122,11 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Analytics" description="What's working in your search: which sources, roles, resumes and messages get responses. Counts from your own records, never estimates." />
+      <PageHeader title="Analytics" description="What's working in your search: your market, pipeline, and which sources, roles, resumes and messages get responses. Counts from your own records, never estimates." />
+      <InsightsGrid />
+      {o.sent === 0 && (
+        <Notice>Response, interview and offer rates appear once applications are marked Applied (after you submit them, or when Saige sends an email application).</Notice>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <CountKpi label="Applications sent" value={o.sent} hint={`${o.applications} tracked in total`} icon={Send} tone="orange" />

@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from app.activity.router import router as activity_router
 from app.analytics.router import router as analytics_router
 from app.applications.router import router as applications_router
+from app.assistant.router import router as assistant_router
 from app.auth.router import router as auth_router
 from app.automation.router import router as automation_router
 from app.config import get_settings
@@ -123,7 +124,7 @@ def create_app() -> FastAPI:
         return {"status": "ok" if db_ok else "degraded", "database": db_ok}
 
     for r in (auth_router, profile_sync_router, profile_router, resume_ai_router, resumes_router, jobs_router,
-              applications_router, portals_router, email_router, analytics_router, activity_router,
+              applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
               recruiters_router, extension_router):
         api.include_router(r)

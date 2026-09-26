@@ -33,6 +33,8 @@ class FakeIMAP:
         FakeIMAP.calls.append((cmd, args))
         if cmd == "SEARCH":
             return "OK", [b"7"]
+        if args[1] == "(X-GM-MSGID)":  # cheap id-only fetch used to skip mail already imported
+            return "OK", [b"7 (X-GM-MSGID 1780000000000000001 UID 7)"]
         assert "BODY.PEEK[]" in args[1]  # PEEK: messages stay unread
         return "OK", [(b"7 (X-GM-MSGID 1780000000000000001 X-GM-THRID 1780000000000000000 BODY[] {300}", RAW), b")"]
 

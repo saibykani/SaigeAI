@@ -21,7 +21,7 @@ API = "https://api.callmebot.com/whatsapp.php"
 
 def http_client() -> httpx.AsyncClient:
     """Factory (patched in tests)."""
-    return httpx.AsyncClient(timeout=8)
+    return httpx.AsyncClient(timeout=httpx.Timeout(30, connect=10))  # CallMeBot is often slow to answer
 
 
 def normalize_phone(phone: str) -> str:
@@ -73,11 +73,28 @@ def format_message(title: str, body: str = "", details: list[dict] | None = None
     return "\n".join(lines)[:1500]
 
 
-async def send(phone: str, apikey: str, text: str) -> None:
+class WhatsAppError(RuntimeError):
+    pass
+
+
+FAIL_HINTS = ("apikey is invalid", "invalid apikey", "not activated", "phone number is not", "error:", "not authorized",
+              "you need to get the apikey", "wrong phone")
+
+
+def answer_text(html: str) -> str:
+    """CallMeBot answers with a small HTML page; keep just its visible sentence."""
+    text = re.sub(r"(?is)<(script|style).*?</\1>", " ", html)
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text)).strip()[:200]
+
+
+async def send(phone: str, apikey: str, text: str) -> str:
+    """Send one message; returns CallMeBot's answer. Raises WhatsAppError only for a real rejection."""
     async with http_client() as client:
         r = await client.get(API, params={"phone": phone, "text": text, "apikey": apikey})
-    if r.status_code != 200 or "ERROR" in r.text.upper()[:200]:
-        raise RuntimeError(f"CallMeBot answered {r.status_code}: {r.text[:120]}")
+    said = answer_text(r.text)
+    if r.status_code >= 400 or any(h in said.lower() for h in FAIL_HINTS):
+        raise WhatsAppError(said or f"HTTP {r.status_code}")
+    return said
 
 
 # Alert groups the user can switch off individually (Settings → Alerts & templates).

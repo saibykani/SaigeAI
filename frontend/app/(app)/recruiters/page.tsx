@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, ClipboardCopy, FileText, Inbox, MailCheck, MessageCircle, Reply, Send, Upload, UserPlus, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
 import { CountKpi, RateKpi } from "@/components/kpi";
@@ -16,7 +16,7 @@ import type { ContactRole, Outreach, OutreachKind, OutreachStats, OutreachTempla
 import { cn } from "@/utils/cn";
 import { formatDate, formatDateTime } from "@/utils/format";
 
-type Tab = "queue" | "sent" | "contacts" | "templates";
+type Tab = "queue" | "sent" | "contacts" | "find" | "templates";
 type Msg = { tone: "success" | "error" | "warning"; text: string } | null;
 
 const TEMPLATE_TONE: Record<string, string> = {
@@ -69,6 +69,80 @@ function TemplateCard({ t, contacts, onUse, delay }: { t: OutreachTemplate; cont
   );
 }
 
+type Target = { company: string; sources: string[]; job_url: string | null; email_search: string;
+  known: { id: string; name: string; email: string | null; phone: string | null; title: string | null }[];
+  searches: { label: string; url: string }[] };
+
+/** Who to reach at each company you're pursuing: LinkedIn people searches you open, plus contacts already known. */
+function FindPeople({ onAdded }: { onAdded: () => void }) {
+  const { data } = useApi<Target[]>("/recruiters/find-people");
+  const [adding, setAdding] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "", title: "", linkedin_url: "", email: "", phone: "" });
+  const [msg, setMsg] = useState<string | null>(null);
+  async function add(company: string) {
+    setMsg(null);
+    try {
+      await request("/recruiters", { method: "POST", body: { company, name: form.name, title: form.title || null,
+        linkedin_url: form.linkedin_url || null, email: form.email || null, phone: form.phone || null,
+        role: /qa|test|sdet|engineer|manager/i.test(form.title) && !/hr|talent|recruit/i.test(form.title) ? "hiring_manager" : "recruiter" } });
+      setAdding(null);
+      setForm({ name: "", title: "", linkedin_url: "", email: "", phone: "" });
+      setMsg(`Added to Contacts at ${company}.`);
+      onAdded();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Could not add");
+    }
+  }
+  return (
+    <div className="flex flex-col gap-4">
+      <Notice>
+        For every company you&apos;ve applied to or saved, open a LinkedIn search for its HR, talent acquisition, QA managers and test leads. Pick the right person on LinkedIn,
+        then add them here (paste their profile link, and their email or phone if they share it). Saige doesn&apos;t scrape LinkedIn, so your account stays safe.
+      </Notice>
+      {msg && <Notice tone="success">{msg}</Notice>}
+      {!data ? <div className="skeleton h-72 rounded-3xl" /> : data.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">Save or apply to jobs first; their companies appear here.</Card>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {data.map((t, i) => (
+            <Card key={t.company} className="lift animate-rise" style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base"><Building2 className="size-4" style={{ color: "var(--tone-lime)" }} /> {t.company}</CardTitle>
+                <CardDescription className="capitalize">{t.sources.join(" · ")}{t.known.length ? ` · ${t.known.length} contact(s) known` : ""}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {t.searches.map((q) => (
+                    <a key={q.label} href={q.url} target="_blank" rel="noopener noreferrer" className="rounded-full border px-2.5 py-1 text-xs font-medium hover:bg-muted">in · {q.label}</a>
+                  ))}
+                  <a href={t.email_search} target="_blank" rel="noopener noreferrer" className="rounded-full border px-2.5 py-1 text-xs hover:bg-muted">Find careers email</a>
+                </div>
+                {t.known.length > 0 && (
+                  <ul className="flex flex-col gap-1 text-xs">
+                    {t.known.slice(0, 4).map((k) => <li key={k.id} className="truncate"><b>{k.name}</b>{k.title ? ` · ${k.title}` : ""}{k.email ? ` · ${k.email}` : ""}{k.phone ? ` · ${k.phone}` : ""}</li>)}
+                  </ul>
+                )}
+                {adding === t.company ? (
+                  <form className="grid gap-2 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); void add(t.company); }}>
+                    <Input required placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                    <Input placeholder="Title, e.g. QA Manager" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                    <Input placeholder="LinkedIn profile URL" value={form.linkedin_url} onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })} />
+                    <Input type="email" placeholder="Email (if shared)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                    <Input placeholder="Phone (if shared)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                    <div className="flex gap-2"><Button type="submit" size="sm">Add contact</Button><Button type="button" size="sm" variant="ghost" onClick={() => setAdding(null)}>Cancel</Button></div>
+                  </form>
+                ) : (
+                  <Button size="sm" variant="outline" className="w-fit" onClick={() => setAdding(t.company)}><UserPlus /> Add a person</Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const EMPTY = { name: "", company: "", email: "", linkedin_url: "", title: "", role: "recruiter" as ContactRole, notes: "" };
 
 function CapMeter({ stats }: { stats: OutreachStats }) {
@@ -96,6 +170,7 @@ export default function RecruitersPage() {
   const stats = useApi<OutreachStats>("/outreach/stats");
   const tpls = useApi<OutreachTemplate[]>("/outreach/templates");
   const [tab, setTab] = useState<Tab>("queue");
+  useEffect(() => { if (new URLSearchParams(window.location.search).get("tab") === "find") setTab("find"); }, []);
   const [msg, setMsg] = useState<Msg>(null);
   const [form, setForm] = useState(EMPTY);
   const [showAdd, setShowAdd] = useState(false);
@@ -129,6 +204,7 @@ export default function RecruitersPage() {
     { id: "queue", label: "Queue", count: queue.length },
     { id: "sent", label: "Sent & replies", count: sent.length },
     { id: "contacts", label: "Contacts", count: contacts.data?.length },
+    { id: "find", label: "Find people" },
     { id: "templates", label: "Email & WhatsApp templates" },
   ];
 
@@ -211,6 +287,8 @@ export default function RecruitersPage() {
           ) : sent.map((o, i) => <OutreachCard key={o.id + o.updated_at} item={o} onChange={reload} delay={i * 40} />)}
         </div>
       )}
+
+      {tab === "find" && <FindPeople onAdded={reload} />}
 
       {tab === "templates" && (
         <div className="flex flex-col gap-4">

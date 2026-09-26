@@ -78,6 +78,55 @@ async def companies(user: dict = Depends(get_current_user), db: AsyncIOMotorData
     return [{"company": r["company"], "contacts": r["contacts"]} for r in rows]
 
 
+@router.get("/recruiters/find-people")
+async def find_people(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """For each company you're pursuing: who to reach (HR, talent acquisition, QA / test managers), as
+    LinkedIn people-search links you open yourself, plus the contacts and hiring emails Saige already has.
+    Saige never scrapes LinkedIn; you open the search, pick the person, and add them."""
+    from urllib.parse import quote
+
+    from app.jobs.dedupe import company_key
+
+    uid = user["_id"]
+    counts: dict[str, dict] = {}
+
+    def bump(name: str | None, source: str, url: str | None = None) -> None:
+        if not name or name.lower() in ("unknown company", "company not listed"):
+            return
+        k = company_key(name)
+        if not k:
+            return
+        row = counts.setdefault(k, {"company": name, "score": 0, "sources": set(), "job_url": None})
+        row["score"] += {"application": 3, "job": 1, "feed": 1}[source]
+        row["sources"].add(source)
+        row["job_url"] = row["job_url"] or url
+
+    async for a in db[c.APPLICATIONS].find({"user_id": uid}, {"company": 1, "application_url": 1}).limit(300):
+        bump(a.get("company"), "application", a.get("application_url"))
+    async for j in db[c.JOBS].find({"user_id": uid}, {"company": 1, "application_url": 1}).limit(300):
+        bump(j.get("company"), "job", j.get("application_url"))
+    feed = await db[c.JOB_FEED].find_one({"_id": uid}, {"items.company": 1, "items.score": 1}) or {}
+    for it in feed.get("items", []):
+        if (it.get("score") or 0) >= 60:
+            bump(it.get("company"), "feed")
+
+    contacts: dict[str, list] = {}
+    async for ct in db[c.RECRUITER_CONTACTS].find({"user_id": uid}, {"name": 1, "company_key": 1, "email": 1, "phone": 1, "title": 1}):
+        contacts.setdefault(ct.get("company_key") or "", []).append(
+            {"id": ct["_id"], "name": ct["name"], "email": ct.get("email"), "phone": ct.get("phone"), "title": ct.get("title")})
+    people = ["HR", "Talent Acquisition", "Technical Recruiter", "QA Manager", "Test Lead", "SDET Manager", "Engineering Manager"]
+    out = []
+    for k, row in sorted(counts.items(), key=lambda kv: -kv[1]["score"])[:40]:
+        name = row["company"]
+        out.append({
+            "company": name, "sources": sorted(row["sources"]), "job_url": row["job_url"], "known": contacts.get(k, []),
+            "searches": [{"label": p, "url": f"https://www.linkedin.com/search/results/people/?keywords={quote(p + ' ' + name)}"}
+                         for p in people],
+            "email_search": f"https://www.google.com/search?q={quote(f'{name} HR recruiter email careers')}",
+        })
+    return out
+
+
 @router.get("/recruiters/for-job/{job_id}")
 async def contacts_for_job(job_id: str, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     """People you know at the job's company - the starting point for a referral request."""

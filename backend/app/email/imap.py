@@ -21,7 +21,9 @@ from app.jobs.jd_parser import html_to_text
 
 HOST = "imap.gmail.com"
 IMAP_FACTORY = imaplib.IMAP4_SSL  # patched in tests
-_META = re.compile(rb"X-GM-MSGID (\d+).*?X-GM-THRID (\d+)", re.S)
+# Gmail returns these attributes in any order (often X-GM-THRID first), so match each on its own.
+_MSGID = re.compile(rb"X-GM-MSGID (\d+)")
+_THRID = re.compile(rb"X-GM-THRID (\d+)")
 
 
 def normalize_password(app_password: str) -> str:
@@ -70,6 +72,38 @@ def _since(days: int) -> str:
     return (datetime.now(UTC) - timedelta(days=days)).strftime("%d-%b-%Y")
 
 
+def _unknown_newest(conn, uids: list[bytes], skip: set[str], limit: int) -> list[bytes]:
+    """The newest `limit` messages not imported yet: ids are fetched cheaply first, so every sync
+    backfills the next batch of older mail instead of re-reading the same newest messages."""
+    if not skip or not uids:
+        return uids[-limit:]
+    fresh: list[bytes] = []
+    for i in range(len(uids), 0, -400):  # newest chunks first
+        chunk = uids[max(0, i - 400):i]
+        try:
+            status, parts = conn.uid("FETCH", b",".join(chunk).decode(), "(X-GM-MSGID)")
+        except (imaplib.IMAP4.error, ValueError):
+            return uids[-limit:]
+        if status != "OK":
+            return uids[-limit:]
+        ids: dict[bytes, str] = {}
+        for p in parts or []:
+            line = p[0] if isinstance(p, tuple) else p
+            if not isinstance(line, bytes):
+                continue
+            u, mid = re.search(rb"UID (\d+)", line), _MSGID.search(line)
+            if u and mid:
+                ids[u.group(1)] = format(int(mid.group(1)), "x")
+        if not ids:  # server didn't echo UIDs: fall back to the plain newest window
+            return uids[-limit:]
+        for u in reversed(chunk):
+            if ids.get(u) not in skip:
+                fresh.append(u)
+                if len(fresh) >= limit:
+                    return list(reversed(fresh))
+    return list(reversed(fresh))
+
+
 def _fetch_sync(address: str, app_password: str, limit: int, skip: set[str], query: str = DEFAULT_QUERY,
                 stats: dict | None = None) -> list[dict]:
     stats = stats if stats is not None else {}
@@ -87,32 +121,46 @@ def _fetch_sync(address: str, app_password: str, limit: int, skip: set[str], que
             status, data = conn.uid("SEARCH", None, "SINCE", _since(30))
             uids = (data[0] or b"").split() if status == "OK" and data else []
             stats.update({"matched": len(uids), "fallback": True})
-        uids = uids[-limit:]
+        uids = _unknown_newest(conn, uids, skip, limit)
         me = address.lower()
-        out = []
+        out: list[dict] = []
+        skipped = {"known": 0, "own": 0, "unreadable": 0}
         for uid in reversed(uids):  # newest first
-            status, parts = conn.uid("FETCH", uid, "(X-GM-MSGID X-GM-THRID BODY.PEEK[])")
-            if status != "OK" or not parts or not isinstance(parts[0], tuple):
-                continue
-            meta, raw = parts[0]
-            m = _META.search(meta)
-            if not m:
-                continue
-            gmail_id, thread_id = format(int(m.group(1)), "x"), format(int(m.group(2)), "x")
-            if gmail_id in skip:
-                continue
-            msg = email.message_from_bytes(raw, policy=policy.default)
-            sender = str(msg["From"] or "")
-            if me and me in sender.lower():
-                continue  # your own sent mail (All Mail includes it)
             try:
-                received_ms = int(parsedate_to_datetime(msg["Date"]).timestamp() * 1000)
-            except (TypeError, ValueError):
-                received_ms = 0
-            body = _text(msg)
-            out.append({"gmail_id": gmail_id, "thread_id": thread_id, "sender": sender,
-                        "subject": str(msg["Subject"] or ""), "body": body[:20000], "received_ms": received_ms,
-                        "snippet": re.sub(r"\s+", " ", body)[:160]})
+                status, parts = conn.uid("FETCH", uid, "(X-GM-MSGID X-GM-THRID BODY.PEEK[])")
+                item = next((x for x in (parts or []) if isinstance(x, tuple) and len(x) == 2), None)
+                if status != "OK" or item is None:
+                    skipped["unreadable"] += 1
+                    continue
+                meta, raw = item
+                mid, tid = _MSGID.search(meta), _THRID.search(meta)
+                if not mid:
+                    skipped["unreadable"] += 1
+                    continue
+                gmail_id = format(int(mid.group(1)), "x")
+                thread_id = format(int(tid.group(1)), "x") if tid else gmail_id
+                if gmail_id in skip:
+                    skipped["known"] += 1
+                    continue
+                msg = email.message_from_bytes(raw, policy=policy.default)
+                sender = str(msg["From"] or "")
+                if me and me in sender.lower():
+                    skipped["own"] += 1
+                    continue  # your own sent mail (All Mail includes it)
+                try:
+                    received_ms = int(parsedate_to_datetime(msg["Date"]).timestamp() * 1000)
+                except (TypeError, ValueError):
+                    received_ms = 0
+                try:
+                    body = _text(msg)
+                except (LookupError, UnicodeError, KeyError, AttributeError):
+                    body = raw.decode("utf-8", errors="ignore")[:20000]
+                out.append({"gmail_id": gmail_id, "thread_id": thread_id, "sender": sender,
+                            "subject": str(msg["Subject"] or ""), "body": body[:20000], "received_ms": received_ms,
+                            "snippet": re.sub(r"\s+", " ", body)[:160]})
+            except (imaplib.IMAP4.error, ValueError, TypeError):
+                skipped["unreadable"] += 1
+        stats["skipped"] = skipped
         stats["fetched"] = len(out)
         return out
     finally:

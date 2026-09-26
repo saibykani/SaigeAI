@@ -23,8 +23,8 @@ export function WhatsAppCard({ info, onChange }: { info: Integrations["whatsapp"
     setBusy(true);
     setMsg(null);
     try {
-      await request("/integrations/whatsapp", { method: "PUT", body: { phone, apikey, enabled: true } });
-      setMsg({ tone: "success", text: "Connected. Check WhatsApp for the confirmation message." });
+      const r = await request<{ warning?: string | null }>("/integrations/whatsapp", { method: "PUT", body: { phone, apikey, enabled: true } });
+      setMsg(r.warning ? { tone: "success", text: r.warning } : { tone: "success", text: "Connected. Check WhatsApp for the confirmation message." });
       setEditing(false);
       setApikey("");
       onChange();
@@ -58,6 +58,15 @@ export function WhatsAppCard({ info, onChange }: { info: Integrations["whatsapp"
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span>Sending to <b>{info.phone}</b></span>
             {info.error && <span className="text-destructive">Last attempt failed: {info.error}</span>}
+            <Button size="sm" onClick={async () => {
+              setMsg(null);
+              try {
+                const r = await request<{ answer: string }>("/integrations/whatsapp/test", { method: "POST" });
+                setMsg({ tone: "success", text: `Sent. CallMeBot: “${r.answer || "OK"}”` });
+              } catch (e) {
+                setMsg({ tone: "error", text: e instanceof Error ? e.message : "Not sent" });
+              }
+            }}>Send test</Button>
             <Button size="sm" variant="outline" onClick={toggle}>{info.enabled ? "Pause" : "Resume"}</Button>
             <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>Change number</Button>
             <Button size="sm" variant="ghost" onClick={async () => { await request("/integrations/whatsapp", { method: "DELETE" }); onChange(); setEditing(true); }}>Remove</Button>

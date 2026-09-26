@@ -63,7 +63,8 @@ class AllMailIMAP:
         raw = (b"From: Me <asha@gmail.com>\r\nSubject: sent\r\n\r\nmine" if args[0] == b"6" else
                b"From: HR <hr@payco.com>\r\nSubject: Hello\r\nDate: Mon, 28 Sep 2026 10:00:00 +0530\r\n\r\nAre you open to roles?")
         n = args[0].decode()
-        return "OK", [(f"{n} (X-GM-MSGID 17800000000000000{n} X-GM-THRID 1 BODY[] {{10}}".encode(), raw), b")"]
+        # real Gmail often lists X-GM-THRID before X-GM-MSGID (this broke imports on a live account)
+        return "OK", [(f"{n} (X-GM-THRID 1 X-GM-MSGID 17800000000000000{n} UID {n} BODY[] {{10}}".encode(), raw), b")"]
 
     def logout(self):
         return "BYE", []
@@ -75,7 +76,8 @@ async def test_imap_uses_all_mail_and_falls_back_to_date_search(monkeypatch):
     stats: dict = {}
     msgs = await imap.fetch_messages("asha@gmail.com", "abcdefghijklmnop", stats=stats)
     assert AllMailIMAP.box == '"[Gmail]/All Mail"'
-    assert stats == {"mailbox": "[Gmail]/All Mail", "matched": 2, "fallback": True, "fetched": 1}
+    assert stats == {"mailbox": "[Gmail]/All Mail", "matched": 2, "fallback": True, "fetched": 1,
+                     "skipped": {"known": 0, "own": 1, "unreadable": 0}}
     assert [m["subject"] for m in msgs] == ["Hello"]  # your own sent mail is skipped
     assert AllMailIMAP.searches[1][:2] == (None, "SINCE")
     assert isinstance(imaplib.IMAP4_SSL, type)

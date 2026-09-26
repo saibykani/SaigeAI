@@ -203,3 +203,51 @@ async def breakdowns(weeks: int = 8, user: dict = Depends(get_current_user), db:
     from app.analytics.service import breakdowns as compute
 
     return await compute(db, user["_id"], max(4, min(weeks, 26)))
+
+
+@router.get("/insights")
+async def insights(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Pipeline and market numbers that are useful from day one (no sent applications needed)."""
+    import asyncio
+
+    uid = user["_id"]
+
+    async def agg(coll: str, field: str, match: dict | None = None, limit: int = 12) -> list[dict]:
+        pipe = [{"$match": {"user_id": uid, **(match or {})}}, {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}}, {"$limit": limit}]
+        return [{"label": d["_id"] or "Unknown", "count": d["count"]} async for d in db[coll].aggregate(pipe)]
+
+    async def match_buckets() -> list[dict]:
+        buckets = [("85–100", 85), ("70–84", 70), ("55–69", 55), ("0–54", 0)]
+        out = {b: 0 for b, _ in buckets}
+        async for j in db[c.JOBS].find({"user_id": uid, "match.overall": {"$ne": None}}, {"match.overall": 1}):
+            v = (j.get("match") or {}).get("overall") or 0
+            out[next(b for b, floor in buckets if v >= floor)] += 1
+        return [{"label": b, "count": n} for b, n in out.items()]
+
+    async def feed_stats() -> dict:
+        doc = await db[c.JOB_FEED].find_one({"_id": uid}, {"items.scope": 1, "items.location": 1, "items.company": 1,
+                                                          "items.score": 1, "items.walk_in": 1, "items.source_label": 1,
+                                                          "country": 1, "roles": 1})
+        items = (doc or {}).get("items", [])
+
+        def top(key: str) -> list[dict]:
+            counts: dict[str, int] = {}
+            for i in items:
+                v = (i.get(key) or "").split(",")[0].strip()
+                if v:
+                    counts[v] = counts.get(v, 0) + 1
+            return [{"label": k, "count": n} for k, n in sorted(counts.items(), key=lambda x: -x[1])[:8]]
+
+        return {"total": len(items), "country": sum(i.get("scope") == "country" for i in items),
+                "remote": sum(i.get("scope") == "remote" for i in items), "walk_in": sum(bool(i.get("walk_in")) for i in items),
+                "strong": sum((i.get("score") or 0) >= 80 for i in items),
+                "avg_score": round(sum(i.get("score") or 0 for i in items) / len(items)) if items else None,
+                "top_locations": top("location"), "top_companies": top("company"), "by_source": top("source_label"),
+                "country_name": (doc or {}).get("country"), "roles": (doc or {}).get("roles", [])}
+
+    statuses, sources, buckets, companies, inbox, contacts, feed = await asyncio.gather(
+        agg(c.APPLICATIONS, "status"), agg(c.JOBS, "source"), match_buckets(), agg(c.APPLICATIONS, "company", limit=8),
+        agg(c.EMAILS, "category"), agg(c.RECRUITER_CONTACTS, "source"), feed_stats())
+    return {"applications_by_status": statuses, "jobs_by_source": sources, "match_distribution": buckets,
+            "top_companies": companies, "inbox": inbox, "contacts_by_source": contacts, "feed": feed}

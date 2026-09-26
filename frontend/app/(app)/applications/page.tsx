@@ -155,6 +155,55 @@ function ApprovalQueue({ apps, onDone }: { apps: Application[]; onDone: () => vo
   );
 }
 
+/** Applications opened on employer sites but not confirmed yet: confirm them in bulk. */
+function SubmittedCheck({ apps, onDone }: { apps: Application[]; onDone: () => void }) {
+  const pending = apps.filter((a) => a.status === "APPLYING");
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  if (!pending.length) return null;
+  const all = pending.every((a) => picked.has(a.id));
+  async function confirm() {
+    setBusy(true);
+    try {
+      for (const id of picked) await request(`/applications/${id}/mark-applied`, { method: "POST" });
+      setPicked(new Set());
+      onDone();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Card className="animate-rise mb-6" style={{ borderColor: "color-mix(in srgb, var(--tone-teal) 30%, transparent)" }}>
+      <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle className="text-lg">Did you submit these? <span className="text-muted-foreground">· {pending.length}</span></CardTitle>
+          <CardDescription className="mt-1 max-w-3xl">You opened these on the employer&apos;s site. Confirm the ones you submitted so follow-ups start and Analytics can measure responses.</CardDescription>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium" onClick={() => setPicked(all ? new Set() : new Set(pending.map((a) => a.id)))}>
+            {all ? <CheckSquare className="size-4" style={{ color: "var(--tone-teal)" }} /> : <Square className="size-4" />} Select all
+          </button>
+          <Button size="sm" disabled={!picked.size || busy} onClick={confirm}>{busy ? <Loader2 className="animate-spin" /> : <Send />} Mark {picked.size || ""} as applied</Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ul className="grid max-h-80 gap-2 overflow-y-auto md:grid-cols-2 xl:grid-cols-3">
+          {pending.map((a) => (
+            <li key={a.id}>
+              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border p-2.5 text-sm hover:bg-muted/40">
+                <input type="checkbox" className="size-4 accent-[var(--tone-teal)]" checked={picked.has(a.id)}
+                  onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(a.id)) n.delete(a.id); else n.add(a.id); return n; })} />
+                <span className="min-w-0 flex-1"><span className="block truncate font-medium">{a.role}</span><span className="block truncate text-xs text-muted-foreground">{a.company}</span></span>
+                {a.application_url && <a href={a.application_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-foreground"><ExternalLink className="size-3.5" /></a>}
+              </label>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ApplicationsPage() {
   const { data, error, loading, reload } = useApi<Application[]>("/applications");
   const closed = (data ?? []).filter((a) => CLOSED.includes(a.status));
@@ -178,6 +227,7 @@ export default function ApplicationsPage() {
       {data && data.length > 0 && (
         <>
           <ApprovalQueue apps={data} onDone={() => void reload()} />
+          <SubmittedCheck apps={data} onDone={() => void reload()} />
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {COLUMNS.map((col, ci) => {
               const items = data.filter((a) => col.statuses.includes(a.status));

@@ -28,6 +28,7 @@ import { useState } from "react";
 
 import { Notice } from "@/components/app-shell";
 import { FunnelChart } from "@/components/funnel-chart";
+import { InsightsGrid } from "@/components/insights";
 import { CountKpi, RateKpi, TrendKpi } from "@/components/kpi";
 import { CountUp, ProgressRing } from "@/components/motion";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -192,6 +193,11 @@ export default function DashboardPage() {
           <CountKpi label="Follow-ups due" value={hl.followups_due} icon={MailCheck} href="/applications" delay={240} tone="red" />
           <CountKpi label="Tailored resumes · cover letters" value={hl.tailored_resumes + hl.cover_letters} hint={`${hl.tailored_resumes} resumes · ${hl.cover_letters} letters`} icon={Wand2} delay={280} tone="mint" />
         </div>
+      </section>
+
+      <section aria-labelledby="market">
+        <h2 id="market" className="mb-4 text-xl font-semibold tracking-tight">Your market &amp; pipeline</h2>
+        <InsightsGrid compact />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">

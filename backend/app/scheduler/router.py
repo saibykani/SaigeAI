@@ -46,8 +46,8 @@ async def cron_daily(authorization: str | None = Header(default=None), cursor: s
 
 @router.post("/live/tick")
 async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    """Called every few minutes while Saige is open: syncs Gmail (portal alerts, invites, recruiter mail)
-    when the last sync is over 3 minutes old, and refreshes Jobs for you when it is over 15 minutes old."""
+    """Called every minute while Saige is open: syncs Gmail (portal alerts, invites, recruiter mail) when the
+    last sync is a minute old, and refreshes Jobs for you when it is over 5 minutes old."""
     from datetime import timedelta
 
     from app.automation.service import is_allowed
@@ -58,7 +58,7 @@ async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorData
     uid, now, out = user["_id"], utcnow(), {"gmail": None, "feed": None}
     integ = await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "gmail"})
     if integ and await is_allowed(db, uid, "gmail_sync") and (
-            not integ.get("last_sync_at") or now - as_utc(integ["last_sync_at"]) > timedelta(minutes=3)):
+            not integ.get("last_sync_at") or now - as_utc(integ["last_sync_at"]) > timedelta(seconds=55)):
         try:
             r = await run_sync(db, uid, integ)
             out["gmail"] = {"fetched": r.get("fetched", 0), "alert_jobs": r.get("alert_jobs", 0)}

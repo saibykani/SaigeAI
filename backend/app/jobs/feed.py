@@ -31,7 +31,7 @@ from app.schemas.profile import Profile
 from app.utils import as_utc, utcnow
 
 logger = logging.getLogger("saige.feed")
-FEED_TTL = timedelta(minutes=15)
+FEED_TTL = timedelta(minutes=5)
 MAX_ITEMS = 400
 DESC_KEEP = 6000
 DETAIL_FETCHES_PER_BOARD = 6

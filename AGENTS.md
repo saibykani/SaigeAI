@@ -61,7 +61,9 @@ backend/app/
   email/                  # Gmail OAuth or App Password (imap.py read from All Mail with a SINCE fallback, smtp.py send approved mail),
                           # classifier, ingest -> status; portal.py (LinkedIn/Naukri/Indeed mail: categories, recruiter + phone extraction,
                           # never moves application status); auto_reply.py (reply drafts to recruiter mail from verified profile facts)
-  activity/router.py      # /activity timeline (audit log) + /activity/referrals (outreach grouped per job)
+  activity/router.py      # /activity timeline (audit log) + /activity/referrals (outreach grouped per job); page kept at /activity (not in the sidebar)
+  assistant/router.py     # Saige AI chat: Claude (llm.chat) grounded in a summary of the user's records, or a built-in answerer without a key
+  analytics/router.py     # also /analytics/insights (market + pipeline numbers useful before any application is sent)
   analytics/              # /analytics/dashboard aggregate + service.breakdowns (source/role/resume/match, weekly, time-to-response)
   automation/             # AutomationSettings (mode, pauses, schedules, limits), is_allowed
   services/whatsapp.py    # mirrors every notify() to the user's WhatsApp via CallMeBot (best effort)
@@ -130,6 +132,8 @@ Never commit env files.
 - The sidebar is kept short. Pages with related data share one entry and switch with `tabs` in `NAV`
   (Dashboard·Analytics, Applications·Interviews, LinkedIn & Naukri·Resume sync, Settings = Alerts & templates·
   Integrations·Agent·Automation & privacy). Profile is the last sidebar entry.
-- While the app is open, `useLiveSync` (hooks/use-api.ts) calls `POST /api/live/tick` every 3 minutes (Gmail + portal
-  mail when the last sync is >3 min old, job feed when >15 min old) and fires `saige:refresh` so `useApi` pages reload.
+- While the app is open, `useLiveSync` (hooks/use-api.ts) calls `POST /api/live/tick` every minute (Gmail + portal
+  mail when the last sync is ~1 min old, job feed when >5 min old) and fires `saige:refresh` so `useApi` pages reload.
+- The Saige AI assistant is a sidebar page (/assistant) and a floating orb (components/assistant.tsx) on every page.
+  `components/effects.tsx` adds the click ring/sparks and 3D tilt on `.lift` cards.
 - Company contact email: `info.saigeai@gmail.com` (`CONTACT_EMAIL` in `components/legal.tsx`).
