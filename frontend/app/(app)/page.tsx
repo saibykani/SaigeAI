@@ -137,12 +137,12 @@ export default function DashboardPage() {
           <span className="text-xs text-muted-foreground">Automation mode <b className="font-medium capitalize text-foreground">{data.automation.mode}</b></span>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <TrendKpi label="Jobs found" series={t.jobs_found} icon={Search} href="/jobs" delay={0} />
-          <TrendKpi label="Relevant jobs" series={t.relevant_jobs} icon={Target} href="/jobs" delay={50} />
-          <TrendKpi label="Applied" series={t.applications_submitted} icon={Send} href="/applications" delay={100} />
-          <TrendKpi label="Interviews" series={t.interviews} icon={CalendarCheck} href="/interviews" delay={150} />
-          <TrendKpi label="AI documents" series={t.documents} icon={Wand2} delay={200} />
-          <TrendKpi label="Profile suggestions" series={t.profile_changes} icon={Sparkles} href="/profile-sync" delay={250} />
+          <TrendKpi label="Jobs found" series={t.jobs_found} icon={Search} href="/jobs" delay={0} tone="green" />
+          <TrendKpi label="Relevant jobs" series={t.relevant_jobs} icon={Target} href="/jobs" delay={50} tone="orange" />
+          <TrendKpi label="Applied" series={t.applications_submitted} icon={Send} href="/applications" delay={100} tone="purple" />
+          <TrendKpi label="Interviews" series={t.interviews} icon={CalendarCheck} href="/interviews" delay={150} tone="yellow" />
+          <TrendKpi label="AI documents" series={t.documents} icon={Wand2} delay={200} tone="mint" />
+          <TrendKpi label="Profile suggestions" series={t.profile_changes} icon={Sparkles} href="/profile-sync" delay={250} tone="red" />
         </div>
       </section>
 
@@ -150,14 +150,14 @@ export default function DashboardPage() {
       <section aria-labelledby="health">
         <h2 id="health" className="mb-4 text-xl font-semibold tracking-tight">Pipeline health</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <CountKpi label="Active applications" value={hl.active_applications} icon={Briefcase} href="/applications" delay={0} />
-          <RateKpi label="Response rate" value={hl.response_rate} hint="Replies ÷ applications sent" icon={Reply} delay={40} />
-          <RateKpi label="Interview rate" value={hl.interview_rate} hint="Interviews ÷ applications sent" icon={Video} delay={80} />
-          <RateKpi label="Offer rate" value={hl.offer_rate} hint="Offers ÷ applications sent" icon={Trophy} delay={120} />
-          <RateKpi label="Average job match" value={hl.avg_match} hint="Across all tracked jobs" icon={Gauge} delay={160} />
-          <RateKpi label="Average ATS score" value={hl.avg_ats} hint="Tailored resumes" icon={FileText} delay={200} />
-          <CountKpi label="Follow-ups due" value={hl.followups_due} icon={MailCheck} href="/applications" delay={240} />
-          <CountKpi label="Tailored resumes · cover letters" value={hl.tailored_resumes + hl.cover_letters} hint={`${hl.tailored_resumes} resumes · ${hl.cover_letters} letters`} icon={Wand2} delay={280} />
+          <CountKpi label="Active applications" value={hl.active_applications} icon={Briefcase} href="/applications" delay={0} tone="purple" />
+          <RateKpi label="Response rate" value={hl.response_rate} hint="Replies ÷ applications sent" icon={Reply} delay={40} tone="teal" />
+          <RateKpi label="Interview rate" value={hl.interview_rate} hint="Interviews ÷ applications sent" icon={Video} delay={80} tone="yellow" />
+          <RateKpi label="Offer rate" value={hl.offer_rate} hint="Offers ÷ applications sent" icon={Trophy} delay={120} tone="green" />
+          <RateKpi label="Average job match" value={hl.avg_match} hint="Across all tracked jobs" icon={Gauge} delay={160} tone="orange" />
+          <RateKpi label="Average ATS score" value={hl.avg_ats} hint="Tailored resumes" icon={FileText} delay={200} tone="lime" />
+          <CountKpi label="Follow-ups due" value={hl.followups_due} icon={MailCheck} href="/applications" delay={240} tone="red" />
+          <CountKpi label="Tailored resumes · cover letters" value={hl.tailored_resumes + hl.cover_letters} hint={`${hl.tailored_resumes} resumes · ${hl.cover_letters} letters`} icon={Wand2} delay={280} tone="mint" />
         </div>
       </section>
 

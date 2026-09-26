@@ -3,6 +3,8 @@ export const THEMES = [
   { id: "graphite", name: "Graphite", note: "Pure black · silver", swatch: ["#000000", "#ffffff", "#a1a1aa", "#e4e4e7"] },
   { id: "obsidian", name: "Obsidian", note: "Warm black · gold", swatch: ["#070604", "#fde68a", "#f5b73b", "#d6a04a"] },
   { id: "aurora", name: "Aurora", note: "Polar night · emerald", swatch: ["#030b0a", "#34d399", "#22d3ee", "#a3e635"] },
+  { id: "ember", name: "Ember", note: "Charcoal · orange", swatch: ["#0a0706", "#ff8a3d", "#ffb37a", "#e8651a"] },
+  { id: "forest", name: "Forest", note: "Deep green · mint", swatch: ["#040806", "#4ade80", "#86efac", "#16a34a"] },
   { id: "daylight", name: "Daylight", note: "Clean white · ink", swatch: ["#f7f8fb", "#111113", "#52525b", "#a1a1aa"] },
 ] as const;
 

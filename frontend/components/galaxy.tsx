@@ -149,7 +149,7 @@ export function Galaxy({ className }: { className?: string }) {
       if (orbit.dragging) { orbit.vYaw *= 0.6; orbit.vTilt *= 0.6; }
       spinBoost *= 0.985;
       zoomPulse *= 0.93;
-      spin += dt * (0.05 + spinBoost * 0.35);
+      spin += dt * (0.018 + spinBoost * 0.22);
 
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, w, h);
@@ -203,7 +203,7 @@ export function Galaxy({ className }: { className?: string }) {
       const R = 120; // hover influence radius (px)
       for (let i = 0; i < stars.length; i++) {
         const s = stars[i];
-        const ang = s.a + yaw + time * s.speed * (reduce ? 0 : 1);
+        const ang = s.a + yaw + time * s.speed * 0.3 * (reduce ? 0 : 1); // slow, stately rotation
         const x = Math.cos(ang) * s.r;
         const z0 = Math.sin(ang) * s.r;
         const y = s.y * cosT - z0 * sinT;

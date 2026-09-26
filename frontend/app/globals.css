@@ -49,13 +49,17 @@
   --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
   --ord-1: #86b6ef; --ord-2: #5598e7; --ord-3: #3987e5; --ord-4: #2a78d6;
   --ord-5: #256abf; --ord-6: #1c5cab; --ord-7: #184f95; --ord-8: #104281;
+  --tone-green: #1e8e3e; --tone-orange: #e8710a; --tone-yellow: #c58a00; --tone-purple: #8e44d6;
+  --tone-red: #d93025; --tone-mint: #0f9d8a; --tone-teal: #0b8bb0; --tone-lime: #5f9e0f;
   --grid: #e3e5ec;
 }
 
 /* Shared dark-theme values */
 [data-theme="graphite"],
 [data-theme="obsidian"],
-[data-theme="aurora"] {
+[data-theme="aurora"],
+[data-theme="ember"],
+[data-theme="forest"] {
   color-scheme: dark;
   --card-foreground: var(--foreground);
   --destructive: #f87171;
@@ -69,6 +73,9 @@
   --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
   --ord-1: #184f95; --ord-2: #1c5cab; --ord-3: #256abf; --ord-4: #2a78d6;
   --ord-5: #3987e5; --ord-6: #5598e7; --ord-7: #6da7ec; --ord-8: #86b6ef;
+  /* One solid accent per KPI card (Apple system colours, dark steps) */
+  --tone-green: #30d158; --tone-orange: #ff9f0a; --tone-yellow: #ffd60a; --tone-purple: #bf5af2;
+  --tone-red: #ff453a; --tone-mint: #63e6be; --tone-teal: #40c8e0; --tone-lime: #a3e635;
 }
 
 /* Graphite: pure black, Apple-style monochrome with silver highlights */
@@ -153,6 +160,62 @@
   --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 22px 48px -14px rgba(52, 211, 153, 0.3);
   --hero-gradient: linear-gradient(135deg, #03261f 0%, #065f52 50%, #155e75 100%);
   --grid: #16302a;
+}
+
+/* Ember: charcoal with a single warm orange accent */
+[data-theme="ember"] {
+  --background: #0a0706;
+  --foreground: #f7efe9;
+  --card: rgba(26, 18, 15, 0.78);
+  --card-solid: #150f0c;
+  --muted: #221813;
+  --muted-foreground: #ab9a8f;
+  --border: rgba(255, 140, 66, 0.13);
+  --input: #34241b;
+  --primary: #ff8a3d;
+  --primary-foreground: #1c0b02;
+  --secondary: #2a1b12;
+  --secondary-foreground: #ffd9bf;
+  --accent: #2a1b12;
+  --accent-foreground: #ffd9bf;
+  --ring: #ff8a3d;
+  --brand-1: #ffb37a;
+  --brand-2: #ff8a3d;
+  --brand-3: #e8651a;
+  --glow-1: rgba(255, 138, 61, 0.1);
+  --glow-2: rgba(232, 101, 26, 0.07);
+  --glow-3: rgba(255, 179, 122, 0.05);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.6), 0 24px 50px -16px rgba(255, 138, 61, 0.28);
+  --hero-gradient: linear-gradient(135deg, #140a05 0%, #2e160a 55%, #4d220c 100%);
+  --grid: #2b1e17;
+}
+
+/* Forest: deep green-black with a single green accent */
+[data-theme="forest"] {
+  --background: #040806;
+  --foreground: #eaf4ec;
+  --card: rgba(14, 24, 18, 0.78);
+  --card-solid: #0c1510;
+  --muted: #13201a;
+  --muted-foreground: #8fa597;
+  --border: rgba(74, 222, 128, 0.12);
+  --input: #1d3126;
+  --primary: #4ade80;
+  --primary-foreground: #03140a;
+  --secondary: #11261a;
+  --secondary-foreground: #c9f5d8;
+  --accent: #11261a;
+  --accent-foreground: #c9f5d8;
+  --ring: #4ade80;
+  --brand-1: #86efac;
+  --brand-2: #4ade80;
+  --brand-3: #16a34a;
+  --glow-1: rgba(74, 222, 128, 0.1);
+  --glow-2: rgba(22, 163, 74, 0.07);
+  --glow-3: rgba(134, 239, 172, 0.05);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.55), 0 22px 48px -14px rgba(74, 222, 128, 0.26);
+  --hero-gradient: linear-gradient(135deg, #03140b 0%, #0a2e1a 55%, #14532d 100%);
+  --grid: #172a20;
 }
 
 @theme inline {
@@ -354,3 +417,28 @@ body {
 @keyframes spark-draw { from { stroke-dasharray: 400; stroke-dashoffset: 400; } to { stroke-dasharray: 400; stroke-dashoffset: 0; } }
 .spark-draw { animation: spark-draw 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @media (prefers-reduced-motion: reduce) { .spark-draw { animation: none; } }
+
+/* ---------------- 3D loader ---------------- */
+.loader3d { perspective: 700px; }
+.loader3d-stage { position: relative; transform-style: preserve-3d; animation: l3d-tilt 6s ease-in-out infinite; }
+.loader3d-ring {
+  position: absolute; inset: 0; border-radius: 9999px;
+  border: 2px solid transparent; border-top-color: var(--primary); border-left-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  transform-style: preserve-3d;
+}
+.loader3d-ring:nth-child(1) { animation: l3d-spin-x 1.8s linear infinite; }
+.loader3d-ring:nth-child(2) { inset: 12%; animation: l3d-spin-y 2.4s linear infinite; opacity: 0.8; }
+.loader3d-ring:nth-child(3) { inset: 24%; animation: l3d-spin-z 3s linear infinite; opacity: 0.6; }
+.loader3d-core {
+  position: absolute; inset: 40%; border-radius: 9999px; background: var(--primary);
+  box-shadow: 0 0 24px 4px color-mix(in srgb, var(--primary) 55%, transparent);
+  animation: l3d-pulse 1.6s ease-in-out infinite;
+}
+@keyframes l3d-spin-x { from { transform: rotateX(65deg) rotateZ(0deg); } to { transform: rotateX(65deg) rotateZ(360deg); } }
+@keyframes l3d-spin-y { from { transform: rotateY(65deg) rotateZ(0deg); } to { transform: rotateY(65deg) rotateZ(-360deg); } }
+@keyframes l3d-spin-z { from { transform: rotateX(-35deg) rotateY(35deg) rotateZ(0deg); } to { transform: rotateX(-35deg) rotateY(35deg) rotateZ(360deg); } }
+@keyframes l3d-tilt { 0%, 100% { transform: rotateX(10deg) rotateY(-12deg); } 50% { transform: rotateX(-10deg) rotateY(12deg); } }
+@keyframes l3d-pulse { 0%, 100% { transform: scale(0.85); opacity: 0.85; } 50% { transform: scale(1.1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .loader3d-stage, .loader3d-ring, .loader3d-core { animation: none; }
+}

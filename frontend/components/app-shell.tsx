@@ -7,6 +7,7 @@ import {
   Briefcase,
   FileText,
   LayoutDashboard,
+  LifeBuoy,
   LogOut,
   Mail,
   Menu,
@@ -24,6 +25,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Wordmark } from "@/components/brand";
+import { Loader3D } from "@/components/loader3d";
 import { ThemeSwitcher } from "@/components/theme";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -42,10 +44,12 @@ const NAV: NavItem[] = [
   { href: "/profile-sync", label: "Profile Sync", icon: Sparkles, slot: 4 },
   { href: "/integrations", label: "Integrations", icon: Plug, slot: 5 },
   { href: "/settings", label: "Automation & Privacy", icon: Settings, slot: 5 },
+  { href: "/help", label: "Help & Docs", icon: LifeBuoy, slot: 1 },
 ];
 
 const UPCOMING = [
-  { label: "Recruiters", icon: Users, phase: 6 },
+  { label: "LinkedIn & Naukri hub", icon: UserRound, phase: 6 },
+  { label: "Recruiters", icon: Users, phase: 7 },
   { label: "Analytics", icon: BarChart3, phase: 8 },
 ];
 
@@ -81,9 +85,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (loading || !user) {
     return (
       <div className="grid min-h-screen place-items-center">
-        <div className="animate-pop flex flex-col items-center gap-3">
+        <div className="animate-pop flex flex-col items-center gap-6">
+          <Loader3D size={84} />
           <Logo />
-          <div className="skeleton h-1.5 w-40 rounded-full" />
         </div>
       </div>
     );
