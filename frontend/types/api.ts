@@ -573,3 +573,37 @@ export interface ApplicationDetail extends Application {
   followups: { id: string; kind: string; sequence: number; status: string; due_at: string }[];
   interviews: Interview[];
 }
+
+// ---------------- Phase 5: email & integrations
+export interface InboxEmail {
+  id: string;
+  gmail_id: string | null;
+  sender: string;
+  subject: string;
+  snippet: string;
+  received_at: string;
+  category: string;
+  confidence: number;
+  extracted: {
+    sender_name: string | null;
+    sender_email: string;
+    sender_domain: string;
+    interview_at: string | null;
+    timezone: string;
+    meeting_url: string | null;
+    deadline: string | null;
+    interview_round: string | null;
+  };
+  application_id: string | null;
+  action: string | null;
+  source: string;
+}
+
+export interface Integrations {
+  google: { connected: boolean; available: boolean };
+  gmail: { connected: boolean; available: boolean; email: string | null; status: string; error: string | null; last_sync_at: string | null };
+  linkedin: { snapshot: boolean; mode: string };
+  naukri: { snapshot: boolean; mode: string };
+  ats_boards: { count: number };
+  claude: { enabled: boolean; model: string | null };
+}

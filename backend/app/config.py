@@ -51,7 +51,8 @@ class Settings(BaseSettings):
 
     @property
     def llm_enabled(self) -> bool:
-        return bool(self.anthropic_api_key)
+        # Only a real Anthropic key enables Claude; placeholders or stray env values don't.
+        return bool(self.anthropic_api_key and self.anthropic_api_key.startswith("sk-ant-"))
 
     @property
     def is_production(self) -> bool:

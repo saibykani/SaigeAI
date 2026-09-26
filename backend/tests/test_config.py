@@ -32,3 +32,12 @@ def test_cors_origins_comma_separated(monkeypatch):
         monkeypatch.setenv(key, value)
     monkeypatch.setenv("CORS_ORIGINS", "https://a.app, https://b.app")
     assert Settings(_env_file=None).cors_origins == ["https://a.app", "https://b.app"]
+
+
+def test_llm_enabled_only_for_real_anthropic_keys(monkeypatch):
+    for key, value in REQUIRED.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy")
+    assert Settings(_env_file=None).llm_enabled is False
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-example")
+    assert Settings(_env_file=None).llm_enabled is True

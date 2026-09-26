@@ -10,6 +10,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  Plug,
   Send,
   Settings,
   Sparkles,
@@ -37,12 +38,13 @@ const NAV: NavItem[] = [
   { href: "/jobs", label: "Jobs", icon: Briefcase, slot: 2 },
   { href: "/applications", label: "Applications", icon: Send, slot: 6 },
   { href: "/interviews", label: "Interviews", icon: CalendarDays, slot: 8 },
+  { href: "/inbox", label: "Inbox", icon: Mail, slot: 3 },
   { href: "/profile-sync", label: "Profile Sync", icon: Sparkles, slot: 4 },
+  { href: "/integrations", label: "Integrations", icon: Plug, slot: 5 },
   { href: "/settings", label: "Automation & Privacy", icon: Settings, slot: 5 },
 ];
 
 const UPCOMING = [
-  { label: "Gmail", icon: Mail, phase: 5 },
   { label: "Recruiters", icon: Users, phase: 6 },
   { label: "Analytics", icon: BarChart3, phase: 8 },
 ];

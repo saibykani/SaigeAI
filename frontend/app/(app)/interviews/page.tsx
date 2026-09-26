@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarCheck, CalendarClock, Check, Video, X } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarPlus, Check, Video, X } from "lucide-react";
 import Link from "next/link";
 
 import { Notice, PageHeader } from "@/components/app-shell";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApi } from "@/hooks/use-api";
-import { request } from "@/services/api";
+import { downloadFile, request } from "@/services/api";
 import type { Interview } from "@/types/api";
 import { formatDateTime } from "@/utils/format";
 
@@ -32,7 +32,7 @@ export default function InterviewsPage() {
 
   return (
     <>
-      <PageHeader title="Interviews" description="Upcoming, completed, rescheduled and cancelled interviews. Add them from an application; Gmail detection arrives next." />
+      <PageHeader title="Interviews" description="Upcoming, completed, rescheduled and cancelled interviews — added by you or detected from Gmail. One click adds any interview to your calendar." />
       {error && <Notice tone="error">{error}</Notice>}
       {!data ? (
         <div className="skeleton h-72 rounded-3xl" />
@@ -59,6 +59,7 @@ export default function InterviewsPage() {
                         <Video className="size-3.5" /> Join
                       </a>
                     )}
+                    <Button size="sm" variant="ghost" onClick={() => downloadFile(`/interviews/${i.id}.ics`, "interview.ics")}><CalendarPlus /> Calendar</Button>
                     <Button size="sm" variant="ghost" onClick={() => setStatus(i.id, "completed")}><Check /> Done</Button>
                     <Button size="sm" variant="ghost" onClick={() => setStatus(i.id, "cancelled")}><X /> Cancel</Button>
                   </div>

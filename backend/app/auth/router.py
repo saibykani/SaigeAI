@@ -109,9 +109,13 @@ async def google_authorize():
 async def google_callback(
     code: str = Query(...), state: str = Query(...),
     saige_oauth_state: str | None = Cookie(default=None, alias=OAUTH_STATE_COOKIE),
+    saige_gmail_link: str | None = Cookie(default=None, alias="saige_gmail_link"),
     db: AsyncIOMotorDatabase = Depends(db_dep),
 ):
     s = get_settings()
+    if saige_gmail_link and not saige_oauth_state:
+        from app.email.router import complete_gmail_link
+        return await complete_gmail_link(db, code, state, saige_gmail_link)
     fail = RedirectResponse(f"{s.frontend_url}/login?error=google", status_code=302)
     if not s.google_oauth_enabled or not saige_oauth_state or \
             not secrets.compare_digest(state, saige_oauth_state):

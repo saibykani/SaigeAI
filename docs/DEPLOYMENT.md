@@ -81,6 +81,18 @@ Google Cloud Console → **APIs & Services → Credentials** → your OAuth clie
 
 While the consent screen is in **Testing**, only the listed test users can sign in with Google.
 
+## 4. Gmail (Phase 5)
+
+Gmail uses the same OAuth client and callback address as Google sign-in, so you don't need a new
+redirect URI. Two one-time steps in Google Cloud Console:
+
+1. **APIs & Services → Library → Gmail API → Enable.**
+2. **Google Auth Platform → Data access → Add or remove scopes**, then add
+   `https://www.googleapis.com/auth/gmail.readonly` and save.
+
+While the app is in Testing mode, only listed test users can connect Gmail. Publishing an app
+that uses the restricted Gmail scope requires Google's verification.
+
 ## Production checklist
 
 - `ENVIRONMENT=production`: turns off the `/api/docs` page and enables HSTS.

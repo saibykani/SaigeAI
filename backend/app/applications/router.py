@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -17,7 +17,7 @@ from app.schemas.application import (
 )
 from app.services.audit import log_action
 from app.services.notify import notify
-from app.utils import new_id, utcnow
+from app.utils import as_utc, new_id, utcnow
 
 router = APIRouter(tags=["applications"])
 
@@ -198,6 +198,35 @@ async def update_interview(interview_id: str, body: InterviewUpdate, user: dict 
         await notify(db, user_id=uid, kind="interview_rescheduled", title=f"Interview rescheduled: {i['role']}",
                      link="/interviews")
     return interview_out(await db[c.INTERVIEWS].find_one({"_id": interview_id}))
+
+
+def _ics_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+@router.get("/interviews/{interview_id}.ics")
+async def interview_ics(interview_id: str, user: dict = Depends(get_current_user),
+                        db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Calendar file for Google Calendar / Outlook / Apple Calendar - no calendar write access needed."""
+    i = await db[c.INTERVIEWS].find_one({"_id": interview_id, "user_id": user["_id"]})
+    if not i:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Interview not found")
+    start = as_utc(i["scheduled_at"])
+    end = start + timedelta(minutes=i.get("duration_minutes", 60))
+    fmt = "%Y%m%dT%H%M%SZ"
+    lines = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Saige AI//Interviews//EN", "BEGIN:VEVENT",
+        f"UID:{i['_id']}@saige.ai", f"DTSTAMP:{utcnow().strftime(fmt)}",
+        f"DTSTART:{start.strftime(fmt)}", f"DTEND:{end.strftime(fmt)}",
+        "SUMMARY:" + _ics_escape(f"Interview: {i.get('role')} at {i.get('company')}"),
+    ]
+    if i.get("meeting_url"):
+        lines += [f"LOCATION:{_ics_escape(i['meeting_url'])}", f"URL:{i['meeting_url']}"]
+    if i.get("round"):
+        lines.append(f"DESCRIPTION:{_ics_escape(i['round'])}")
+    lines += ["END:VEVENT", "END:VCALENDAR"]
+    return Response(content="\r\n".join(lines) + "\r\n", media_type="text/calendar",
+                    headers={"Content-Disposition": f'attachment; filename="interview-{interview_id}.ics"'})
 
 
 @router.delete("/interviews/{interview_id}", status_code=204)
