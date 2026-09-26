@@ -43,12 +43,25 @@ def _words(q: str) -> list[str]:
     return [w for w in re.findall(r"[a-z0-9+#]+", q.lower()) if len(w) > 1]
 
 
+# Titles in the same family count as a match: searching "SDET" also finds "QA Automation Engineer".
+ROLE_FAMILIES = [
+    {"qa", "sdet", "sdet1", "sdet2", "test", "tester", "testing", "quality", "automation", "qe"},
+    {"developer", "software", "backend", "frontend", "fullstack", "full-stack", "programmer", "sde"},
+    {"data", "analyst", "analytics", "scientist", "bi"},
+    {"devops", "sre", "platform", "infrastructure", "cloud"},
+    {"product", "pm"},
+    {"designer", "ux", "ui"},
+]
+STOP = {"engineer", "senior", "junior", "lead", "staff", "principal", "and", "the", "of", "in", "ii", "iii", "remote"}
+
+
 def title_matches(title: str, query: str) -> bool:
-    """At least one meaningful query word appears in the title (SDET, QA, automation, ...)."""
-    t = title.lower()
-    stop = {"engineer", "senior", "junior", "lead", "and", "the", "of", "in", "ii", "iii"}
-    words = [w for w in _words(query) if w not in stop] or _words(query)
-    return any(w in t for w in words)
+    """The title shares a meaningful word, or a role family, with the query."""
+    t = set(_words(title))
+    words = {w for w in _words(query) if w not in STOP} or set(_words(query))
+    if words & t or any(w in title.lower() for w in words if len(w) > 3):
+        return True
+    return any(words & fam and t & fam for fam in ROLE_FAMILIES)
 
 
 async def remotive(client: httpx.AsyncClient, query: str, location: str | None) -> list[dict]:
@@ -145,6 +158,8 @@ async def search(query: str, location: str | None, profile: Profile, weights: Ma
         items.extend(res)
     seen, scored = set(), []
     for it in items:
+        if it.get("source") != "adzuna" and not title_matches(it.get("title", ""), query):
+            continue  # full-text search APIs also return unrelated roles
         key = (it.get("url") or "").split("?")[0] or f"{it['title']}|{it['company']}".lower()
         if key in seen or not it.get("title"):
             continue

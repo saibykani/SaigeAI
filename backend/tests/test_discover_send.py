@@ -137,3 +137,12 @@ async def test_recruiter_sync_from_job_postings(client, auth, db):
     assert (await client.post("/api/recruiters/sync", headers=auth)).json()["created"] == 0
     stats = (await client.get("/api/outreach/stats", headers=auth)).json()
     assert stats["contacts_by_source"] == {"job": 2}
+
+
+def test_title_matching_uses_role_families():
+    assert discover.title_matches("QA Automation Engineer", "SDET")
+    assert discover.title_matches("Senior SDET II", "sdet")
+    assert discover.title_matches("Software Development Engineer in Test", "Test automation")
+    assert not discover.title_matches("Content Reviewer - United States", "QA automation")
+    assert not discover.title_matches("Remote Office Assistant", "SDET")
+    assert discover.title_matches("Backend Developer (Python)", "Software engineer")
