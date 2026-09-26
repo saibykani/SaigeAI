@@ -337,6 +337,7 @@ export interface AppNotification {
   title: string;
   body: string;
   link: string | null;
+  details?: { platform: string; field: string; before: string; after: string }[];
   read: boolean;
   created_at: string;
 }
@@ -644,7 +645,7 @@ export interface Integrations {
 
 // ---------------- Recruiters & outreach
 export type ContactRole = "recruiter" | "hiring_manager" | "referral" | "alumni" | "other";
-export type OutreachKind = "referral" | "cold" | "followup" | "thank_you";
+export type OutreachKind = "referral" | "cold" | "hiring_manager" | "employee_intro" | "linkedin_note" | "followup" | "thank_you";
 export type OutreachStatus = "draft" | "approved" | "sent" | "replied" | "bounced" | "no_response" | "unsubscribed" | "cancelled";
 
 export interface RecruiterContact {
@@ -718,4 +719,13 @@ export interface Breakdowns {
   weekly: { week: string; applied: number; responses: number; interviews: number; offers: number }[];
   time_to_response: { bucket: string; count: number }[];
   outreach: { kind: OutreachKind; sent: number; replied: number; reply_rate: number | null }[];
+}
+
+export interface OutreachTemplate {
+  kind: OutreachKind;
+  name: string;
+  audience: string;
+  description: string;
+  subject: string;
+  body: string;
 }

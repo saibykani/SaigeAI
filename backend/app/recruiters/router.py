@@ -98,6 +98,13 @@ async def list_outreach(status_: OutreachStatus | None = Query(None, alias="stat
     return [svc.outreach_out(d, contacts.get(d["contact_id"])) for d in docs]
 
 
+@router.get("/outreach/templates")
+async def outreach_templates(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    from app.profiles.service import get_profile
+
+    return svc.templates(await get_profile(db, user["_id"]))
+
+
 @router.get("/outreach/stats")
 async def outreach_stats(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     return await svc.stats(db, user["_id"])

@@ -18,7 +18,8 @@ def connect(uri: str, db_name: str) -> AsyncIOMotorDatabase:
     # Short server-selection timeout: fail fast (and visibly) instead of hanging requests
     # for 30s when the database is unreachable, e.g. an Atlas IP access-list block.
     _client = AsyncIOMotorClient(uri, uuidRepresentation="standard", tz_aware=True,
-                                 serverSelectionTimeoutMS=8000, connectTimeoutMS=8000)
+                                 serverSelectionTimeoutMS=8000, connectTimeoutMS=8000,
+                                 appname="saige-ai", maxIdleTimeMS=120_000)
     _db = _client[db_name]
     return _db
 
@@ -49,6 +50,18 @@ def close() -> None:
         _client.close()
     _client = None
     _db = None
+
+
+# Bump when ensure_indexes changes. Serverless cold starts then skip ~45 create_index round trips.
+INDEX_VERSION = 9
+
+
+async def ensure_indexes_once(db: AsyncIOMotorDatabase) -> None:
+    meta = await db["_meta"].find_one({"_id": "indexes"})
+    if meta and meta.get("version") == INDEX_VERSION:
+        return
+    await ensure_indexes(db)
+    await db["_meta"].update_one({"_id": "indexes"}, {"$set": {"version": INDEX_VERSION}}, upsert=True)
 
 
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:

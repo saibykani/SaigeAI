@@ -10,7 +10,7 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 def _out(n: dict) -> dict:
     return {"id": n["_id"], "kind": n["kind"], "title": n["title"], "body": n.get("body", ""),
-            "link": n.get("link"), "read": n.get("read", False),
+            "link": n.get("link"), "details": n.get("details", []), "read": n.get("read", False),
             "created_at": n["created_at"].isoformat()}
 
 

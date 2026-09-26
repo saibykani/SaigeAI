@@ -137,3 +137,24 @@ async def test_cron_endpoint_auth(client, auth, db, monkeypatch):
     assert (await client.get("/api/cron/daily", headers={"Authorization": "Bearer wrong"})).status_code == 401
     r = await client.get("/api/cron/daily", headers={"Authorization": "Bearer s3cret-value"})
     assert r.status_code == 200 and r.json()["users"] == 1 and r.json()["next_cursor"] is None
+
+
+async def test_completion_notifications_list_field_changes(client, auth, db):
+    await _seed(client, auth)
+    uid = await _uid(db)
+    res = {r["job"]: r for r in await sched.run_for_user(db, uid, AFTER)}
+    changes = res["profile_refresh"]["result"]["changes"]
+    assert changes and {"platform", "field", "before", "after"} <= set(changes[0])
+    n = await db[c.NOTIFICATIONS].find_one({"user_id": uid, "kind": "profile_optimization"})
+    assert "refresh done" in n["title"] and n["details"] and n["details"][0]["field"]
+    fresh = await db[c.NOTIFICATIONS].find_one({"user_id": uid, "kind": "naukri_freshness"})
+    assert fresh is None or fresh["details"][0]["platform"] == "Naukri"
+    # Nothing new on a re-run: still a completion notice.
+    await sched.run_for_user(db, uid, AFTER, only="profile_refresh", trigger="manual")
+    latest = await db[c.NOTIFICATIONS].find({"user_id": uid, "kind": "profile_optimization"}).sort("created_at", -1).to_list(1)
+    assert "refresh done" in latest[0]["title"]
+    # Marking a change applied notifies with the new value.
+    ch = (await client.get("/api/profile-changes", headers=auth, params={"platform": "linkedin"})).json()[0]
+    await client.post(f"/api/profile-changes/{ch['id']}/applied", headers=auth)
+    applied = await db[c.NOTIFICATIONS].find_one({"user_id": uid, "kind": "profile_change_applied"})
+    assert applied["title"].startswith("LinkedIn updated") and applied["details"][0]["after"]

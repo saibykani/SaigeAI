@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
+import { clearApiCache } from "@/hooks/use-api";
 import { refreshSession, request, setAccessToken, setSessionExpiredHandler } from "@/services/api";
 import type { TokenResponse, User } from "@/types/api";
 
@@ -16,34 +17,66 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+// The last signed-in user (name/email only) lets the app shell render instantly on the next visit
+// while the session refresh runs in the background. Never holds tokens.
+const USER_KEY = "saige-user";
+const readCachedUser = (): User | null => {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+};
+const writeCachedUser = (u: User | null) => {
+  try {
+    if (u) localStorage.setItem(USER_KEY, JSON.stringify(u));
+    else localStorage.removeItem(USER_KEY);
+  } catch {
+    /* storage unavailable: just no instant start */
+  }
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadMe = useCallback(async () => {
-    setUser(await request<User>("/auth/me"));
+  const setAndCache = useCallback((u: User | null) => {
+    setUser(u);
+    writeCachedUser(u);
+    if (!u) clearApiCache();
   }, []);
 
+  const loadMe = useCallback(async () => {
+    setAndCache(await request<User>("/auth/me"));
+  }, [setAndCache]);
+
   const reload = useCallback(async () => {
-    setLoading(true);
+    const cached = readCachedUser();
+    if (cached) {
+      setUser(cached); // show the app now; the refresh below confirms or signs out
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     try {
       if (await refreshSession()) await loadMe();
-      else setUser(null);
+      else setAndCache(null);
     } catch {
-      setUser(null);
+      setAndCache(null);
     } finally {
       setLoading(false);
     }
-  }, [loadMe]);
+  }, [loadMe, setAndCache]);
 
   useEffect(() => {
     setSessionExpiredHandler(() => {
       setAccessToken(null);
-      setUser(null);
+      setAndCache(null);
     });
     void reload();
     return () => setSessionExpiredHandler(null);
-  }, [reload]);
+  }, [reload, setAndCache]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -71,9 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await request("/auth/logout", { method: "POST" });
     } finally {
       setAccessToken(null);
-      setUser(null);
+      setAndCache(null);
     }
-  }, []);
+  }, [setAndCache]);
 
   const value = useMemo(
     () => ({ user, loading, login, register, logout, reload }),

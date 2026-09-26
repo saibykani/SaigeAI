@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Inbox, MailCheck, Reply, Send, Upload, UserPlus, Users } from "lucide-react";
+import { Building2, ClipboardCopy, FileText, Inbox, MailCheck, Reply, Send, Upload, UserPlus, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
@@ -12,12 +12,56 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
-import type { ContactRole, Outreach, OutreachKind, OutreachStats, RecruiterContact } from "@/types/api";
+import type { ContactRole, Outreach, OutreachKind, OutreachStats, OutreachTemplate, RecruiterContact } from "@/types/api";
 import { cn } from "@/utils/cn";
 import { formatDate, formatDateTime } from "@/utils/format";
 
-type Tab = "queue" | "sent" | "contacts";
+type Tab = "queue" | "sent" | "contacts" | "templates";
 type Msg = { tone: "success" | "error" | "warning"; text: string } | null;
+
+const TEMPLATE_TONE: Record<string, string> = {
+  cold: "orange", hiring_manager: "purple", referral: "green", employee_intro: "teal",
+  linkedin_note: "yellow", followup: "mint", thank_you: "red",
+};
+
+function TemplateCard({ t, contacts, onUse, delay }: { t: OutreachTemplate; contacts: RecruiterContact[]; onUse: (c: RecruiterContact, kind: OutreachKind) => void; delay: number }) {
+  const [copied, setCopied] = useState(false);
+  const [contactId, setContactId] = useState("");
+  const tone = `var(--tone-${TEMPLATE_TONE[t.kind] ?? "green"})`;
+  return (
+    <Card className="lift animate-rise flex flex-col" style={{ animationDelay: `${delay}ms`, borderColor: `color-mix(in srgb, ${tone} 30%, transparent)`, backgroundImage: `radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, ${tone} 14%, transparent), transparent 60%)` }}>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <span className="grid size-8 place-items-center rounded-lg text-[#0b0b0c]" style={{ background: tone }}><FileText className="size-4" /></span>
+          <div className="min-w-0">
+            <CardTitle className="text-base">{t.name}</CardTitle>
+            <p className="text-xs text-muted-foreground">For: {t.audience}</p>
+          </div>
+        </div>
+        <CardDescription>{t.description}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col gap-3">
+        {t.kind !== "linkedin_note" && <p className="text-sm"><span className="text-muted-foreground">Subject: </span>{t.subject}</p>}
+        <p className="flex-1 whitespace-pre-wrap rounded-xl border bg-muted/40 p-3 text-sm leading-relaxed">{t.body}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={async () => { await navigator.clipboard.writeText(t.kind === "linkedin_note" ? t.body : `Subject: ${t.subject}\n\n${t.body}`); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
+            <ClipboardCopy /> {copied ? "Copied" : "Copy"}
+          </Button>
+          {t.kind !== "followup" && contacts.length > 0 && (
+            <>
+              <Select value={contactId} onChange={(e) => setContactId(e.target.value)} className="h-8 w-auto max-w-[12rem] text-xs" aria-label="Contact">
+                <option value="">Use with a contact…</option>
+                {contacts.filter((c) => !c.unsubscribed).map((c) => <option key={c.id} value={c.id}>{c.name} · {c.company}</option>)}
+              </Select>
+              <Button size="sm" disabled={!contactId} onClick={() => { const c = contacts.find((x) => x.id === contactId); if (c) onUse(c, t.kind); }}>Draft</Button>
+            </>
+          )}
+        </div>
+        {t.kind === "linkedin_note" && <p className="text-[11px] text-muted-foreground">{t.body.length}/300 characters</p>}
+      </CardContent>
+    </Card>
+  );
+}
 
 const EMPTY = { name: "", company: "", email: "", linkedin_url: "", title: "", role: "recruiter" as ContactRole, notes: "" };
 
@@ -44,6 +88,7 @@ export default function RecruitersPage() {
   const contacts = useApi<RecruiterContact[]>("/recruiters");
   const outreach = useApi<Outreach[]>("/outreach");
   const stats = useApi<OutreachStats>("/outreach/stats");
+  const tpls = useApi<OutreachTemplate[]>("/outreach/templates");
   const [tab, setTab] = useState<Tab>("queue");
   const [msg, setMsg] = useState<Msg>(null);
   const [form, setForm] = useState(EMPTY);
@@ -76,6 +121,7 @@ export default function RecruitersPage() {
     { id: "queue", label: "Queue", count: queue.length },
     { id: "sent", label: "Sent & replies", count: sent.length },
     { id: "contacts", label: "Contacts", count: contacts.data?.length },
+    { id: "templates", label: "Email templates" },
   ];
 
   return (
@@ -154,6 +200,25 @@ export default function RecruitersPage() {
         </div>
       )}
 
+      {tab === "templates" && (
+        <div className="flex flex-col gap-4">
+          <Notice>
+            Templates are filled from your verified profile. Bracketed parts like [First name] and [Company] are replaced automatically when you draft for a contact. Nothing is ever sent for you.
+          </Notice>
+          {!tpls.data ? <div className="skeleton h-72 rounded-3xl" /> : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {tpls.data.map((t, i) => (
+                <TemplateCard key={t.kind} t={t} contacts={contacts.data ?? []} delay={i * 40}
+                  onUse={(c, kind) => run(async () => {
+                    await request("/outreach/draft", { method: "POST", body: { contact_id: c.id, kind } });
+                    setTab("queue");
+                  }, `Draft for ${c.name} is ready in the queue.`)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {tab === "contacts" && (
         <div className="grid gap-6 xl:grid-cols-3">
           <div className="flex flex-col gap-4 xl:col-span-2">
@@ -165,8 +230,11 @@ export default function RecruitersPage() {
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Type">
                       <Select value={draftFor.kind} onChange={(e) => setDraftFor({ ...draftFor, kind: e.target.value as OutreachKind })}>
-                        <option value="referral">Referral request</option>
-                        <option value="cold">Cold email</option>
+                        <option value="cold">Cold email to HR / recruiter</option>
+                        <option value="hiring_manager">Email to hiring manager</option>
+                        <option value="referral">Referral request (employee)</option>
+                        <option value="employee_intro">Informational chat (employee)</option>
+                        <option value="linkedin_note">LinkedIn connection note</option>
                         <option value="thank_you">Thank-you</option>
                       </Select>
                     </Field>

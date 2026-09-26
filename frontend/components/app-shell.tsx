@@ -8,7 +8,6 @@ import {
   FileText,
   LayoutDashboard,
   LifeBuoy,
-  LogOut,
   Mail,
   Menu,
   Plug,
@@ -27,6 +26,7 @@ import { useEffect, useState } from "react";
 import { Wordmark } from "@/components/brand";
 import { Loader3D } from "@/components/loader3d";
 import { NotificationBell } from "@/components/notification-bell";
+import { UserMenu } from "@/components/user-menu";
 import { ThemeSwitcher } from "@/components/theme";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -39,23 +39,24 @@ const Linkedin = createLucideIcon("Linkedin", [
   ["circle", { cx: "4", cy: "4", r: "2", key: "k3" }],
 ]);
 
-type NavItem = { href: string; label: string; icon: LucideIcon; slot: number };
+type Tone = "green" | "orange" | "yellow" | "purple" | "red" | "mint" | "teal" | "lime";
+type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone };
 
 const NAV: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, slot: 1 },
-  { href: "/profile", label: "Master Profile", icon: UserRound, slot: 7 },
-  { href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, slot: 4 },
-  { href: "/resumes", label: "Resumes", icon: FileText, slot: 3 },
-  { href: "/jobs", label: "Jobs", icon: Briefcase, slot: 2 },
-  { href: "/applications", label: "Applications", icon: Send, slot: 6 },
-  { href: "/interviews", label: "Interviews", icon: CalendarDays, slot: 8 },
-  { href: "/recruiters", label: "Recruiters", icon: Users, slot: 6 },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, slot: 2 },
-  { href: "/inbox", label: "Inbox", icon: Mail, slot: 3 },
-  { href: "/profile-sync", label: "Profile Sync", icon: Sparkles, slot: 4 },
-  { href: "/integrations", label: "Integrations", icon: Plug, slot: 5 },
-  { href: "/settings", label: "Automation & Privacy", icon: Settings, slot: 5 },
-  { href: "/help", label: "Help & Docs", icon: LifeBuoy, slot: 1 },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green" },
+  { href: "/profile", label: "Master Profile", icon: UserRound, tone: "mint" },
+  { href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "teal" },
+  { href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
+  { href: "/jobs", label: "Jobs", icon: Briefcase, tone: "orange" },
+  { href: "/applications", label: "Applications", icon: Send, tone: "yellow" },
+  { href: "/interviews", label: "Interviews", icon: CalendarDays, tone: "red" },
+  { href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, tone: "purple" },
+  { href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
+  { href: "/profile-sync", label: "Profile Sync", icon: Sparkles, tone: "mint" },
+  { href: "/integrations", label: "Integrations", icon: Plug, tone: "orange" },
+  { href: "/settings", label: "Automation & Privacy", icon: Settings, tone: "yellow" },
+  { href: "/help", label: "Help & Docs", icon: LifeBuoy, tone: "green" },
 ];
 
 // Features announced in the sidebar before they ship. Empty once every phase has landed.
@@ -69,17 +70,8 @@ export function Logo({ className, onDark = false }: { className?: string; onDark
   );
 }
 
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
-}
-
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -123,7 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <nav className="flex flex-1 flex-col gap-7 overflow-y-auto px-3 py-2">
           <ul className="flex flex-col gap-1">
-            {NAV.map(({ href, label, icon: Icon }) => {
+            {NAV.map(({ href, label, icon: Icon, tone }) => {
               const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <li key={href}>
@@ -137,8 +129,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <span
                       className={cn(
                         "grid size-7 place-items-center rounded-lg transition-all duration-300",
-                        active ? "bg-primary text-primary-foreground shadow-sm" : "group-hover:scale-110",
+                        active ? "text-[#0b0b0c] shadow-sm" : "group-hover:scale-110",
                       )}
+                      style={active ? { background: `var(--tone-${tone})`, boxShadow: `0 4px 14px -4px var(--tone-${tone})` } : { color: `var(--tone-${tone})` }}
                     >
                       <Icon className="size-4" aria-hidden />
                     </span>
@@ -164,28 +157,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        <div className="m-3 rounded-2xl border bg-card-solid/60 p-3">
-          <div className="flex items-center gap-3">
-            <span className="animate-gradient grid size-9 shrink-0 place-items-center rounded-full bg-[image:var(--brand-gradient)] text-xs font-semibold text-white">
-              {initials(user.name || user.email)}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{user.name || user.email}</p>
-              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2 w-full justify-start"
-            onClick={async () => {
-              await logout();
-              router.replace("/login");
-            }}
-          >
-            <LogOut /> Sign out
-          </Button>
-        </div>
       </aside>
       {open && <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden" onClick={() => setOpen(false)} />}
 
@@ -198,6 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="ml-auto" />
           <ThemeSwitcher />
           <NotificationBell />
+          <UserMenu />
         </header>
         {/* key on pathname replays the entrance animation on every navigation */}
         <main id="main" tabIndex={-1} key={pathname} className="animate-rise outline-none mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-10 md:py-10">
@@ -209,9 +181,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
+  const pathname = usePathname();
+  const section = [...NAV].sort((a, b) => b.href.length - a.href.length)
+    .find((n) => (n.href === "/" ? pathname === "/" : pathname === n.href || pathname.startsWith(`${n.href}/`)));
+  const tone = section?.tone ?? "green";
   return (
     <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
+        <span aria-hidden className="animate-grow-x mb-3 block h-1 w-10 rounded-full" style={{ background: `var(--tone-${tone})`, boxShadow: `0 0 16px var(--tone-${tone})` }} />
         <h1 className="text-3xl font-semibold tracking-tight md:text-[34px]">{title}</h1>
         {description && <p className="mt-2 max-w-2xl text-[15px] text-muted-foreground">{description}</p>}
       </div>

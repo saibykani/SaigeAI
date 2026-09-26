@@ -2,7 +2,7 @@ import logging
 import secrets
 
 import httpx
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.responses import RedirectResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -107,12 +107,16 @@ async def google_authorize():
 
 @router.get("/google/callback")
 async def google_callback(
-    code: str = Query(...), state: str = Query(...),
+    code: str | None = None, state: str | None = None, error: str | None = None,
     saige_oauth_state: str | None = Cookie(default=None, alias=OAUTH_STATE_COOKIE),
     saige_gmail_link: str | None = Cookie(default=None, alias="saige_gmail_link"),
     db: AsyncIOMotorDatabase = Depends(db_dep),
 ):
     s = get_settings()
+    if error or not code or not state:
+        # Google sends ?error=access_denied when the user cancels or the account isn't an approved tester.
+        target = "/integrations?gmail=error" if saige_gmail_link and not saige_oauth_state else "/login?error=google_denied"
+        return RedirectResponse(f"{s.frontend_url}{target}", status_code=302)
     if saige_gmail_link and not saige_oauth_state:
         from app.email.router import complete_gmail_link
         return await complete_gmail_link(db, code, state, saige_gmail_link)

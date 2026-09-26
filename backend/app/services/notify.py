@@ -8,11 +8,13 @@ from app.utils import new_id, utcnow
 
 async def notify(
     db: AsyncIOMotorDatabase, *, user_id: str, kind: str, title: str, body: str = "",
-    link: str | None = None,
+    link: str | None = None, details: list[dict] | None = None,
 ) -> str:
+    """`details`: optional structured rows shown under the notification, e.g. profile field changes
+    as {"platform", "field", "before", "after"}."""
     doc = {
         "_id": new_id(), "user_id": user_id, "kind": kind, "title": title, "body": body,
-        "link": link, "read": False, "created_at": utcnow(),
+        "link": link, "details": (details or [])[:10], "read": False, "created_at": utcnow(),
     }
     await db[c.NOTIFICATIONS].insert_one(doc)
     return doc["_id"]

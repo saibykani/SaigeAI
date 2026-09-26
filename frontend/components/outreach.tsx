@@ -17,6 +17,9 @@ import { formatDateTime } from "@/utils/format";
 export const KIND_LABEL: Record<OutreachKind, string> = {
   referral: "Referral request",
   cold: "Cold email",
+  hiring_manager: "Hiring manager",
+  employee_intro: "Employee intro",
+  linkedin_note: "LinkedIn note",
   followup: "Follow-up",
   thank_you: "Thank-you",
 };

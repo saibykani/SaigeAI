@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 ContactRole = Literal["recruiter", "hiring_manager", "referral", "alumni", "other"]
 ContactSource = Literal["manual", "csv", "gmail", "job"]
-OutreachKind = Literal["referral", "cold", "followup", "thank_you"]
+OutreachKind = Literal["referral", "cold", "hiring_manager", "employee_intro", "linkedin_note", "followup", "thank_you"]
 OutreachStatus = Literal["draft", "approved", "sent", "replied", "bounced", "no_response", "unsubscribed", "cancelled"]
 
 

@@ -95,7 +95,20 @@ export function NotificationBell() {
                   <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", n.read ? "bg-transparent" : "")} style={n.read ? undefined : { background: "var(--tone-orange)" }} aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium">{n.title}</span>
-                    {n.body && <span className="line-clamp-2 block text-xs text-muted-foreground">{n.body}</span>}
+                    {n.body && !n.details?.length && <span className="line-clamp-2 block text-xs text-muted-foreground">{n.body}</span>}
+                    {!!n.details?.length && (
+                      <span className="mt-1.5 flex flex-col gap-1.5">
+                        {n.details.slice(0, 3).map((d, i) => (
+                          <span key={i} className="block rounded-lg border bg-muted/40 px-2 py-1.5 text-[11px] leading-snug">
+                            <span className="font-medium" style={{ color: d.platform === "Naukri" ? "var(--tone-orange)" : "var(--tone-teal)" }}>{d.platform}</span>
+                            <span className="text-muted-foreground"> · {d.field}</span>
+                            <span className="mt-0.5 block text-muted-foreground line-through decoration-muted-foreground/50">{d.before}</span>
+                            <span className="block text-foreground">→ {d.after}</span>
+                          </span>
+                        ))}
+                        {n.details.length > 3 && <span className="text-[11px] text-muted-foreground">+{n.details.length - 3} more</span>}
+                      </span>
+                    )}
                   </span>
                   <span className="shrink-0 text-[11px] text-muted-foreground">{ago(n.created_at)}</span>
                 </button>

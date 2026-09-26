@@ -141,3 +141,10 @@ async def test_audit_log_redacts_secrets(client, db, auth):
     logs = await db[c.AUDIT_LOGS].find({}).to_list(length=None)
     assert logs
     assert "correct-horse-battery" not in str(logs)
+
+
+async def test_google_callback_denied_redirects_to_login(client):
+    r = await client.get("/api/auth/google/callback", params={"error": "access_denied"}, follow_redirects=False)
+    assert r.status_code == 302 and r.headers["location"].endswith("/login?error=google_denied")
+    r = await client.get("/api/auth/google/callback", follow_redirects=False)
+    assert r.status_code == 302

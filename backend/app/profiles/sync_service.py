@@ -50,6 +50,27 @@ async def save_snapshot(db: AsyncIOMotorDatabase, user_id: str, platform: str, d
 
 # ------------------------------------------------------------------ change control
 
+PLATFORM_NAME = {"linkedin": "LinkedIn", "naukri": "Naukri", "resume": "Master resume"}
+FIELD_NAME = {
+    "headline": "Headline", "about": "About", "summary": "Profile summary", "skills": "Skills",
+    "key_skills": "Key skills", "open_to_work.titles": "Open-to-work titles", "current_title": "Current title",
+    "preferred_locations": "Preferred locations", "preferred_roles": "Preferred roles",
+    "notice_period_days": "Notice period (days)", "expected_salary": "Expected salary",
+    "total_experience_years": "Total experience", "resume_updated_on": "Resume refresh date",
+}
+
+
+def _short(v: Any, limit: int = 140) -> str:
+    text = ", ".join(map(str, v)) if isinstance(v, list) else ("" if v is None else str(v))
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def change_detail(d: dict) -> dict:
+    """A notification row: which field on which platform, and its value before and after."""
+    return {"platform": PLATFORM_NAME.get(d["platform"], d["platform"]),
+            "field": FIELD_NAME.get(d["field"], d["field"]),
+            "before": _short(d.get("before")) or "(empty)", "after": _short(d.get("after"))}
+
 def validate_change(platform: str, field: str, after: Any, profile: Profile) -> dict:
     """Truth-guard every proposed value. Text is scanned for unverified skills, metrics and
     experience claims; skill lists must contain only verified skills."""
@@ -175,6 +196,12 @@ async def mark_applied(db: AsyncIOMotorDatabase, user_id: str, change_id: str) -
         "approval_status": "USER_APPROVED", "applied_at": utcnow(), "updated_at": utcnow()}})
     await log_action(db, user_id=user_id, action="profile_change.applied", entity="profile_change",
                      entity_id=change_id, details={"platform": platform, "field": doc["field"]})
+    from app.services.notify import notify  # local import keeps module load light
+
+    row = change_detail(doc)
+    await notify(db, user_id=user_id, kind="profile_change_applied",
+                 title=f"{row['platform']} updated · {row['field']}", body=f"Now: {row['after']}",
+                 link="/profiles", details=[row])
     return change_out(await get_change(db, user_id, change_id))
 
 

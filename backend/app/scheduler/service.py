@@ -133,17 +133,28 @@ async def _profile_refresh(db: AsyncIOMotorDatabase, uid: str, s: AutomationSett
                                       ("naukri", s.profile_schedule.naukri_enabled)) if on)
     if not platforms:
         return {"skipped": "no platform enabled"}
+    started = utcnow()
     async with agent_run(db, "profile_agent", uid, {"trigger": trigger, "platforms": list(platforms)}) as run:
         result = await sync_service.analyze(db, uid, platforms)
         created = sum((result.get(p) or {}).get("changes_created", 0) for p in platforms)
         run.output = {"jobs_analyzed": result["jobs_analyzed"], "changes_created": created}
         run.action(f"created {created} profile change(s)")
-    if created:
-        names = " & ".join({"linkedin": "LinkedIn", "naukri": "Naukri"}[p] for p in platforms)
+    # Every suggestion this run created or refreshed, with its exact field and values.
+    touched = await db[c.PROFILE_CHANGES].find(
+        {"user_id": uid, "platform": {"$in": list(platforms)}, "approval_status": sync_service.PENDING,
+         "updated_at": {"$gte": started}}).to_list(20)
+    details = [sync_service.change_detail(d) for d in touched]
+    names = " & ".join(sync_service.PLATFORM_NAME[p] for p in platforms)
+    if details:
         await notify(db, user_id=uid, kind="profile_optimization",
-                     title=f"{names}: {created} new suggestion(s) ready",
-                     body="Review, copy the approved text to the site, then mark it applied.", link="/profiles")
-    return {"platforms": list(platforms), "jobs_analyzed": result["jobs_analyzed"], "changes_created": created}
+                     title=f"{names} refresh done · {len(details)} change(s) to apply",
+                     body="; ".join(f"{d['platform']} {d['field']}" for d in details[:4]),
+                     link="/profiles", details=details)
+    else:
+        await notify(db, user_id=uid, kind="profile_optimization", title=f"{names} refresh done",
+                     body="Checked against your latest target jobs: nothing needs changing today.", link="/profiles")
+    return {"platforms": list(platforms), "jobs_analyzed": result["jobs_analyzed"], "changes_created": created,
+            "changes": details}
 
 
 async def _naukri_freshness(db: AsyncIOMotorDatabase, uid: str, today: date) -> dict:
@@ -162,11 +173,11 @@ async def _naukri_freshness(db: AsyncIOMotorDatabase, uid: str, today: date) -> 
     if not edit:
         return {"created": 0, "note": "nothing new to suggest today"}
     created = await sync_service.upsert_changes(db, uid, "naukri", [edit], profile, [j["_id"] for j in jobs])
+    row = sync_service.change_detail({"platform": "naukri", **edit})
     if created:
-        await notify(db, user_id=uid, kind="naukri_freshness", title="Your 2-minute Naukri refresh is ready",
-                     body="One small truthful edit keeps your profile near the top of recruiter searches.",
-                     link="/profiles?tab=naukri")
-    return {"created": created, "field": edit["field"]}
+        await notify(db, user_id=uid, kind="naukri_freshness", title=f"Naukri refresh ready · {row['field']}",
+                     body=f"Change it to: {row['after']}", link="/profiles?tab=naukri", details=[row])
+    return {"created": created, "field": edit["field"], "changes": [row] if created else []}
 
 
 async def _job_discovery(db: AsyncIOMotorDatabase, uid: str, trigger: str) -> dict:

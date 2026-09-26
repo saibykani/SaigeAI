@@ -22,7 +22,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
-    params.get("error") === "google" ? "Google sign-in failed or was cancelled." : null,
+    params.get("error") === "google_denied"
+      ? "Google didn't allow this sign-in. If you saw “Access blocked”, the app owner needs to add your Google account as a test user (Google Cloud → Google Auth Platform → Audience). You can also sign in with email and password."
+      : params.get("error") === "google" ? "Google sign-in failed or was cancelled." : null,
   );
   const [busy, setBusy] = useState(false);
   const next = safeNext(params.get("next"));
@@ -70,7 +72,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             Jobs found and scored for you, resumes tailored to every role, LinkedIn and Naukri kept sharp, and every application tracked to offer — using only what&apos;s true about you.
           </p>
           <p className="animate-rise hidden text-xs text-white/35 lg:block" style={{ animationDelay: "1300ms" }}>
-            Move your mouse through the stars · click for a shockwave · drag to orbit
+            Move through the stars · click to scatter them · drag to orbit
           </p>
         </section>
 

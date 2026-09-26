@@ -44,6 +44,8 @@ function describeResult(r: Record<string, unknown>): string {
   if (r.error) return `Error: ${String(r.error)}`;
   if (r.summary) return String(r.summary);
   const parts: string[] = [];
+  const changes = Array.isArray(r.changes) ? (r.changes as { platform: string; field: string }[]) : [];
+  if (changes.length) parts.push(`Changed: ${changes.map((c) => `${c.platform} ${c.field}`).join(", ")}`);
   if (typeof r.changes_created === "number") parts.push(`${r.changes_created} suggestion(s)`);
   if (typeof r.jobs_analyzed === "number") parts.push(`${r.jobs_analyzed} JD(s) analysed`);
   if (typeof r.created === "number") parts.push(r.created ? `micro-edit ready (${FIELD_LABEL[String(r.field)] ?? r.field})` : String(r.note ?? "nothing new today"));

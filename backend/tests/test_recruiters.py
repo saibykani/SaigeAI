@@ -172,3 +172,24 @@ async def test_contacts_are_private(client, auth):
     other = await register(client, email="other@example.com")
     assert (await client.get("/api/recruiters", headers=other)).json() == []
     assert (await client.post("/api/outreach/draft", headers=other, json={"contact_id": contact["id"]})).status_code == 404
+
+
+async def test_templates_and_new_kinds(client, auth, db):
+    job, contact = await _setup(client, auth)
+    tpls = (await client.get("/api/outreach/templates", headers=auth)).json()
+    kinds = [t["kind"] for t in tpls]
+    assert kinds == ["cold", "hiring_manager", "referral", "employee_intro", "linkedin_note", "followup", "thank_you"]
+    by = {t["kind"]: t for t in tpls}
+    assert by["cold"]["body"].startswith("Hi [First name],") and "[Company]" in by["cold"]["body"]
+    assert len(by["linkedin_note"]["body"]) <= 300
+    assert "Kubernetes" not in " ".join(t["body"] for t in tpls)
+    for kind in ("hiring_manager", "employee_intro", "linkedin_note"):
+        d = (await client.post("/api/outreach/draft", headers=auth,
+                               json={"contact_id": contact["id"], "job_id": job["id"], "kind": kind})).json()
+        assert d["validation"]["status"] == "PASSED", (kind, d["validation"])
+    note = (await client.get("/api/outreach", headers=auth)).json()
+    ln = next(o for o in note if o["kind"] == "linkedin_note")
+    assert len(ln["body"]) <= 300
+    await client.post(f"/api/outreach/{ln['id']}/approve", headers=auth)
+    await client.post(f"/api/outreach/{ln['id']}/mark-sent", headers=auth)
+    assert await db[c.FOLLOWUPS].count_documents({"outreach_id": ln["id"]}) == 0  # no email follow-ups for a LinkedIn note

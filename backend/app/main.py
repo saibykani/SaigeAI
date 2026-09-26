@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
     if owns_connection:
         mongo.connect(settings.mongodb_uri, settings.mongodb_db)
     try:
-        await mongo.ensure_indexes(mongo.get_db())
+        await mongo.ensure_indexes_once(mongo.get_db())
     except Exception:  # noqa: BLE001 - keep serving; /api/health reports the database state
         logger.exception("Could not reach MongoDB at startup (check MONGODB_URI and Atlas "
                          "Network Access); indexes will be created on a later start")

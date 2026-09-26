@@ -34,6 +34,16 @@ from app.utils import as_utc, new_id, utcnow
 HARD_DAILY_CAP = 10
 PER_COMPANY_WEEKLY_CAP = 3
 FOLLOWUP_DAYS = (3, 7, 14)
+FOLLOWUP_KINDS = ("referral", "cold", "hiring_manager", "employee_intro")  # first-touch emails
+TEMPLATE_INFO = [
+    ("cold", "Cold email to HR / recruiter", "HR · recruiter", "Introduce yourself for a specific role or the team's openings."),
+    ("hiring_manager", "Email to a hiring manager", "Hiring manager", "Short, direct note to the person who leads the team."),
+    ("referral", "Ask an employee for a referral", "Employee", "For someone you know at the company. Add how you know them."),
+    ("employee_intro", "Informational chat with an employee", "Employee", "Ask for 15 minutes of perspective, with no referral request."),
+    ("linkedin_note", "LinkedIn connection note", "Anyone", "Fits LinkedIn's 300-character limit for connection requests."),
+    ("followup", "Follow-up", "Anyone you've emailed", "A polite nudge 3–7 days after your first message."),
+    ("thank_you", "Thank-you note", "Interviewer · recruiter", "Send within a day of a call or interview."),
+]
 OPEN = ("draft", "approved")
 FINAL = ("replied", "bounced", "unsubscribed", "cancelled", "no_response")
 GENERIC_DOMAINS = {"gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com", "live.com",
@@ -201,6 +211,8 @@ async def import_from_inbox(db: AsyncIOMotorDatabase, user_id: str) -> dict:
 # ------------------------------------------------------------------ drafts
 
 def _first_name(name: str) -> str:
+    if name.startswith("["):  # template placeholder, e.g. "[First name]"
+        return name
     return name.split()[0] if name.strip() else "there"
 
 
@@ -254,6 +266,27 @@ def build_draft(kind: str, profile: Profile, contact: dict, job: dict | None, pa
         target = f"the {role} role{link}" if role else "relevant openings on your team"
         body = (f"{hi}\n\n{ctx}{_intro(profile)}. I'm interested in {target} at {company}.{skill_line}\n\n"
                 f"If there's a fit, I'd love to share my resume and have a quick chat.{sign}")
+    elif kind == "hiring_manager":
+        subject = f"{role} · {name}" if role and name else (f"{role} at {company}" if role else f"Your team at {company}")
+        target = f"the {role} opening{link}" if role else "your team"
+        body = (f"{hi}\n\n{ctx}{_intro(profile)}. I'm reaching out directly because {target} at {company} matches "
+                f"the work I do.{skill_line}\n\nWould you be open to a 15-minute call, or could you point me to the "
+                f"right recruiter? I've applied through the careers page as well.{sign}")
+    elif kind == "employee_intro":
+        subject = f"Quick question about working at {company}"
+        body = (f"{hi}\n\n{ctx}{_intro(profile)}. I'm exploring roles at {company}"
+                f"{f' such as {role}' if role else ''} and would really value your perspective on the team and culture."
+                f"\n\nWould you have 15 minutes for a quick chat sometime this week or next? Happy to work around "
+                f"your schedule.{sign}")
+    elif kind == "linkedin_note":
+        # LinkedIn connection notes are limited to 300 characters.
+        subject = "LinkedIn connection note"
+        about = f" for the {role} role" if role else ""
+        first_skill = f" with {skills[0]}" if skills else ""
+        designation = profile.personal.current_designation
+        intro = f"I'm {name}, a {designation}" if designation and name else (f"I'm {name}" if name else "I")
+        body = (f"Hi {_first_name(contact['name'])}, {intro}{first_skill}. I'm interested in {company}{about} "
+                f"and would love to connect.")[:300]
     elif kind == "followup":
         when = as_utc(parent["sent_at"]).strftime("%d %b") if parent and parent.get("sent_at") else "earlier"
         about = f" about {parent['subject']}" if parent else ""
@@ -265,6 +298,20 @@ def build_draft(kind: str, profile: Profile, contact: dict, job: dict | None, pa
         body = (f"{hi}\n\n{ctx}Thank you for your time. I appreciated learning more about {company}"
                 f"{f' and the {role} role' if role else ''}, and I'm keen to stay in touch.{sign}")
     return subject[:200], body[:5000]
+
+
+def templates(profile: Profile) -> list[dict]:
+    """Every template rendered with the user's verified profile and placeholder contact details."""
+    sample = {"name": "[First name]", "company": "[Company]"}
+    job = {"title": "[Role]", "company": "[Company]", "skills": [], "application_url": None}
+    parent = {"subject": "[your earlier subject]", "sent_at": None}
+    out = []
+    for kind, name, audience, when in TEMPLATE_INFO:
+        subject, body = build_draft(kind, profile, sample, job if kind != "employee_intro" else None,
+                                    parent if kind == "followup" else None, None)
+        out.append({"kind": kind, "name": name, "audience": audience, "description": when,
+                    "subject": subject, "body": body})
+    return out
 
 
 def check_truth(profile: Profile, body: str) -> dict:
@@ -398,7 +445,7 @@ async def mark_sent(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str) ->
                             f"You've already contacted {PER_COMPANY_WEEKLY_CAP} people at {doc['company']} this week.")
     await db[c.OUTREACH].update_one({"_id": outreach_id}, {"$set": {"status": "sent", "sent_at": now, "updated_at": now}})
     await db[c.RECRUITER_CONTACTS].update_one({"_id": contact["_id"]}, {"$set": {"last_contacted_at": now}})
-    if doc["kind"] in ("referral", "cold"):
+    if doc["kind"] in FOLLOWUP_KINDS:
         for i, days in enumerate(FOLLOWUP_DAYS, start=1):
             await db[c.FOLLOWUPS].insert_one({
                 "_id": new_id(), "user_id": user_id, "outreach_id": outreach_id, "contact_id": contact["_id"],
