@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, ArrowLeft, Bookmark, ExternalLink, ListChecks, RefreshCw, Trash2, X } from "lucide-react";
+import { Archive, ArrowLeft, Bookmark, ExternalLink, ListChecks, RefreshCw, Send, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApi } from "@/hooks/use-api";
-import { request } from "@/services/api";
+import { ApiError, request } from "@/services/api";
 import type { JobDetail, JobStatus } from "@/types/api";
 import { cn } from "@/utils/cn";
 import { UNKNOWN, formatDate, formatSalary, scoreTone } from "@/utils/format";
@@ -100,6 +100,24 @@ export default function JobDetailPage() {
                 <ExternalLink /> Open posting
               </a>
             )}
+            <Button
+              size="sm"
+              variant="gradient"
+              className="animate-gradient"
+              disabled={busy}
+              onClick={() => act(async () => {
+                try {
+                  const a = await request<{ id: string }>("/applications", { method: "POST", body: { job_id: id } });
+                  router.push(`/applications/${a.id}`);
+                } catch (e) {
+                  const existing = e instanceof ApiError && e.status === 409 && e.detail && typeof e.detail === "object" ? (e.detail as { id?: string }).id : undefined;
+                  if (existing) router.push(`/applications/${existing}`);
+                  else throw e;
+                }
+              })}
+            >
+              <Send /> Prepare application
+            </Button>
             <Button size="sm" variant={job.status === "saved" ? "default" : "outline"} disabled={busy} onClick={() => setStatus("saved")}>
               <Bookmark /> Save
             </Button>

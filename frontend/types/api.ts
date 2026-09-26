@@ -496,3 +496,65 @@ export interface JobDocuments {
   resumes: (Resume & { ats: AtsReport | null; engine: string | null })[];
   cover_letters: CoverLetter[];
 }
+
+// ---------------- Phase 4: applications & interviews
+export type ApplicationStatus =
+  | "DISCOVERED" | "SHORTLISTED" | "READY_TO_APPLY" | "APPROVAL_REQUIRED" | "APPLYING" | "APPLIED"
+  | "APPLICATION_FAILED" | "RECRUITER_CONTACTED" | "RECRUITER_REPLIED" | "SCREENING" | "ASSESSMENT"
+  | "INTERVIEW_SCHEDULED" | "INTERVIEW_COMPLETED" | "OFFER" | "REJECTED" | "WITHDRAWN" | "CLOSED";
+
+export interface Application {
+  id: string;
+  job_id: string | null;
+  company: string;
+  role: string;
+  source: string | null;
+  application_url: string | null;
+  match_score: number | null;
+  resume_id: string | null;
+  cover_letter_id: string | null;
+  status: ApplicationStatus;
+  applied_at: string | null;
+  last_contact_at: string | null;
+  next_followup_at: string | null;
+  recruiter_id: string | null;
+  interview_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApplicationAnswer {
+  id: string;
+  question: string;
+  answer: string | null;
+  source: string | null;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  status: "ANSWERED" | "REVIEW_REQUIRED" | "USER_PROVIDED";
+  sensitive: boolean;
+  note: string | null;
+}
+
+export interface Interview {
+  id: string;
+  application_id: string | null;
+  company: string | null;
+  role: string | null;
+  round: string | null;
+  scheduled_at: string;
+  timezone: string | null;
+  duration_minutes: number;
+  meeting_url: string | null;
+  interviewer: string | null;
+  interview_type: string | null;
+  status: "upcoming" | "completed" | "rescheduled" | "cancelled";
+  notes: string | null;
+  source: string;
+  created_at: string;
+}
+
+export interface ApplicationDetail extends Application {
+  events: { id: string; type: string; note: string | null; from: string | null; to: string | null; source: string; email_id: string | null; at: string }[];
+  answers: ApplicationAnswer[];
+  followups: { id: string; kind: string; sequence: number; status: string; due_at: string }[];
+  interviews: Interview[];
+}

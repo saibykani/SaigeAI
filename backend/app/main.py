@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.analytics.router import router as analytics_router
+from app.applications.router import router as applications_router
 from app.auth.router import router as auth_router
 from app.automation.router import router as automation_router
 from app.config import get_settings
@@ -96,7 +97,7 @@ def create_app() -> FastAPI:
         return {"status": "ok" if db_ok else "degraded", "database": db_ok}
 
     for r in (auth_router, profile_sync_router, profile_router, resume_ai_router, resumes_router, jobs_router,
-              analytics_router,
+              applications_router, analytics_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router):
         api.include_router(r)
     app.include_router(api)

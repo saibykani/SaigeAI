@@ -3,6 +3,7 @@
 import {
   BarChart3,
   Bell,
+  CalendarDays,
   Briefcase,
   FileText,
   LayoutDashboard,
@@ -32,12 +33,13 @@ const NAV: NavItem[] = [
   { href: "/profile", label: "Master Profile", icon: UserRound, slot: 7 },
   { href: "/resumes", label: "Resumes", icon: FileText, slot: 3 },
   { href: "/jobs", label: "Jobs", icon: Briefcase, slot: 2 },
+  { href: "/applications", label: "Applications", icon: Send, slot: 6 },
+  { href: "/interviews", label: "Interviews", icon: CalendarDays, slot: 8 },
   { href: "/profile-sync", label: "Profile Sync", icon: Sparkles, slot: 4 },
   { href: "/settings", label: "Automation & Privacy", icon: Settings, slot: 5 },
 ];
 
 const UPCOMING = [
-  { label: "Applications", icon: Send, phase: 4 },
   { label: "Gmail", icon: Mail, phase: 5 },
   { label: "Recruiters", icon: Users, phase: 6 },
   { label: "Analytics", icon: BarChart3, phase: 8 },
