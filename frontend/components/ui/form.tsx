@@ -3,10 +3,10 @@ import * as React from "react";
 import { cn } from "@/utils/cn";
 
 const fieldBase =
-  "w-full rounded-md border border-input bg-card px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+  "w-full rounded-xl border border-input bg-card-solid px-3.5 text-sm transition-shadow placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, ...props }, ref) => <input ref={ref} className={cn(fieldBase, "h-9 py-1", className)} {...props} />,
+  ({ className, ...props }, ref) => <input ref={ref} className={cn(fieldBase, "h-10 py-1", className)} {...props} />,
 );
 Input.displayName = "Input";
 
@@ -18,7 +18,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
 Textarea.displayName = "Textarea";
 
 export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
-  ({ className, ...props }, ref) => <select ref={ref} className={cn(fieldBase, "h-9", className)} {...props} />,
+  ({ className, ...props }, ref) => <select ref={ref} className={cn(fieldBase, "h-10", className)} {...props} />,
 );
 Select.displayName = "Select";
 

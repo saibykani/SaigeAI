@@ -38,12 +38,12 @@ export function TagInput({ value, onChange, placeholder = "Type and press Enter"
   return (
     <div
       className={cn(
-        "flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-input bg-card px-2 py-1.5 focus-within:ring-2 focus-within:ring-ring",
+        "flex min-h-10 flex-wrap items-center gap-1.5 rounded-xl border border-input bg-card-solid px-2.5 py-1.5 focus-within:border-transparent focus-within:ring-2 focus-within:ring-ring",
         className,
       )}
     >
       {value.map((tag) => (
-        <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-xs text-accent-foreground">
+        <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground">
           {tag}
           <button
             type="button"

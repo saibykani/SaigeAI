@@ -6,6 +6,10 @@ const backend =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Lets a verification build run without clobbering a running dev server's .next folder.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Next 16 blocks dev-only assets for non-localhost origins; allow the loopback IP too.
+  allowedDevOrigins: ["127.0.0.1"],
   poweredByHeader: false,
   // Same-origin proxy: the browser only ever talks to the Next.js origin, so the refresh-token
   // cookie stays first-party and no backend URL or secret reaches client code.
