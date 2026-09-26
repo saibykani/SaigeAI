@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
-const backend = process.env.BACKEND_URL ?? "http://localhost:8000";
+// On Vercel the API is its own project (saige-ai-api); BACKEND_URL overrides either default.
+const backend =
+  process.env.BACKEND_URL || (process.env.VERCEL ? "https://saige-ai-api.vercel.app" : "http://localhost:8000");
 
 const nextConfig: NextConfig = {
   output: "standalone",
