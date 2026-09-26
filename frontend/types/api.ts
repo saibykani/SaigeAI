@@ -323,6 +323,9 @@ export interface AutomationSettings {
     min_match_score: number;
   };
   auto_apply: AutoApplySettings;
+  auto_reply: { enabled: boolean; talent_details: boolean; resume: boolean; next_step: boolean; job_details: boolean };
+  followups: { enabled: boolean; days: number[] };
+  blocked_companies: string[];
 }
 
 export interface AutoApplySettings {
@@ -650,8 +653,9 @@ export interface InboxEmail {
 
 export interface Integrations {
   google: { connected: boolean; available: boolean };
-  gmail: { connected: boolean; available: boolean; email: string | null; method: "oauth" | "app_password" | null; status: string; error: string | null; last_sync_at: string | null };
-  whatsapp: { connected: boolean; enabled: boolean; phone: string | null; error: string | null };
+  gmail: { connected: boolean; available: boolean; email: string | null; method: "oauth" | "app_password" | null; status: string; error: string | null; last_sync_at: string | null;
+    last_result?: { search?: Record<"mail" | "portals", { matched?: number; fetched?: number; mailbox?: string; fallback?: boolean } | undefined> } | null };
+  whatsapp: { connected: boolean; enabled: boolean; phone: string | null; error: string | null; muted?: string[] };
   linkedin: { snapshot: boolean; mode: string };
   naukri: { snapshot: boolean; mode: string };
   ats_boards: { count: number };
@@ -660,7 +664,7 @@ export interface Integrations {
 
 // ---------------- Recruiters & outreach
 export type ContactRole = "recruiter" | "hiring_manager" | "referral" | "alumni" | "other";
-export type OutreachKind = "referral" | "cold" | "hiring_manager" | "employee_intro" | "linkedin_note" | "followup" | "thank_you";
+export type OutreachKind = "referral" | "cold" | "hiring_manager" | "employee_intro" | "linkedin_note" | "followup" | "thank_you" | "reply";
 export type OutreachStatus = "draft" | "approved" | "sent" | "replied" | "bounced" | "no_response" | "unsubscribed" | "cancelled";
 
 export interface RecruiterContact {
@@ -668,6 +672,7 @@ export interface RecruiterContact {
   name: string;
   company: string;
   email: string | null;
+  phone?: string | null;
   linkedin_url: string | null;
   title: string | null;
   role: ContactRole;
@@ -680,6 +685,8 @@ export interface RecruiterContact {
 }
 
 export interface Outreach {
+  attach_resume?: boolean;
+  asks?: string[];
   id: string;
   contact_id: string;
   job_id: string | null;
@@ -740,9 +747,10 @@ export interface Breakdowns {
 }
 
 export interface OutreachTemplate {
-  kind: OutreachKind | "wa_hr" | "wa_referral" | "wa_followup" | "wa_thanks";
-  channel: "email" | "linkedin" | "whatsapp";
+  kind: OutreachKind | `wa_${string}` | `sms_${string}`;
+  channel: "email" | "linkedin" | "whatsapp" | "sms";
   wa_link?: string;
+  sms_link?: string;
   name: string;
   audience: string;
   description: string;

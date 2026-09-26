@@ -157,7 +157,8 @@ async def test_gmail_sync_with_mocked_google(client, db, auth, monkeypatch):
     monkeypatch.setattr(gmail, "http_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler)))
     r = await client.post("/api/emails/sync", headers=auth)
     assert r.status_code == 200, r.text
-    assert r.json() == {"fetched": 1, "by_category": {"Offer": 1}, "status_updates": 1, "recruiters_added": 0, "alert_jobs": 0}
+    assert r.json() == {"fetched": 1, "by_category": {"Offer": 1}, "status_updates": 1, "recruiters_added": 0, "alert_jobs": 0,
+                        "search": {"mail": {"fetched": 1}, "portals": {"fetched": 0}}}
     assert (await client.get(f"/api/applications/{a['id']}", headers=auth)).json()["status"] == "OFFER"
     again = await client.post("/api/emails/sync", headers=auth)  # already-seen message is skipped
     assert again.json()["fetched"] == 0

@@ -67,3 +67,17 @@ export function formatDateTime(iso: string | null | undefined): string {
 export function humanStatus(s: string): string {
   return s.toLowerCase().replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 }
+
+/** "today", "yesterday", "3 days ago", "2 weeks ago" for a posting date (ISO date or datetime). */
+export function timeAgo(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const days = Math.floor((Date.now() - t) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days / 7)} week${days < 14 ? "" : "s"} ago`;
+  if (days < 365) return `${Math.floor(days / 30)} month${days < 60 ? "" : "s"} ago`;
+  return formatDate(iso);
+}

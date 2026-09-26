@@ -41,7 +41,35 @@ OAUTH_STATE_COOKIE = "saige_oauth_state"
 async def register(body: RegisterRequest, response: Response,
                    db: AsyncIOMotorDatabase = Depends(db_dep)):
     user = await create_user(db, email=body.email, name=body.name, password=body.password)
+    await seed_profile(db, user["_id"], body)
     return await issue_session(db, user, response)
+
+
+async def seed_profile(db: AsyncIOMotorDatabase, uid: str, body: RegisterRequest) -> None:
+    """Start the master profile with what the user typed at sign-up (their own statements)."""
+    from app.profiles.service import update_profile
+    from app.schemas.profile import ProfileUpdate
+
+    extras = (body.phone, body.current_designation, body.total_experience_years, body.target_role, body.current_location,
+              body.country, body.notice_period_days, body.linkedin_url)
+    if all(v in (None, "") for v in extras):
+        return
+    personal = {k: v for k, v in {"name": body.name, "email": body.email, "phone": body.phone,
+                                  "current_designation": body.current_designation,
+                                  "total_experience_years": body.total_experience_years,
+                                  "current_location": body.current_location, "country": body.country,
+                                  "notice_period_days": body.notice_period_days}.items() if v not in (None, "")}
+    patch: dict = {"personal": personal}
+    if body.target_role:
+        patch["preferences"] = {"target_roles": [r.strip() for r in body.target_role.split(",") if r.strip()][:5]}
+    if body.current_location:
+        patch.setdefault("preferences", {})["preferred_locations"] = [body.current_location]
+    if body.linkedin_url:
+        personal["linkedin_url"] = body.linkedin_url
+    try:
+        await update_profile(db, uid, ProfileUpdate.model_validate(patch), source="signup")
+    except Exception:  # noqa: BLE001, S110 - sign-up must succeed even if a detail is rejected
+        pass
 
 
 @router.post("/login", response_model=TokenResponse,

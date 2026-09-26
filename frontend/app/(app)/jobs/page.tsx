@@ -15,7 +15,7 @@ import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
 import type { JobDetail, JobSource, JobStatus, JobSummary } from "@/types/api";
 import { cn } from "@/utils/cn";
-import { formatDate, formatSalary, scoreTone } from "@/utils/format";
+import { formatDate, formatSalary, scoreTone, timeAgo } from "@/utils/format";
 
 type Msg = { tone: "success" | "error" | "info"; text: React.ReactNode } | null;
 
@@ -335,7 +335,7 @@ export default function JobsPage() {
                     </div>
                     <div className="hidden text-right text-xs text-muted-foreground sm:block">
                       <p className="capitalize">{j.sources.join(", ")}</p>
-                      <p>{formatDate(j.created_at)}</p>
+                      <p>{j.posted_date ? `Posted ${timeAgo(j.posted_date)}` : `Saved ${formatDate(j.created_at)}`}</p>
                     </div>
                   </Card>
                 </Link>

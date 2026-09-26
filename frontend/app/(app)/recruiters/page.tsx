@@ -121,7 +121,7 @@ export default function RecruitersPage() {
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return (contacts.data ?? []).filter((c) => (source === "all" || c.source === source)
-      && (!needle || `${c.name} ${c.company} ${c.title ?? ""} ${c.email ?? ""}`.toLowerCase().includes(needle)));
+      && (!needle || `${c.name} ${c.company} ${c.title ?? ""} ${c.email ?? ""} ${c.phone ?? ""}`.toLowerCase().includes(needle)));
   }, [contacts.data, q, source]);
 
   const s = stats.data;
@@ -247,7 +247,7 @@ export default function RecruitersPage() {
         <div className="grid gap-6 xl:grid-cols-3">
           <div className="flex flex-col gap-4 xl:col-span-2">
             <div className="flex flex-wrap gap-1.5">
-              {[["all", "All", "green"], ["gmail", "From inbox", "red"], ["job", "From job postings", "orange"], ["manual", "Added by you", "purple"], ["csv", "CSV / LinkedIn export", "teal"]].map(([id, label, tone]) => {
+              {[["all", "All", "green"], ["portal", "From LinkedIn / Naukri", "mint"], ["gmail", "From inbox", "red"], ["job", "From job postings", "orange"], ["manual", "Added by you", "purple"], ["csv", "CSV / LinkedIn export", "teal"]].map(([id, label, tone]) => {
                 const n = id === "all" ? (contacts.data?.length ?? 0) : (contacts.data ?? []).filter((c) => c.source === id).length;
                 return (
                   <button key={id} onClick={() => setSource(id)} className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors", source === id ? "text-[#0b0b0c]" : "text-muted-foreground hover:text-foreground")} style={source === id ? { background: `var(--tone-${tone})`, borderColor: "transparent" } : undefined}>
@@ -302,6 +302,12 @@ export default function RecruitersPage() {
                         <td className="px-4 py-3">
                           <p className="font-medium">{c.name}</p>
                           <p className="text-xs text-muted-foreground">{c.title || c.email || c.linkedin_url || "—"}</p>
+                          <span className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
+                            {c.email && <a href={`mailto:${c.email}`} className="rounded-full border px-2 py-0.5 hover:bg-muted">✉ {c.email}</a>}
+                            {c.phone && <a href={`tel:${c.phone}`} className="rounded-full border px-2 py-0.5 hover:bg-muted">☎ {c.phone}</a>}
+                            {c.phone && <a href={`https://wa.me/${c.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="rounded-full px-2 py-0.5 font-medium text-[#0b0b0c]" style={{ background: "#25D366" }}>WhatsApp</a>}
+                            {c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" className="rounded-full border px-2 py-0.5 hover:bg-muted">LinkedIn</a>}
+                          </span>
                         </td>
                         <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5"><Building2 className="size-3.5 text-muted-foreground" />{c.company}</span></td>
                         <td className="hidden px-4 py-3 md:table-cell">

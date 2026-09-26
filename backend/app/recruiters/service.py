@@ -63,7 +63,7 @@ def linkedin_key(url: str | None) -> str | None:
 
 def contact_out(d: dict) -> dict:
     return {
-        "id": d["_id"], "name": d["name"], "company": d["company"], "email": d.get("email"),
+        "id": d["_id"], "name": d["name"], "company": d["company"], "email": d.get("email"), "phone": d.get("phone"),
         "linkedin_url": d.get("linkedin_url"), "title": d.get("title"), "role": d.get("role", "recruiter"),
         "tags": d.get("tags", []), "notes": d.get("notes"), "source": d.get("source", "manual"),
         "unsubscribed": d.get("unsubscribed", False),
@@ -74,13 +74,23 @@ def contact_out(d: dict) -> dict:
 
 # ------------------------------------------------------------------ contacts
 
+def phone_key(phone: str | None) -> str | None:
+    digits = re.sub(r"\D", "", phone or "")
+    return digits[-10:] if len(digits) >= 10 else None
+
+
 async def find_duplicate(db: AsyncIOMotorDatabase, user_id: str, email: str | None, linkedin: str | None,
-                         exclude_id: str | None = None) -> dict | None:
-    ors = []
+                         exclude_id: str | None = None, *, phone: str | None = None, name: str | None = None,
+                         company: str | None = None) -> dict | None:
+    ors: list[dict] = []
     if email_key(email):
         ors.append({"email_key": email_key(email)})
     if linkedin_key(linkedin):
         ors.append({"linkedin_key": linkedin_key(linkedin)})
+    if phone_key(phone):
+        ors.append({"phone_key": phone_key(phone)})
+    if not ors and name and company:  # portal recruiters may come with only a name and company
+        ors.append({"name": name, "company_key": company_key(company)})
     if not ors:
         return None
     q: dict = {"user_id": user_id, "$or": ors}
@@ -91,12 +101,12 @@ async def find_duplicate(db: AsyncIOMotorDatabase, user_id: str, email: str | No
 
 async def create_contact(db: AsyncIOMotorDatabase, user_id: str, body: ContactIn) -> tuple[dict, bool]:
     """Returns (contact, created). An existing contact with the same email or LinkedIn is returned as-is."""
-    dup = await find_duplicate(db, user_id, body.email, body.linkedin_url)
+    dup = await find_duplicate(db, user_id, body.email, body.linkedin_url, phone=body.phone, name=body.name, company=body.company)
     if dup:
         return dup, False
     now = utcnow()
     doc = {"_id": new_id(), "user_id": user_id, **body.model_dump(mode="json"),
-           "email_key": email_key(body.email), "linkedin_key": linkedin_key(body.linkedin_url),
+           "email_key": email_key(body.email), "linkedin_key": linkedin_key(body.linkedin_url), "phone_key": phone_key(body.phone),
            "company_key": company_key(body.company), "unsubscribed": False, "last_contacted_at": None,
            "created_at": now, "updated_at": now}
     await db[c.RECRUITER_CONTACTS].insert_one(doc)
@@ -122,6 +132,8 @@ async def update_contact(db: AsyncIOMotorDatabase, user_id: str, contact_id: str
         patch["email_key"] = email_key(patch["email"])
     if "linkedin_url" in patch:
         patch["linkedin_key"] = linkedin_key(patch["linkedin_url"])
+    if "phone" in patch:
+        patch["phone_key"] = phone_key(patch["phone"])
     if patch.get("company"):
         patch["company_key"] = company_key(patch["company"])
     await db[c.RECRUITER_CONTACTS].update_one({"_id": contact_id}, {"$set": {**patch, "updated_at": utcnow()}})
@@ -186,7 +198,7 @@ def _company_from_domain(domain: str) -> str | None:
 async def import_from_inbox(db: AsyncIOMotorDatabase, user_id: str) -> dict:
     """Create contacts from recruiters who emailed the user (already imported mail only)."""
     result = {"created": 0, "duplicates": 0, "skipped": 0}
-    cats = ["Recruiter Outreach", "Recruiter Reply", "Interview Invitation", "Assessment"]
+    cats = ["Recruiter Outreach", "Recruiter Reply", "Interview Invitation", "Assessment"]  # portal mail is handled in email.service
     async for e in db[c.EMAILS].find({"user_id": user_id, "category": {"$in": cats}}):
         ex = e.get("extracted") or {}
         addr = ex.get("sender_email")
@@ -364,6 +376,10 @@ def templates(profile: Profile) -> list[dict]:
         text = whatsapp_text(kind, profile, sample, "[Role]", "[Company]")
         out.append({"kind": kind, "name": name, "audience": audience, "description": when, "subject": "",
                     "body": text, "channel": "whatsapp", "wa_link": f"https://wa.me/?text={quote(text)}"})
+    for kind, name, audience, when in WHATSAPP_INFO[:3]:  # SMS: the same short messages, sent from your phone
+        text = whatsapp_text(kind, profile, sample, "[Role]", "[Company]")
+        out.append({"kind": kind.replace("wa_", "sms_"), "name": name.replace("WhatsApp", "SMS"), "audience": audience,
+                    "description": when, "subject": "", "body": text, "channel": "sms", "sms_link": f"sms:?body={quote(text)}"})
     return out
 
 
@@ -394,8 +410,21 @@ def whatsapp_text(kind: str, profile: Profile, contact: dict, role: str | None, 
             f"{f' and the {role} role' if role else ''}. Looking forward to the next steps!")
 
 
+def _profile_values(profile: Profile) -> list[str]:
+    """Exact renderings of verified profile numbers (CTC, notice, experience) that replies may quote."""
+    from app.email.auto_reply import _money
+
+    p = profile.personal
+    vals = [_money(p.current_ctc, p.ctc_currency), _money(p.expected_ctc, p.ctc_currency),
+            f"{p.notice_period_days} days" if p.notice_period_days is not None else None,
+            f"{p.total_experience_years:g} years" if p.total_experience_years else None, p.phone]
+    return [v for v in vals if v]
+
+
 def check_truth(profile: Profile, body: str) -> dict:
     titles = [profile.personal.current_designation] if profile.personal.current_designation else []
+    for v in _profile_values(profile):  # the user's own verified numbers are not invented metrics
+        body = body.replace(v, "")
     result = validate_claims(GeneratedClaims(text=body, titles=titles), profile)
     return {"status": result.status, "violations": [v.model_dump() for v in result.violations]}
 
@@ -408,7 +437,7 @@ def outreach_out(d: dict, contact: dict | None = None) -> dict:
         "kind": d["kind"], "status": d["status"], "subject": subject, "body": body,
         "company": d.get("company"), "contact_name": (contact or {}).get("name") or d.get("contact_name"),
         "channel_hint": "email" if to else "linkedin",
-        "validation": d.get("validation"),
+        "validation": d.get("validation"), "attach_resume": bool(d.get("attach_resume")), "asks": d.get("asks", []),
         "mailto": f"mailto:{to}?subject={quote(subject)}&body={quote(body)}" if to else None,
         "gmail_compose": (f"https://mail.google.com/mail/?view=cm&fs=1&to={quote(to)}&su={quote(subject)}"
                           f"&body={quote(body)}") if to else None,
@@ -422,6 +451,8 @@ def outreach_out(d: dict, contact: dict | None = None) -> dict:
 
 
 async def create_draft(db: AsyncIOMotorDatabase, user_id: str, body: DraftIn) -> dict:
+    if body.kind == "reply":
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Replies are drafted automatically from the recruiter's email.")
     contact = await get_contact(db, user_id, body.contact_id)
     if contact.get("unsubscribed"):
         raise HTTPException(status.HTTP_409_CONFLICT, "This contact asked not to be contacted")
@@ -514,6 +545,12 @@ async def _preflight(db: AsyncIOMotorDatabase, user_id: str, doc: dict, now) -> 
     contact = await get_contact(db, user_id, doc["contact_id"])
     if contact.get("unsubscribed"):
         raise HTTPException(status.HTTP_409_CONFLICT, "This contact asked not to be contacted")
+    if doc["kind"] == "reply":  # answering someone who wrote to you first: no cold-outreach caps
+        return contact
+    from app.automation.service import is_blocked
+
+    if is_blocked(await get_settings_doc(db, user_id), doc.get("company")):
+        raise HTTPException(status.HTTP_409_CONFLICT, f"{doc.get('company')} is in your blocked companies (Settings → Agent).")
     limit = await daily_limit(db, user_id)
     if await sent_today(db, user_id, now) >= limit:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
@@ -532,8 +569,9 @@ async def _record_sent(db: AsyncIOMotorDatabase, user_id: str, doc: dict, contac
     await db[c.OUTREACH].update_one({"_id": outreach_id}, {"$set": {
         "status": "sent", "sent_at": now, "sent_via": via, "message_id": message_id, "updated_at": now}})
     await db[c.RECRUITER_CONTACTS].update_one({"_id": contact["_id"]}, {"$set": {"last_contacted_at": now}})
-    if doc["kind"] in FOLLOWUP_KINDS:
-        for i, days in enumerate(FOLLOWUP_DAYS, start=1):
+    fu = (await get_settings_doc(db, user_id)).followups
+    if doc["kind"] in FOLLOWUP_KINDS and fu.enabled:
+        for i, days in enumerate(fu.days or FOLLOWUP_DAYS, start=1):
             await db[c.FOLLOWUPS].insert_one({
                 "_id": new_id(), "user_id": user_id, "outreach_id": outreach_id, "contact_id": contact["_id"],
                 "kind": "outreach_followup", "sequence": i, "due_at": now + timedelta(days=days),
@@ -553,6 +591,22 @@ async def mark_sent(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str) ->
     contact = await _preflight(db, user_id, doc, now)
     await _record_sent(db, user_id, doc, contact, now, via="manual")
     return await out_with_contact(db, user_id, outreach_id)
+
+
+async def resume_attachment(db: AsyncIOMotorDatabase, user_id: str) -> list[tuple[str, bytes, str]]:
+    """The master resume as a DOCX attachment (empty when there is no resume)."""
+    from app.profiles.sync_service import master_resume
+    from app.resumes.docx_export import resume_docx
+    from app.schemas.resume import ParsedResume
+
+    r = await master_resume(db, user_id)
+    v = r and await db[c.RESUME_VERSIONS].find_one({"_id": r.get("current_version_id")})
+    if not v:
+        return []
+    parsed = ParsedResume.model_validate(v["parsed"])
+    name = re.sub(r"[^A-Za-z0-9 _-]", "", parsed.name or "Resume").strip() or "Resume"
+    return [(f"{name} - Resume.docx", resume_docx(parsed),
+             "application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
 
 
 async def send_now(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str, *, approve_first: bool = False) -> dict:
@@ -576,9 +630,10 @@ async def send_now(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str, *, 
         raise HTTPException(status.HTTP_409_CONFLICT, "Connect Gmail with an App Password (Integrations) so Saige can "
                                                       "send for you, or open it in Gmail and send it yourself.")
     user = await db[c.USERS].find_one({"_id": user_id}, {"name": 1})
+    attachments = await resume_attachment(db, user_id) if doc.get("attach_resume") else []
     try:
         message_id = await smtp.send(integ["email"], crypto.decrypt(integ["app_password_enc"]), (user or {}).get("name") or "",
-                                     contact["email"], doc["subject"], doc["body"])
+                                     contact["email"], doc["subject"], doc["body"], attachments)
     except GmailError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
     await _record_sent(db, user_id, doc, contact, now, via="gmail", message_id=message_id)

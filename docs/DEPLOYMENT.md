@@ -100,6 +100,19 @@ Integrations → Connect Gmail → **Option 1** connects over Gmail IMAP with a 
 review. The password is encrypted at rest, mail is read with `BODY.PEEK` (never marked read), and
 the user can revoke it in their Google account at any time.
 
+### Daily scheduler: CRON_SECRET
+
+Vercel calls `GET /api/cron/daily` once a day (Hobby plan limit; `backend/vercel.json`). The endpoint only runs
+when the request carries `Authorization: Bearer <CRON_SECRET>`, which Vercel adds automatically once the variable exists:
+
+1. vercel.com → project **saige-ai-api** → Settings → Environment Variables.
+2. Add `CRON_SECRET` with a long random value (e.g. `python -c "import secrets;print(secrets.token_urlsafe(32))"`),
+   for Production (and Preview if you like). Save.
+3. Deployments → latest → ⋯ → Redeploy, so the running functions see it.
+4. Check: Settings → Cron Jobs lists `/api/cron/daily`; after the next run, Saige shows the scheduler history.
+
+More frequent updates come from the app itself: while it is open, `POST /api/live/tick` runs every 3 minutes.
+
 ### Jobs for you (no keys needed)
 
 Jobs → **Jobs for you** (`GET /api/jobs/feed`, `backend/app/jobs/feed.py`) fetches every job for the

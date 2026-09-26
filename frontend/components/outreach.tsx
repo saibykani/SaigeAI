@@ -22,6 +22,7 @@ export const KIND_LABEL: Record<OutreachKind, string> = {
   linkedin_note: "LinkedIn note",
   followup: "Follow-up",
   thank_you: "Thank-you",
+  reply: "Reply to recruiter",
 };
 
 const STATUS_TONE: Record<OutreachStatus, "warning" | "default" | "success" | "muted" | "destructive"> = {
@@ -81,6 +82,8 @@ export function OutreachCard({ item, onChange, delay = 0, canSend = false }: { i
           <Badge variant="outline">{KIND_LABEL[item.kind]}</Badge>
           <Badge variant={STATUS_TONE[item.status]} className="capitalize">{item.status.replace("_", " ")}</Badge>
           {verified && <Badge variant="success" title="Checked against your verified profile"><ShieldCheck className="size-3" /> Verified</Badge>}
+          {item.attach_resume && <Badge variant="outline">📎 Resume attached</Badge>}
+          {item.kind === "reply" && item.asks && item.asks.length > 0 && <Badge variant="outline">They asked: {item.asks.join(", ")}</Badge>}
           <span className="ml-auto text-xs text-muted-foreground">
             {item.contact_name} · {item.company}
             {item.sent_at ? ` · sent ${formatDateTime(item.sent_at)}${item.sent_via === "gmail" ? " by Saige" : ""}` : ""}

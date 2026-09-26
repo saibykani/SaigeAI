@@ -65,11 +65,18 @@ async def ingest(db: AsyncIOMotorDatabase, user_id: str, msg: dict, *, source: s
             return existing
     profile = await get_profile(db, user_id)
     tz = profile.preferences.timezone or "Asia/Kolkata"
+    from app.email import portal
+
+    portal_cat = portal.category(msg["sender"], msg["subject"], msg["body"])
     category, confidence, signals = classifier.classify(msg["subject"], msg["body"])
     extracted = classifier.extract(msg["subject"], msg["body"], msg["sender"], tz)
     received = (datetime.fromtimestamp(msg["received_ms"] / 1000, tz=UTC) if msg.get("received_ms")
                 else utcnow())
-    app = await match_application(db, user_id, msg["subject"], msg["body"], extracted)
+    if portal_cat:  # LinkedIn / Naukri / Indeed mail: never used to move an application's status
+        category, confidence, signals, app = portal_cat, 0.9, ["portal sender"], None
+        extracted["portal"] = portal.portal_for(msg["sender"])
+    else:
+        app = await match_application(db, user_id, msg["subject"], msg["body"], extracted)
     if category == "Recruiter Outreach" and app:
         category = "Recruiter Reply"  # a recruiter writing about a job you're already pursuing
     doc = {"_id": new_id(), "user_id": user_id, "gmail_id": msg.get("gmail_id"), "thread_id": msg.get("thread_id"),
@@ -87,14 +94,37 @@ async def ingest(db: AsyncIOMotorDatabase, user_id: str, msg: dict, *, source: s
     outreach = await on_inbound_email(db, user_id, extracted.get("sender_email"), msg["body"])
     if outreach and not action:
         action = f"outreach_{outreach}"
-    if not app and category in {"Recruiter Outreach", "Interview Invitation", "Offer"}:
+    if not app and category in {"Recruiter Outreach", "Interview Invitation", "Offer", "Portal Invite", "Portal Message"}:
         await notify(db, user_id=user_id, kind="recruiter_email", title=f"{category}: {msg['subject'][:80]}", link="/inbox")
+    if portal_cat in ("Portal Invite", "Portal Message"):
+        await portal_recruiter(db, user_id, msg)
+    if category in ("Recruiter Outreach", "Recruiter Reply", "Interview Invitation", "Assessment") and not portal_cat:
+        from app.email.auto_reply import draft_reply
+
+        await draft_reply(db, user_id, doc)
     if action:
         await db[c.EMAILS].update_one({"_id": doc["_id"]}, {"$set": {"action": action}})
         doc["action"] = action
     await log_action(db, user_id=user_id, action="email.received", entity="email", entity_id=doc["_id"],
                      details={"category": category, "application_id": doc["application_id"], "action": action})
     return doc
+
+
+async def portal_recruiter(db: AsyncIOMotorDatabase, user_id: str, msg: dict) -> None:
+    """Add the recruiter a LinkedIn / Naukri invite or message names (with any phone or email it contains)."""
+    from app.email import portal
+    from app.recruiters.service import create_contact
+    from app.schemas.recruiter import ContactIn
+
+    r = portal.recruiter(msg["sender"], msg["subject"], msg["body"])
+    if not r:
+        return
+    try:
+        await create_contact(db, user_id, ContactIn(
+            name=r["name"], company=r["company"], email=r["email"], phone=r["phone"], title=r["title"], role="recruiter",
+            source="portal", tags=[r["portal"]], notes=f"From your {r['portal'].title()} notification: {msg['subject'][:150]}"))
+    except ValueError:
+        pass
 
 
 async def apply_to_application(db: AsyncIOMotorDatabase, user_id: str, email: dict, app: dict) -> str | None:

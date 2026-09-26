@@ -159,6 +159,16 @@ async def ats_score(body: AtsScoreIn, user: dict = Depends(get_current_user), db
     return {**report, "job": title, "resume": resume["name"], "tips": tips[:10]}
 
 
+@router.get("/resumes/{resume_id}/health")
+async def resume_health(resume_id: str, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Resume health report (no job needed): impact, repetition, bullet length, contact details, structure."""
+    resume = await resumes.get_owned(db, user["_id"], resume_id)
+    v = await db[c.RESUME_VERSIONS].find_one({"_id": resume.get("current_version_id"), "resume_id": resume["_id"]})
+    if not v:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume version not found")
+    return {**tailor.health_report(ParsedResume.model_validate(v["parsed"])), "resume": resume["name"]}
+
+
 # ------------------------------------------------------------------ cover letters
 
 def _letter_out(d: dict) -> dict:

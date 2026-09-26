@@ -49,14 +49,46 @@ def _text(msg: email.message.EmailMessage) -> str:
     return html_to_text(html.get_content(), keep_links=True) if html is not None else ""
 
 
-def _fetch_sync(address: str, app_password: str, limit: int, skip: set[str], query: str = DEFAULT_QUERY) -> list[dict]:
+def _all_mail(conn) -> str:
+    """Gmail's "All Mail" folder (its name is localised), so Social / Promotions / Updates tabs are included."""
+    try:
+        status, boxes = conn.list()
+    except Exception:  # noqa: BLE001 - fall back to the inbox
+        return "INBOX"
+    for line in boxes or []:
+        text = line.decode(errors="ignore") if isinstance(line, bytes) else str(line)
+        if "\\All" in text:
+            m = re.search(r'"([^"]+)"\s*$', text) or re.search(r"(\S+)\s*$", text)
+            if m:
+                return f'"{m.group(1)}"'
+    return "INBOX"
+
+
+def _since(days: int) -> str:
+    from datetime import UTC, datetime, timedelta
+
+    return (datetime.now(UTC) - timedelta(days=days)).strftime("%d-%b-%Y")
+
+
+def _fetch_sync(address: str, app_password: str, limit: int, skip: set[str], query: str = DEFAULT_QUERY,
+                stats: dict | None = None) -> list[dict]:
+    stats = stats if stats is not None else {}
     conn = _login(address, app_password)
     try:
-        conn.select("INBOX", readonly=True)
-        status, data = conn.uid("SEARCH", "X-GM-RAW", f'"{query}"')
+        box = _all_mail(conn)
+        status, _ = conn.select(box, readonly=True)
         if status != "OK":
-            raise GmailError("Gmail search failed")
-        uids = (data[0] or b"").split()[-limit:]
+            box = "INBOX"
+            conn.select(box, readonly=True)
+        status, data = conn.uid("SEARCH", "X-GM-RAW", f'"{query}"')
+        uids = (data[0] or b"").split() if status == "OK" and data else []
+        stats.update({"mailbox": box.strip('"'), "matched": len(uids), "fallback": False})
+        if not uids:  # Gmail search unavailable or empty: plain IMAP date search as a safety net
+            status, data = conn.uid("SEARCH", None, "SINCE", _since(30))
+            uids = (data[0] or b"").split() if status == "OK" and data else []
+            stats.update({"matched": len(uids), "fallback": True})
+        uids = uids[-limit:]
+        me = address.lower()
         out = []
         for uid in reversed(uids):  # newest first
             status, parts = conn.uid("FETCH", uid, "(X-GM-MSGID X-GM-THRID BODY.PEEK[])")
@@ -70,14 +102,18 @@ def _fetch_sync(address: str, app_password: str, limit: int, skip: set[str], que
             if gmail_id in skip:
                 continue
             msg = email.message_from_bytes(raw, policy=policy.default)
+            sender = str(msg["From"] or "")
+            if me and me in sender.lower():
+                continue  # your own sent mail (All Mail includes it)
             try:
                 received_ms = int(parsedate_to_datetime(msg["Date"]).timestamp() * 1000)
             except (TypeError, ValueError):
                 received_ms = 0
             body = _text(msg)
-            out.append({"gmail_id": gmail_id, "thread_id": thread_id, "sender": str(msg["From"] or ""),
+            out.append({"gmail_id": gmail_id, "thread_id": thread_id, "sender": sender,
                         "subject": str(msg["Subject"] or ""), "body": body[:20000], "received_ms": received_ms,
                         "snippet": re.sub(r"\s+", " ", body)[:160]})
+        stats["fetched"] = len(out)
         return out
     finally:
         with contextlib.suppress(Exception):  # closing is best effort
@@ -92,5 +128,5 @@ async def verify(address: str, app_password: str) -> None:
 
 
 async def fetch_messages(address: str, app_password: str, limit: int = 50, skip: set[str] | None = None,
-                         query: str = DEFAULT_QUERY) -> list[dict]:
-    return await asyncio.to_thread(_fetch_sync, address, app_password, limit, skip or set(), query)
+                         query: str = DEFAULT_QUERY, stats: dict | None = None) -> list[dict]:
+    return await asyncio.to_thread(_fetch_sync, address, app_password, limit, skip or set(), query, stats)

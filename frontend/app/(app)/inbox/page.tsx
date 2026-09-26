@@ -15,21 +15,36 @@ import type { InboxEmail, Integrations } from "@/types/api";
 import { cn } from "@/utils/cn";
 import { formatDateTime } from "@/utils/format";
 
-const CATEGORIES = ["All", "Application Confirmation", "Interview Invitation", "Interview Reschedule", "Assessment", "Coding Test",
-  "Recruiter Outreach", "Recruiter Reply", "Rejection", "Offer", "Follow-up", "Other"];
+type Group = { id: string; label: string; tone: string; match: (e: InboxEmail) => boolean };
+const PORTAL_CATS = ["Job Alert", "Portal Invite", "Portal Message", "Profile View", "Application Update", "Portal Notification"];
+const portalOf = (e: InboxEmail) => (e.extracted as { portal?: string }).portal ?? null;
+const GROUPS: Group[] = [
+  { id: "all", label: "All", tone: "green", match: () => true },
+  { id: "recruiters", label: "Recruiters", tone: "lime", match: (e) => ["Recruiter Outreach", "Recruiter Reply", "Follow-up"].includes(e.category) },
+  { id: "interviews", label: "Interviews & tests", tone: "red", match: (e) => e.category.startsWith("Interview") || ["Assessment", "Coding Test"].includes(e.category) },
+  { id: "applications", label: "Applications", tone: "yellow", match: (e) => ["Application Confirmation", "Rejection", "Offer", "Application Update"].includes(e.category) },
+  { id: "invites", label: "Invites & messages", tone: "purple", match: (e) => ["Portal Invite", "Portal Message", "Profile View"].includes(e.category) },
+  { id: "alerts", label: "Job alerts", tone: "orange", match: (e) => e.category === "Job Alert" },
+  { id: "linkedin", label: "LinkedIn", tone: "teal", match: (e) => portalOf(e) === "linkedin" },
+  { id: "naukri", label: "Naukri", tone: "orange", match: (e) => portalOf(e) === "naukri" },
+  { id: "portals", label: "Other portals", tone: "mint", match: (e) => !!portalOf(e) && !["linkedin", "naukri"].includes(portalOf(e)!) },
+  { id: "other", label: "Other", tone: "muted", match: (e) => e.category === "Other" },
+];
 
 function tone(cat: string): "success" | "warning" | "destructive" | "default" | "muted" {
   if (cat === "Offer") return "success";
-  if (cat.startsWith("Interview") || cat === "Assessment" || cat === "Coding Test") return "warning";
+  if (cat.startsWith("Interview") || cat === "Assessment" || cat === "Coding Test" || cat === "Portal Invite") return "warning";
   if (cat === "Rejection") return "destructive";
-  if (cat === "Other") return "muted";
+  if (cat === "Other" || cat === "Portal Notification") return "muted";
   return "default";
 }
 
 export default function InboxPage() {
   const integ = useApi<Integrations>("/integrations");
-  const [filter, setFilter] = useState("All");
-  const emails = useApi<InboxEmail[]>(filter === "All" ? "/emails" : `/emails?category=${encodeURIComponent(filter)}`);
+  const [filter, setFilter] = useState("all");
+  const emails = useApi<InboxEmail[]>("/emails?limit=300");
+  const group = GROUPS.find((x) => x.id === filter) ?? GROUPS[0];
+  const shown = (emails.data ?? []).filter(group.match);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
   const [paste, setPaste] = useState({ sender: "", subject: "", body: "" });
@@ -58,11 +73,11 @@ export default function InboxPage() {
     <>
       <PageHeader
         title="Inbox"
-        description="Saige reads your job-search email (read-only), classifies it and updates the matching application automatically — every change links back to the email."
+        description="Job-search email plus every LinkedIn, Naukri and Indeed notification, alert and invite from your Gmail (read-only). Synced every few minutes while Saige is open."
         actions={g?.connected ? (
           <Button disabled={busy} onClick={() => run(async () => {
-            const r = await request<{ fetched: number; status_updates: number }>("/emails/sync", { method: "POST" });
-            setMsg({ tone: "success", text: `Synced ${r.fetched} new email(s) · ${r.status_updates} application update(s).` });
+            const r = await request<{ fetched: number; status_updates: number; alert_jobs?: number }>("/emails/sync", { method: "POST" });
+            setMsg({ tone: "success", text: `Synced ${r.fetched} new email(s) · ${r.status_updates} application update(s)${r.alert_jobs ? ` · ${r.alert_jobs} job(s) from portal alerts` : ""}.` });
           })}>
             <RefreshCw className={cn(busy && "animate-spin")} /> Sync Gmail
           </Button>
@@ -75,13 +90,19 @@ export default function InboxPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Mail className="size-4" /> Gmail</CardTitle>
-              <CardDescription>Read-only access through Google&apos;s official OAuth. Saige never sends or deletes mail.</CardDescription>
+              <CardDescription>Read-only. Saige never deletes or moves mail; it only sends emails you approve.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm">
               {g?.connected ? (
                 <>
                   <p>Connected as <b>{g.email}</b></p>
                   <p className="text-xs text-muted-foreground">{g.last_sync_at ? `Last synced ${formatDateTime(g.last_sync_at)}` : "Not synced yet"}</p>
+                  {g.last_result?.search && (
+                    <p className="text-xs text-muted-foreground">
+                      Last sync found {g.last_result.search.mail?.matched ?? g.last_result.search.mail?.fetched ?? 0} job-search and {g.last_result.search.portals?.matched ?? g.last_result.search.portals?.fetched ?? 0} portal email(s)
+                      {g.last_result.search.mail?.mailbox ? ` in ${g.last_result.search.mail.mailbox}` : ""}.
+                    </p>
+                  )}
                   {g.error && <Notice tone="error">{g.error}</Notice>}
                   <Link href="/integrations" className="text-xs text-muted-foreground hover:text-foreground">Manage connection →</Link>
                 </>
@@ -120,27 +141,37 @@ export default function InboxPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex flex-wrap gap-1.5">
-              {CATEGORIES.map((cat) => (
-                <button key={cat} type="button" onClick={() => setFilter(cat)}
-                  className={cn("cursor-pointer rounded-full border px-3 py-1 text-xs transition-colors", filter === cat ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
-                  {cat}
-                </button>
-              ))}
+              {GROUPS.map((gr) => {
+                const n = (emails.data ?? []).filter(gr.match).length;
+                const on = filter === gr.id;
+                return (
+                  <button key={gr.id} type="button" onClick={() => setFilter(gr.id)}
+                    className={cn("cursor-pointer rounded-full border px-3 py-1 text-xs transition-colors", on ? "border-transparent font-medium text-[#0b0b0c]" : "hover:bg-muted")}
+                    style={on ? { background: gr.tone === "muted" ? "var(--muted-foreground)" : `var(--tone-${gr.tone})` } : undefined}>
+                    {gr.label} <span className="tabular-nums opacity-70">{n}</span>
+                  </button>
+                );
+              })}
             </div>
           </CardHeader>
           <CardContent>
             {!emails.data ? (
               <div className="skeleton h-64 rounded-2xl" />
-            ) : emails.data.length === 0 ? (
+            ) : shown.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-16 text-center">
                 <Inbox className="size-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">No job-search email yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  {["linkedin", "naukri", "alerts", "invites", "portals"].includes(filter)
+                    ? "Nothing from job portals yet. Turn on job alerts on LinkedIn / Naukri / Indeed with this Gmail address; they appear here after the next sync."
+                    : "No email here yet."}
+                </p>
               </div>
             ) : (
               <ul className="flex flex-col gap-2">
-                {emails.data.map((e, i) => (
-                  <li key={e.id} className="animate-rise rounded-2xl border bg-card-solid/50 p-4" style={{ animationDelay: `${i * 25}ms` }}>
+                {shown.map((e, i) => (
+                  <li key={e.id} className="animate-rise rounded-2xl border bg-card-solid/50 p-4" style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}>
                     <div className="flex flex-wrap items-center gap-2">
+                      {portalOf(e) && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize text-[#0b0b0c]" style={{ background: `var(--tone-${portalOf(e) === "linkedin" ? "teal" : portalOf(e) === "naukri" ? "orange" : "mint"})` }}>{portalOf(e)}</span>}
                       <Badge variant={tone(e.category)}>{e.category}</Badge>
                       <span className="truncate text-sm font-medium">{e.subject}</span>
                       <span className="ml-auto text-xs text-muted-foreground">{formatDateTime(e.received_at)}</span>

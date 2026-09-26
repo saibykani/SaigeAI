@@ -36,6 +36,10 @@ def pick(items: list[dict], s, room: int) -> list[dict]:
             continue
         if it.get("walk_in") and not a.include_walk_in:
             continue
+        from app.automation.service import is_blocked
+
+        if is_blocked(s, it.get("company")):
+            continue
         out.append(it)
         if len(out) >= room:
             break

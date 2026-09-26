@@ -238,6 +238,46 @@ def ats_report(r: ParsedResume, jd: JDAnalysis) -> dict:
     }
 
 
+WEAK_VERBS = {"worked", "helped", "responsible", "involved", "assisted", "handled", "did", "participated"}
+
+
+def health_report(r: ParsedResume) -> dict:
+    """General resume health, without a job: impact, repetition, bullet length, contact details, structure."""
+    text = resume_text(r)
+    bullets = [b for e in r.experience for b in (e.achievements or []) + (e.responsibilities or [])]
+    quantified = [b for b in bullets if re.search(r"\d|%|₹|\$", b)]
+    long_bullets = [b for b in bullets if len(b.split()) > 32]
+    words = re.findall(r"[a-z]+", text.lower())
+    counts: dict[str, int] = {}
+    for w in words:
+        if len(w) > 5:
+            counts[w] = counts.get(w, 0) + 1
+    repeated = sorted((w for w, n in counts.items() if n >= 5), key=lambda w: -counts[w])[:5]
+    weak = sorted({b.split()[0].lower() for b in bullets if b.split() and b.split()[0].lower() in WEAK_VERBS})
+    first_person = len(re.findall(r"\b(i|me|my)\b", text.lower()))
+    n = max(1, len(bullets))
+    sections = [
+        {"area": "Contact details", "ok": bool(r.email and r.phone),
+         "tip": "Add both email and phone at the top." if not (r.email and r.phone) else "Email and phone are present."},
+        {"area": "Quantified impact", "ok": len(quantified) / n >= 0.4,
+         "tip": f"{len(quantified)} of {len(bullets)} bullets have numbers. Add results you can back up (%, time saved, scale)."},
+        {"area": "Bullet length", "ok": not long_bullets,
+         "tip": f"{len(long_bullets)} bullet(s) run over 32 words; split them." if long_bullets else "Bullets are concise."},
+        {"area": "Repetition", "ok": not repeated,
+         "tip": f"Words used 5+ times: {', '.join(repeated)}. Vary them." if repeated else "No heavy repetition."},
+        {"area": "Strong verbs", "ok": not weak,
+         "tip": f"Bullets start with weak verbs ({', '.join(weak)}). Start with what you did: Built, Led, Automated." if weak
+         else "Bullets start with action verbs."},
+        {"area": "Summary", "ok": bool(r.summary), "tip": "Add a 2–3 line summary." if not r.summary else "Summary present."},
+        {"area": "Skills", "ok": len(r.skills) >= 8, "tip": f"{len(r.skills)} skills listed; list the tools you really use (8+)."},
+        {"area": "Length", "ok": 300 <= len(words) <= 1100, "tip": f"{len(words)} words; aim for 300–1,100 (1–2 pages)."},
+        {"area": "Tone", "ok": first_person <= 2, "tip": "Avoid I / me / my in bullets." if first_person > 2 else "Neutral tone."},
+    ]
+    score = round(100 * sum(s["ok"] for s in sections) / len(sections))
+    return {"score": score, "label": "Strong" if score >= 80 else "Average — may get overlooked" if score >= 55 else "Needs work",
+            "sections": sections, "bullets": len(bullets), "quantified": len(quantified), "words": len(words)}
+
+
 def template_cover_letter(profile: Profile, job: dict, jd: JDAnalysis, matched: list[str]) -> tuple[str, str]:
     """Returns (greeting+signoff wrapper parts are added by caller) body text built from verified facts."""
     p, kb = profile.personal, profile.knowledge

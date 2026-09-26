@@ -68,6 +68,25 @@ class AutoApply(BaseModel):
     email_apply: bool = True  # when a posting asks for CVs by email, send the approved application from Gmail
 
 
+class AutoReply(BaseModel):
+    """Draft replies to recruiter emails from the verified profile (the user approves each before it's sent)."""
+    enabled: bool = True
+    talent_details: bool = True   # CTC, notice period, location, relocation, experience
+    resume: bool = True           # attach the resume when asked for a CV
+    next_step: bool = True        # confirm the application step / availability for a call
+    job_details: bool = True      # ask for the job ID / posting link when missing
+
+
+class FollowUps(BaseModel):
+    enabled: bool = True
+    days: list[int] = Field(default=[3, 7, 14], max_length=5)
+
+    @field_validator("days")
+    @classmethod
+    def _valid(cls, v: list[int]) -> list[int]:
+        return sorted({d for d in v if 1 <= d <= 60})[:5] or [3, 7, 14]
+
+
 class AutomationSettings(BaseModel):
     mode: AutomationMode = "conservative"
     paused_all: bool = False
@@ -76,6 +95,9 @@ class AutomationSettings(BaseModel):
     limits: Limits = Limits()
     profile_schedule: ProfileSchedule = ProfileSchedule()
     auto_apply: AutoApply = AutoApply()
+    auto_reply: AutoReply = AutoReply()
+    followups: FollowUps = FollowUps()
+    blocked_companies: list[str] = Field(default=[], max_length=200)
 
 
 class AutomationSettingsUpdate(BaseModel):
@@ -85,6 +107,9 @@ class AutomationSettingsUpdate(BaseModel):
     limits: Limits | None = None
     profile_schedule: ProfileSchedule | None = None
     auto_apply: AutoApply | None = None
+    auto_reply: AutoReply | None = None
+    followups: FollowUps | None = None
+    blocked_companies: list[str] | None = Field(default=None, max_length=200)
 
 
 async def get_settings_doc(db: AsyncIOMotorDatabase, user_id: str) -> AutomationSettings:
@@ -105,6 +130,14 @@ async def save(db: AsyncIOMotorDatabase, user_id: str, settings: AutomationSetti
     await log_action(db, user_id=user_id, action=action, entity="automation_settings",
                      details=details or settings.model_dump())
     return settings
+
+
+def is_blocked(s: AutomationSettings, company: str | None) -> bool:
+    """True when the user blocked this company (current employer, companies to avoid)."""
+    from app.jobs.dedupe import company_key
+
+    key = company_key(company or "")
+    return bool(key) and any(company_key(b) == key for b in s.blocked_companies if b.strip())
 
 
 async def is_allowed(db: AsyncIOMotorDatabase, user_id: str, capability: Capability) -> bool:

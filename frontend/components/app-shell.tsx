@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   Briefcase,
   createLucideIcon,
   FileText,
@@ -10,6 +11,7 @@ import {
   Menu,
   Send,
   Settings,
+  UserRound,
   Users,
   X,
   type LucideIcon,
@@ -25,6 +27,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeSwitcher } from "@/components/theme";
 import { Button } from "@/components/ui/button";
+import { useLiveSync } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/utils/cn";
 
@@ -46,9 +49,13 @@ const NAV: NavItem[] = [
   { href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
   { href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
   { href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
+  { href: "/activity", label: "Activity", icon: Activity, tone: "purple" },
   { href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [{ href: "/profiles", label: "LinkedIn & Naukri" }, { href: "/profile-sync", label: "Resume sync" }] },
-  { href: "/integrations", label: "Settings", icon: Settings, tone: "red", tabs: [{ href: "/integrations", label: "Integrations" }, { href: "/settings", label: "Automation & privacy" }] },
+  { href: "/alerts", label: "Settings", icon: Settings, tone: "red", tabs: [
+    { href: "/alerts", label: "Alerts & templates" }, { href: "/integrations", label: "Integrations" },
+    { href: "/agent", label: "Agent" }, { href: "/settings", label: "Automation & privacy" }] },
   { href: "/help", label: "Help & Docs", icon: LifeBuoy, tone: "green" },
+  { href: "/profile", label: "Profile", icon: UserRound, tone: "mint" },
 ];
 
 const matches = (href: string, pathname: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
@@ -96,6 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  useLiveSync(Boolean(user));
 
   useEffect(() => {
     if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
@@ -181,7 +189,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
       {open && <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden" onClick={() => setOpen(false)} />}
 
-      <div className="flex min-w-0 flex-col">
+      <div className="relative flex min-w-0 flex-col">
+        {/* One soft glow in the current section's colour (never mixed colours). */}
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[420px] transition-colors duration-700"
+          style={{ background: `radial-gradient(60% 100% at 30% 0%, color-mix(in srgb, var(--tone-${sectionFor(pathname)?.tone ?? "green"}) 16%, transparent), transparent 70%)` }} />
         <header className="glass sticky top-0 z-20 flex h-16 items-center gap-3 border-b px-4 md:px-10">
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
             <Menu />
@@ -193,7 +204,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <UserMenu />
         </header>
         {/* key on pathname replays the entrance animation on every navigation */}
-        <main id="main" tabIndex={-1} key={pathname} className="animate-rise outline-none mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-10 md:py-10">
+        <main id="main" tabIndex={-1} key={pathname} className="animate-rise relative outline-none mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-10 md:py-10">
           <SectionTabs pathname={pathname} />
           {children}
         </main>

@@ -31,7 +31,7 @@ from app.schemas.profile import Profile
 from app.utils import as_utc, utcnow
 
 logger = logging.getLogger("saige.feed")
-FEED_TTL = timedelta(hours=6)
+FEED_TTL = timedelta(minutes=15)
 MAX_ITEMS = 400
 DESC_KEEP = 6000
 DETAIL_FETCHES_PER_BOARD = 6
@@ -136,6 +136,9 @@ def annotate(it: dict, country: str | None) -> dict:
     it["scope"] = scope(it.get("location"), it.get("remote"), country)
     it["walk_in"] = walk_in(it.get("title", ""), desc)
     it["hr_emails"] = contact_emails(desc)
+    from app.email.portal import phones
+
+    it["hr_phones"] = phones(desc)
     it["apply_by_email"] = bool(it["hr_emails"]) and bool(re.search(r"(send|mail|email|share)\s+(your\s+)?(cv|resume|profile)", desc, re.I))
     it["snippet"] = re.sub(r"\s+", " ", desc)[:260]
     it["description"] = desc[:DESC_KEEP]
@@ -258,10 +261,13 @@ async def build(db: AsyncIOMotorDatabase, uid: str, *, profile: Profile | None =
         raw.extend(res)
     raw.extend(await alerts.recent_items(db, uid))
 
+    from app.automation.service import get_settings_doc, is_blocked
+
+    settings = await get_settings_doc(db, uid)
     seen: set[str] = set()
     items: list[dict] = []
     for it in raw:
-        if not it.get("title"):
+        if not it.get("title") or is_blocked(settings, it.get("company")):
             continue
         from_alert = it.get("source") in alerts.PORTALS
         if not from_alert and it.get("source") != "adzuna" and not any(discover.title_matches(it["title"], r) for r in roles):

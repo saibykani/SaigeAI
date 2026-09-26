@@ -9,8 +9,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 ContactRole = Literal["recruiter", "hiring_manager", "referral", "alumni", "other"]
-ContactSource = Literal["manual", "csv", "gmail", "job"]
-OutreachKind = Literal["referral", "cold", "hiring_manager", "employee_intro", "linkedin_note", "followup", "thank_you"]
+ContactSource = Literal["manual", "csv", "gmail", "job", "portal"]
+OutreachKind = Literal["referral", "cold", "hiring_manager", "employee_intro", "linkedin_note", "followup", "thank_you", "reply"]
 OutreachStatus = Literal["draft", "approved", "sent", "replied", "bounced", "no_response", "unsubscribed", "cancelled"]
 
 
@@ -22,6 +22,7 @@ class ContactIn(_M):
     name: str = Field(..., min_length=1, max_length=120)
     company: str = Field(..., min_length=1, max_length=160)
     email: EmailStr | None = None
+    phone: str | None = Field(default=None, max_length=30)
     linkedin_url: str | None = Field(default=None, max_length=300)
     title: str | None = Field(default=None, max_length=160)
     role: ContactRole = "recruiter"
@@ -41,6 +42,7 @@ class ContactUpdate(_M):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     company: str | None = Field(default=None, min_length=1, max_length=160)
     email: EmailStr | None = None
+    phone: str | None = Field(default=None, max_length=30)
     linkedin_url: str | None = Field(default=None, max_length=300)
     title: str | None = Field(default=None, max_length=160)
     role: ContactRole | None = None

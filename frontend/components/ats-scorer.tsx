@@ -109,3 +109,53 @@ export function AtsScorer({ resumes }: { resumes: Resume[] }) {
     </Card>
   );
 }
+
+type Health = { score: number; label: string; resume: string; bullets: number; quantified: number; words: number;
+  sections: { area: string; ok: boolean; tip: string }[] };
+
+/** Resume health report: how a recruiter and an ATS see this resume, without any job. */
+export function ResumeHealth({ resumes }: { resumes: Resume[] }) {
+  const [rid, setRid] = useState("");
+  const id = rid || resumes[0]?.id || "";
+  const { data, loading } = useApi<Health>(id ? `/resumes/${id}/health` : null);
+  const tone = !data ? "purple" : data.score >= 80 ? "green" : data.score >= 55 ? "yellow" : "red";
+  return (
+    <Card id="health" className="animate-rise mb-6 scroll-mt-24" style={{ borderColor: `color-mix(in srgb, var(--tone-${tone}) 32%, transparent)` }}>
+      <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <span className="grid size-8 place-items-center rounded-lg text-[#0b0b0c]" style={{ background: `var(--tone-${tone})` }}><Check className="size-4" /></span>
+            Resume health
+          </CardTitle>
+          <CardDescription>Impact, repetition, bullet length, contact details and structure. No job needed.</CardDescription>
+        </div>
+        <Select className="w-64" value={id} onChange={(e) => setRid(e.target.value)} aria-label="Resume">
+          {resumes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </Select>
+      </CardHeader>
+      <CardContent>
+        {loading && !data ? <div className="skeleton h-40 rounded-2xl" /> : data && (
+          <div className="grid gap-5 md:grid-cols-[auto_1fr]">
+            <div className="flex flex-col items-center gap-2">
+              <span style={{ color: `var(--tone-${tone})` }}>
+                <ProgressRing value={data.score} size={96} stroke={9} trackClass="stroke-muted" barClass="stroke-current">
+                  <span className="text-2xl font-semibold text-foreground">{data.score}</span>
+                </ProgressRing>
+              </span>
+              <span className="text-sm font-medium" style={{ color: `var(--tone-${tone})` }}>{data.label}</span>
+              <span className="text-xs text-muted-foreground">{data.quantified}/{data.bullets} bullets with numbers · {data.words} words</span>
+            </div>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {data.sections.map((s) => (
+                <li key={s.area} className="flex items-start gap-2 rounded-xl border p-2.5 text-sm" style={{ borderColor: `color-mix(in srgb, var(--tone-${s.ok ? "green" : "red"}) 30%, transparent)` }}>
+                  {s.ok ? <Check className="mt-0.5 size-4 shrink-0" style={{ color: "var(--tone-green)" }} /> : <X className="mt-0.5 size-4 shrink-0" style={{ color: "var(--tone-red)" }} />}
+                  <span><span className="block font-medium">{s.area}</span><span className="text-xs text-muted-foreground">{s.tip}</span></span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

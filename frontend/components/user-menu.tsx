@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Globe, LifeBuoy, LogOut, MessageCircle, MessageSquareHeart, Puzzle, UserRound } from "lucide-react";
+import { Check, Globe, LifeBuoy, LogOut, MessageCircle, MessageSquareHeart, Puzzle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -35,14 +35,13 @@ export function UserMenu() {
   if (!user) return null;
   const label = user.name || user.email;
   const items = [
-    { href: "/profile", label: "Profile", icon: UserRound, tone: "green" },
-    { href: "/integrations#whatsapp", label: "WhatsApp alerts", icon: MessageCircle, tone: "mint" },
+    { href: "/alerts", label: "WhatsApp alerts", icon: MessageCircle, tone: "mint" },
     { href: "/settings#extension", label: "Browser extension", icon: Puzzle, tone: "teal" },
     { href: "/help", label: "Help & Docs", icon: LifeBuoy, tone: "orange" },
   ];
   const current = LANGUAGES.find((l) => l.id === lang)!;
   const avatar = (size: string) => (
-    <span className={cn("grid shrink-0 place-items-center rounded-full font-semibold text-black", size)} style={{ background: "linear-gradient(135deg, var(--tone-green), var(--tone-mint))" }}>
+    <span className={cn("grid shrink-0 place-items-center rounded-full font-semibold text-black", size)} style={{ background: "var(--tone-green)" }}>
       {initials(label)}
     </span>
   );

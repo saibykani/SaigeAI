@@ -9,6 +9,8 @@ import { useEffect, useRef } from "react";
  *  - Hover: stars near the pointer are nudged aside and brighten.
  *  - Click: nearby stars gently spread apart and drift back. No flash, ring or spin burst.
  *  - Drag: orbit the camera (tilt / yaw) in 3D; releases with inertia.
+ *  - Seen at a steep angle and rolled so the disc runs top-to-bottom across the screen, like a
+ *    photograph of the Milky Way; strong perspective makes the near side larger and brighter.
  *  - Slow, stately rotation. Reduced motion: still frame.
  * Performance: stars are pre-sorted into a few colour buckets, so each frame sets fillStyle only a
  * handful of times; glows are pre-rendered sprites (no canvas filters).
@@ -118,7 +120,7 @@ export function Galaxy({ className }: { className?: string }) {
 
     const mouse = { x: -9999, y: -9999, inside: false };
     const look = { x: 0, y: 0 };
-    const orbit = { yaw: 0, tilt: 1.12, vYaw: 0, vTilt: 0, dragging: false, lx: 0, ly: 0, moved: 0 };
+    const orbit = { yaw: 0.6, tilt: 0.42, vYaw: 0, vTilt: 0, dragging: false, lx: 0, ly: 0, moved: 0 };
     const spreads: { x: number; y: number }[] = [];
 
     const rect = () => canvas.getBoundingClientRect();
@@ -191,8 +193,8 @@ export function Galaxy({ className }: { className?: string }) {
       // Far Milky Way band (diagonal), then twinkling field stars with parallax.
       ctx.fillStyle = "rgb(225,228,240)";
       for (const b of band) {
-        const bx = b.u * w * 1.3 - w * 0.15 - look.x * 8;
-        const by = h * 0.2 + b.u * h * 0.55 + b.v * h - look.y * 8;
+        const bx = w * 0.62 - b.u * w * 0.3 + b.v * w - look.x * 8;
+        const by = b.u * h * 1.3 - h * 0.15 - look.y * 8;
         ctx.globalAlpha = b.a * 0.6;
         ctx.fillRect(bx, by, b.s, b.s);
       }
@@ -203,11 +205,19 @@ export function Galaxy({ className }: { className?: string }) {
       ctx.globalAlpha = 1;
 
       const cx = w / 2 - look.x * 12, cy = h / 2 - look.y * 12;
-      const scale = Math.hypot(w, h) * (small ? 0.5 : 0.46);
-      const tilt = orbit.tilt + look.y * 0.14;
+      const scale = Math.max(w, h) * (small ? 0.62 : 0.5);
+      const tilt = orbit.tilt + look.y * 0.12 + Math.sin(time * 0.05) * 0.04;
       const yaw = orbit.yaw + time * 0.008 + look.x * 0.2;
       const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
-      const focal = 2.3;
+      const focal = 2; // stronger perspective: the near side of the disc is visibly closer
+      // Roll the whole galaxy so its long axis runs top-to-bottom (slightly diagonal).
+      const roll = -1.12 + look.x * 0.04;
+      const cr = Math.cos(roll), sr = Math.sin(roll);
+      const toLocal = (x: number, y: number) => ({ x: (x - cx) * cr + (y - cy) * sr, y: -(x - cx) * sr + (y - cy) * cr });
+      const reach = Math.hypot(w, h) / 2 + 8;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(roll);
 
       // Disc glow and the 3D core bulge (an ellipsoid: wider than it is tall, squashed by tilt).
       // Circular gradients squashed vertically give smooth elliptical falloff (no hard edges).
@@ -215,13 +225,12 @@ export function Galaxy({ className }: { className?: string }) {
         const g = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
         for (const [at, c] of stops) g.addColorStop(at, c);
         ctx.save();
-        ctx.translate(cx, cy);
         ctx.scale(1, squash);
         ctx.fillStyle = g;
         ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
         ctx.restore();
       };
-      glow(scale * 0.95, Math.max(0.12, Math.abs(cosT)), [[0, "rgba(255,236,210,0.13)"], [0.45, "rgba(210,212,228,0.03)"], [1, "rgba(0,0,0,0)"]]);
+      glow(scale * 0.95, Math.max(0.2, Math.abs(sinT) * 1.4), [[0, "rgba(255,236,210,0.13)"], [0.45, "rgba(210,212,228,0.03)"], [1, "rgba(0,0,0,0)"]]);
       glow(scale * 0.26, 0.42 + 0.5 * Math.abs(cosT), [[0, "rgba(255,248,232,0.95)"], [0.1, "rgba(255,228,184,0.55)"], [0.4, "rgba(255,196,140,0.13)"], [1, "rgba(0,0,0,0)"]]);
 
       // Luminous clouds (additive), then dark dust lanes (normal blending) for depth.
@@ -230,20 +239,21 @@ export function Galaxy({ className }: { className?: string }) {
         const p = project(d.r, d.a + time * (0.11 / (0.24 + d.r)) * ROT, d.y, yaw, cosT, sinT, focal);
         const size = d.size * scale * p.persp;
         ctx.globalAlpha = d.alpha * Math.min(1, p.persp);
-        ctx.drawImage(d.warm ? warmGlow : whiteGlow, cx + p.x * scale * p.persp - size / 2, cy + p.y * scale * p.persp - size / 2, size, size);
+        ctx.drawImage(d.warm ? warmGlow : whiteGlow, p.x * scale * p.persp - size / 2, p.y * scale * p.persp - size / 2, size, size);
       }
       ctx.globalCompositeOperation = "source-over";
       for (const d of lanes) {
         const p = project(d.r, d.a + time * (0.11 / (0.24 + d.r)) * ROT, d.y, yaw, cosT, sinT, focal);
         const size = d.size * scale * p.persp;
         ctx.globalAlpha = d.alpha * 0.55;
-        ctx.drawImage(darkDust, cx + p.x * scale * p.persp - size / 2, cy + p.y * scale * p.persp - size * 0.3, size, size * 0.6);
+        ctx.drawImage(darkDust, p.x * scale * p.persp - size / 2, p.y * scale * p.persp - size * 0.3, size, size * 0.6);
       }
       ctx.globalAlpha = 1;
 
       // Click spreads: a single soft outward nudge per click, then stars spring back.
       const R = 110, S = 240;
-      const clicks = spreads.splice(0, spreads.length);
+      const clicks = spreads.splice(0, spreads.length).map((c) => toLocal(c.x, c.y));
+      const m = mouse.inside ? toLocal(mouse.x, mouse.y) : null;
       ctx.globalCompositeOperation = "lighter";
       let bucket = -1;
       const halos: [number, number, number][] = [];
@@ -259,7 +269,7 @@ export function Galaxy({ className }: { className?: string }) {
         const x = Math.cos(ang) * s.r, z0 = Math.sin(ang) * s.r;
         const y = s.y * cosT - z0 * sinT, z = s.y * sinT + z0 * cosT;
         const persp = focal / (focal + z);
-        const bx = cx + x * scale * persp, by = cy + y * scale * persp;
+        const bx = x * scale * persp, by = y * scale * persp;
 
         for (const c of clicks) {
           const dx = bx - c.x, dy = by - c.y;
@@ -271,8 +281,8 @@ export function Galaxy({ className }: { className?: string }) {
             velY[i] += (dy / d) * f;
           }
         }
-        if (mouse.inside) {
-          const dx = bx + offX[i] - mouse.x, dy = by + offY[i] - mouse.y;
+        if (m) {
+          const dx = bx + offX[i] - m.x, dy = by + offY[i] - m.y;
           const d2 = dx * dx + dy * dy;
           if (d2 < R * R && d2 > 0.01) {
             const d = Math.sqrt(d2);
@@ -287,8 +297,8 @@ export function Galaxy({ className }: { className?: string }) {
         offX[i] += velX[i];
         offY[i] += velY[i];
         const px = bx + offX[i], py = by + offY[i];
-        if (px < -4 || py < -4 || px > w + 4 || py > h + 4) continue;
-        const size = s.size * persp;
+        if (px < -reach || py < -reach || px > reach || py > reach) continue;
+        const size = Math.min(2.2, s.size * persp * persp); // near stars larger, far ones finer: depth
         ctx.fillRect(px, py, size, size);
         if (s.halo) halos.push([px, py, size]);
       }
@@ -299,6 +309,7 @@ export function Galaxy({ className }: { className?: string }) {
       }
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = "source-over";
+      ctx.restore();
 
       // Rare shooting star.
       if (!reduce) {

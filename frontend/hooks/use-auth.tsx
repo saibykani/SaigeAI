@@ -10,7 +10,7 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, details?: SignupDetails) => Promise<void>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;
 }
@@ -35,6 +35,12 @@ const writeCachedUser = (u: User | null) => {
   } catch {
     /* storage unavailable: just no instant start */
   }
+};
+
+/** Optional career details asked at sign-up; they start the profile so Jobs for you works right away. */
+export type SignupDetails = {
+  phone?: string; current_designation?: string; total_experience_years?: number; target_role?: string;
+  current_location?: string; country?: string; notice_period_days?: number; linkedin_url?: string;
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -88,10 +94,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async (name: string, email: string, password: string) => {
+    async (name: string, email: string, password: string, details?: SignupDetails) => {
       const t = await request<TokenResponse>("/auth/register", {
         method: "POST",
-        body: { name, email, password },
+        body: { name, email, password, ...(details ?? {}) },
       });
       setAccessToken(t.access_token);
       await loadMe();

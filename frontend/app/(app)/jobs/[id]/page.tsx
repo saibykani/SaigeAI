@@ -15,7 +15,7 @@ import { useApi } from "@/hooks/use-api";
 import { ApiError, request } from "@/services/api";
 import type { JobDetail, JobStatus } from "@/types/api";
 import { cn } from "@/utils/cn";
-import { UNKNOWN, formatDate, formatSalary, scoreTone } from "@/utils/format";
+import { UNKNOWN, formatDate, formatSalary, scoreTone, timeAgo } from "@/utils/format";
 
 const DIMENSIONS: [string, string][] = [
   ["skills", "Skills"],
@@ -218,7 +218,7 @@ export default function JobDetailPage() {
                 <dt className="text-muted-foreground">Seniority</dt><dd>{a.seniority ?? UNKNOWN}</dd>
                 <dt className="text-muted-foreground">Domains</dt><dd>{a.domains.join(", ") || UNKNOWN}</dd>
                 <dt className="text-muted-foreground">Country</dt><dd>{job.country ?? UNKNOWN}</dd>
-                <dt className="text-muted-foreground">Posted</dt><dd>{job.posted_date ?? UNKNOWN}</dd>
+                <dt className="text-muted-foreground">Posted</dt><dd>{job.posted_date ? `${formatDate(job.posted_date)} · ${timeAgo(job.posted_date)}` : UNKNOWN}</dd>
                 <dt className="text-muted-foreground">Status</dt><dd className="capitalize">{job.status}</dd>
                 <dt className="text-muted-foreground">Analysis</dt><dd>{a.extraction}</dd>
               </dl>

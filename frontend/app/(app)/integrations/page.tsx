@@ -7,7 +7,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { GmailConnectCard } from "@/components/gmail-app-password";
 import { HiringPortalsCard } from "@/components/hiring-portals";
-import { WhatsAppCard } from "@/components/whatsapp-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -133,7 +132,6 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      <WhatsAppCard info={data.whatsapp} onChange={reload} />
       <HiringPortalsCard />
 
       <Card className="animate-rise mb-6 overflow-hidden">

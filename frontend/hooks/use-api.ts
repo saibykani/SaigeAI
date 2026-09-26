@@ -49,5 +49,32 @@ export function useApi<T>(path: string | null) {
     void reload();
   }, [reload]);
 
+  // Live updates: the app shell fires "saige:refresh" when a background sync brought new data.
+  useEffect(() => {
+    const onRefresh = () => void reload();
+    window.addEventListener("saige:refresh", onRefresh);
+    return () => window.removeEventListener("saige:refresh", onRefresh);
+  }, [reload]);
+
   return { data, setData, error, loading, reload };
+}
+
+/** While Saige is open (and the tab visible), sync Gmail + portal alerts every 3 minutes and refresh the job feed. */
+export function useLiveSync(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    let stopped = false;
+    const tick = async () => {
+      if (stopped || document.visibilityState !== "visible") return;
+      try {
+        const r = await request<{ gmail: { fetched?: number } | null; feed: { jobs?: number } | null }>("/live/tick", { method: "POST" });
+        if ((r.gmail?.fetched ?? 0) > 0 || r.feed?.jobs !== undefined) window.dispatchEvent(new Event("saige:refresh"));
+      } catch {
+        /* offline or signed out: try again next tick */
+      }
+    };
+    const first = window.setTimeout(tick, 8000);
+    const every = window.setInterval(tick, 180_000);
+    return () => { stopped = true; window.clearTimeout(first); window.clearInterval(every); };
+  }, [enabled]);
 }

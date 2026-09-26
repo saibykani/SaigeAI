@@ -159,57 +159,54 @@ async def sync_emails(user: dict = Depends(get_current_user), db: AsyncIOMotorDa
     return await run_sync(db, uid, integ)
 
 
+async def _fetch(integ: dict, query: str, limit: int, skip: set[str], stats: dict) -> list[dict]:
+    if integ.get("method") == "app_password":
+        return await imap.fetch_messages(integ["email"], crypto.decrypt(integ["app_password_enc"]), limit=limit, skip=skip,
+                                         query=query, stats=stats)
+    token = await gmail.access_token(crypto.decrypt(integ["refresh_token_enc"]))
+    msgs = await gmail.fetch_messages(token, query=query, limit=limit, skip=skip)
+    stats["fetched"] = len(msgs)
+    return msgs
+
+
 async def run_sync(db: AsyncIOMotorDatabase, uid: str, integ: dict) -> dict:
+    """Import job-search mail plus every job-portal email (LinkedIn / Naukri / Indeed alerts, invites, messages)."""
+    from app.email.portal import PORTAL_QUERY
+    from app.jobs import alerts
+
+    stats: dict = {"mail": {}, "portals": {}}
     async with agent_run(db, "gmail_agent", uid, {"provider": "gmail"}) as run:
         try:
             known = {e["gmail_id"] async for e in db[c.EMAILS].find({"user_id": uid, "gmail_id": {"$ne": None}}, {"gmail_id": 1})}
-            if integ.get("method") == "app_password":
-                messages = await imap.fetch_messages(integ["email"], crypto.decrypt(integ["app_password_enc"]), skip=known)
-            else:
-                token = await gmail.access_token(crypto.decrypt(integ["refresh_token_enc"]))
-                messages = await gmail.fetch_messages(token, skip=known)
+            messages = await _fetch(integ, gmail.DEFAULT_QUERY, 50, known, stats["mail"])
+            seen = known | {m["gmail_id"] for m in messages}
+            portal_msgs = await _fetch(integ, PORTAL_QUERY, 40, seen, stats["portals"])
         except gmail.GmailError as exc:
             run.errors.append(str(exc))
             await db[c.INTEGRATIONS].update_one({"_id": integ["_id"]}, {"$set": {"status": "error", "error": str(exc)}})
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
         counts: dict[str, int] = {}
         actions = 0
-        for m in messages:
+        for m in messages + portal_msgs:
             doc = await svc.ingest(db, uid, m, source="gmail")
             counts[doc["category"]] = counts.get(doc["category"], 0) + 1
             if doc.get("action"):
                 actions += 1
                 run.action(f"{doc['category']} -> {doc['action']}")
-        run.output = {"fetched": len(messages), "by_category": counts, "status_updates": actions}
-    await db[c.INTEGRATIONS].update_one({"_id": integ["_id"]}, {"$set": {"last_sync_at": utcnow(), "status": "connected", "error": None}})
-    # Recruiters who wrote to you become contacts automatically (duplicates are skipped).
+        alert_jobs = await alerts.store(db, uid, [m for m in messages + portal_msgs if alerts.portal_for(m.get("sender", ""))])
+        run.output = {"fetched": len(messages) + len(portal_msgs), "by_category": counts, "status_updates": actions,
+                      "alert_jobs": alert_jobs, "search": stats}
+    await db[c.INTEGRATIONS].update_one({"_id": integ["_id"]}, {"$set": {
+        "last_sync_at": utcnow(), "status": "connected", "error": None, "last_result": run.output}})
+    if alert_jobs:  # rebuild Jobs for you on the next visit so the new alert jobs appear
+        await db[c.JOB_FEED].delete_one({"_id": uid})
+    # Recruiters who wrote to you (and recruiters named in portal invites) become contacts automatically.
     from app.recruiters.service import import_from_inbox
 
     run.output["recruiters_added"] = (await import_from_inbox(db, uid))["created"]
-    run.output["alert_jobs"] = await sync_job_alerts(db, uid, integ)
     if actions:
         await notify(db, user_id=uid, kind="gmail_sync", title=f"Gmail: {actions} application update(s) detected", link="/inbox")
     return run.output
-
-
-async def sync_job_alerts(db: AsyncIOMotorDatabase, uid: str, integ: dict) -> int:
-    """Read LinkedIn / Naukri / Indeed job-alert emails (read-only) so their jobs show in Jobs for you."""
-    from app.jobs import alerts
-
-    known = {a["gmail_id"] async for a in db[c.JOB_ALERTS].find({"user_id": uid}, {"gmail_id": 1})}
-    try:
-        if integ.get("method") == "app_password":
-            msgs = await imap.fetch_messages(integ["email"], crypto.decrypt(integ["app_password_enc"]), limit=25, skip=known,
-                                             query=alerts.ALERT_QUERY)
-        else:
-            token = await gmail.access_token(crypto.decrypt(integ["refresh_token_enc"]))
-            msgs = await gmail.fetch_messages(token, query=alerts.ALERT_QUERY, limit=25, skip=known)
-    except Exception:  # noqa: BLE001 - job alerts are a best-effort extra; they must never fail the main sync
-        return 0
-    found = await alerts.store(db, uid, msgs)
-    if found:  # rebuild the feed on the next visit so the new alert jobs appear
-        await db[c.JOB_FEED].delete_one({"_id": uid})
-    return found
 
 
 @router.delete("/emails", status_code=204)
@@ -259,6 +256,22 @@ async def toggle_whatsapp(enabled: bool, user: dict = Depends(get_current_user),
     return {"enabled": enabled}
 
 
+class WhatsAppPrefs(BaseModel):
+    muted: list[str] = Field(default=[], max_length=10)
+
+
+@router.put("/integrations/whatsapp/prefs")
+async def whatsapp_prefs(body: WhatsAppPrefs, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Choose which alert groups reach WhatsApp (applications, emails, outreach, jobs, profile, interviews)."""
+    from app.services.whatsapp import GROUPS
+
+    muted = [g for g in body.muted if g in GROUPS or g == "other"]
+    r = await db[c.INTEGRATIONS].update_one({"user_id": user["_id"], "provider": "whatsapp"}, {"$set": {"muted": muted}})
+    if not r.matched_count:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Connect WhatsApp first")
+    return {"muted": muted}
+
+
 @router.delete("/integrations/whatsapp", status_code=204)
 async def remove_whatsapp(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     await db[c.INTEGRATIONS].delete_one({"user_id": user["_id"], "provider": "whatsapp"})
@@ -281,9 +294,11 @@ async def integrations(user: dict = Depends(get_current_user), db: AsyncIOMotorD
         "gmail": {"connected": bool(g), "available": s.google_oauth_enabled, "email": g.get("email") if g else None,
                   "method": (g.get("method") or "oauth") if g else None,
                   "status": g.get("status") if g else "not_connected", "error": g.get("error") if g else None,
-                  "last_sync_at": g["last_sync_at"].isoformat() if g and g.get("last_sync_at") else None},
+                  "last_sync_at": g["last_sync_at"].isoformat() if g and g.get("last_sync_at") else None,
+                  "last_result": (g.get("last_result") or {}) if g else None},
         "whatsapp": {"connected": bool(wa), "enabled": bool(wa and wa.get("enabled")),
-                     "phone": (wa["phone"][:-4] + "••••" if wa else None), "error": wa.get("error") if wa else None},
+                     "phone": (wa["phone"][:-4] + "••••" if wa else None), "error": wa.get("error") if wa else None,
+                     "muted": (wa.get("muted") or []) if wa else []},
         "linkedin": {"snapshot": bool(li), "mode": "copy-ready updates"},
         "naukri": {"snapshot": bool(nk), "mode": "copy-ready updates"},
         "ats_boards": {"count": boards},

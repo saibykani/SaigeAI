@@ -80,11 +80,28 @@ async def send(phone: str, apikey: str, text: str) -> None:
         raise RuntimeError(f"CallMeBot answered {r.status_code}: {r.text[:120]}")
 
 
-async def mirror(db, user_id: str, title: str, body: str, details: list[dict] | None, link: str | None) -> None:
-    """Send a notification to WhatsApp if the user enabled it. Never raises."""
+# Alert groups the user can switch off individually (Settings → Alerts & templates).
+GROUPS: dict[str, tuple[str, ...]] = {
+    "applications": ("application", "auto_apply", "applications_approved"),
+    "emails": ("recruiter_email", "gmail_sync", "reply_drafted"),
+    "outreach": ("outreach", "followup"),
+    "jobs": ("job_discovery", "job_feed"),
+    "profile": ("profile", "naukri", "linkedin"),
+    "interviews": ("interview",),
+}
+
+
+def group_for(kind: str | None) -> str:
+    k = (kind or "").lower()
+    return next((g for g, prefixes in GROUPS.items() if any(k.startswith(p) for p in prefixes)), "other")
+
+
+async def mirror(db, user_id: str, title: str, body: str, details: list[dict] | None, link: str | None,
+                 kind: str | None = None) -> None:
+    """Send a notification to WhatsApp if the user enabled it (and hasn't muted its group). Never raises."""
     try:
         integ = await db[c.INTEGRATIONS].find_one({"user_id": user_id, "provider": "whatsapp", "enabled": True})
-        if not integ:
+        if not integ or group_for(kind) in (integ.get("muted") or []):
             return
         await send(integ["phone"], crypto.decrypt(integ["apikey_enc"]), format_message(title, body, details, link))
         await db[c.INTEGRATIONS].update_one({"_id": integ["_id"]}, {"$set": {"last_sent_at": utcnow(), "error": None}})

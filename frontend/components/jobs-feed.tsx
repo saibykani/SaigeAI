@@ -13,7 +13,7 @@ import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
 import type { AutoApplySettings, AutomationSettings, FeedItem, JobFeed, JobScope } from "@/types/api";
 import { cn } from "@/utils/cn";
-import { formatDate } from "@/utils/format";
+import { formatDate, timeAgo } from "@/utils/format";
 
 type Tab = "foryou" | "country" | "remote" | "walk_in" | "alerts" | "careers" | "abroad";
 type Msg = { tone: "success" | "error" | "warning" | "info"; text: React.ReactNode } | null;
@@ -72,6 +72,11 @@ export function JobsFeed({ onSaved }: { onSaved: () => void }) {
     }
   }
   useEffect(() => { void load(); }, []);
+  useEffect(() => {  // the live sync (every 3 minutes) signals when the feed was refreshed
+    const on = () => void load();
+    window.addEventListener("saige:refresh", on);
+    return () => window.removeEventListener("saige:refresh", on);
+  }, []);
 
   const sources = useMemo(() => [...new Set((data?.items ?? []).map((i) => i.source_label))].sort(), [data]);
   const shown = useMemo(() => {
@@ -252,7 +257,7 @@ function FeedRow({ i, picked, onToggle }: { i: FeedItem; picked: boolean; onTogg
             {i.location && <span className="inline-flex items-center gap-0.5 truncate"><MapPin className="size-3" />{i.location}</span>}
             {SCOPE_LABEL[i.scope] && <span>· {SCOPE_LABEL[i.scope]}</span>}
             {exp && <span>· {exp}</span>}
-            {i.posted && <span>· {i.posted}</span>}
+            {i.posted && <span title={i.posted} style={{ color: (daysAgo(i.posted) ?? 99) <= 3 ? "var(--tone-green)" : undefined }}>· Posted {timeAgo(i.posted)}</span>}
           </span>
           <span className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
             <span className="rounded-full border px-2 py-0.5">{i.source_label}</span>

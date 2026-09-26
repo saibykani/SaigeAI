@@ -13,10 +13,10 @@ export type ManualSection = {
 };
 
 export const QUICK_START = [
-  "Sign in (email and password, or Google once your account is a test user).",
+  "Create an account: step 1 is your email and password, step 2 your current role, experience, the roles you want, city, country and notice period (these start your profile).",
   "Resumes → upload your resume, then click “Import to profile”.",
-  "Profile (top-right avatar → Profile) → fill anything marked UNKNOWN, and set your target roles and country.",
-  "Settings → Integrations → connect Gmail with an App Password, turn on WhatsApp alerts, and set up job alerts on LinkedIn / Naukri / Indeed.",
+  "Profile (last item in the sidebar) → fill anything marked UNKNOWN, and check your target roles and country.",
+  "Settings → Integrations → connect Gmail with an App Password and set up job alerts on LinkedIn / Naukri / Indeed. Settings → Alerts & templates → turn on WhatsApp alerts.",
   "Jobs → Jobs for you lists every job for your roles in your country. Select all good matches and click “Auto-apply to selected”.",
   "Applications → “Ready to approve” → Select all → “Approve & apply”. Email applications go from your Gmail; others open the employer's page.",
   "Recruiters → Sync recruiters to collect HR emails, pick an email or WhatsApp template, and click “Approve & send”.",
@@ -34,7 +34,7 @@ export const MANUAL: ManualSection[] = [
     tips: ["The profile-readiness ring shows how complete your profile is. Higher means better matching and documents."],
   },
   {
-    id: "profile", title: "Profile (avatar menu, top right)", href: "/profile", tone: "mint", image: "/help/profile.jpg",
+    id: "profile", title: "Profile (last item in the sidebar)", href: "/profile", tone: "mint", image: "/help/profile.jpg",
     purpose: "Your verified career facts. Every resume, answer and message Saige writes uses only what's here, so nothing is ever invented.",
     steps: [
       "Import from your resume first (Resumes → Import to profile), then review each section.",
@@ -71,6 +71,15 @@ export const MANUAL: ManualSection[] = [
       "Choose a PDF, DOCX or TXT file, give it a name, and click Upload.",
       "Open a resume to see what was parsed, then click “Import to profile” to fill your Profile.",
       "Duplicate, archive or download any version. Originals are never modified.",
+    ],
+  },
+  {
+    id: "health", title: "Resume health", href: "/resumes#health", tone: "purple", image: "/help/health.jpg",
+    purpose: "A health report for any resume, no job needed: quantified impact, repetition, bullet length, strong verbs, contact details, summary, skills and length.",
+    steps: [
+      "Resumes → “Resume health”, then pick a resume.",
+      "Red items show exactly what to change; green items are fine.",
+      "Fix the resume, upload the new version, and check the score again.",
     ],
   },
   {
@@ -179,10 +188,22 @@ export const MANUAL: ManualSection[] = [
   },
   {
     id: "inbox", title: "Inbox", href: "/inbox", tone: "teal", image: "/help/inbox.jpg",
-    purpose: "Job-search emails from Gmail, classified automatically (confirmation, interview, assessment, rejection, offer).",
+    purpose: "Your job-search email plus every LinkedIn, Naukri and Indeed notification: job alerts, recruiter invites, InMail/message alerts, profile views and application updates.",
     steps: [
-      "Connect Gmail in Integrations, then click Sync (it also runs daily).",
-      "Each email links to the application it updated.",
+      "Connect Gmail in Settings → Integrations. Saige searches all of Gmail (including the Social, Promotions and Updates tabs).",
+      "While Saige is open it syncs every 3 minutes; you can also click “Sync Gmail”.",
+      "Use the tabs: Recruiters, Interviews & tests, Applications, Invites & messages, Job alerts, LinkedIn, Naukri, Other portals.",
+      "Recruiters named in Naukri / LinkedIn invites are added to Recruiters automatically (with any phone number the email contains).",
+      "Each email links to the application it updated. Portal notifications never change an application's status.",
+    ],
+    tips: ["The Gmail card shows how many emails the last sync found. If it's 0, check that IMAP is on in Gmail settings."],
+  },
+  {
+    id: "activity", title: "Activity", href: "/activity", tone: "purple", image: "/help/activity.jpg",
+    purpose: "Everything your Saige agent did, and a referral-run table of who you contacted for each job.",
+    steps: [
+      "All activity: applications, emails and replies, outreach, profile updates and job discovery, newest first. Filter by type or search a company.",
+      "Referral runs: one row per job or company, with the people reached, how many were sent or replied, and the status (Draft, In progress, Completed, Replied).",
     ],
   },
   {
@@ -206,12 +227,31 @@ export const MANUAL: ManualSection[] = [
     ],
   },
   {
-    id: "notifications", title: "Notifications & WhatsApp", href: "/integrations#whatsapp", tone: "mint", image: "/help/notifications.jpg",
+    id: "alerts", title: "Settings → Alerts & templates", href: "/alerts", tone: "yellow", image: "/help/alerts.jpg",
+    purpose: "WhatsApp alerts, which updates reach WhatsApp, and every template in one place: Email, WhatsApp, SMS and LinkedIn.",
+    steps: [
+      "Connect WhatsApp (CallMeBot key) and click “Connect & send test”.",
+      "Under “What to send to WhatsApp”, tick the kinds of update you want: applications, recruiter emails, interviews, outreach, jobs, LinkedIn & Naukri.",
+      "Pick a template channel. Copy, “Open in WhatsApp”, “Open in Messages” (SMS), or draft an email for a contact.",
+    ],
+  },
+  {
+    id: "agent", title: "Settings → Agent", href: "/agent", tone: "teal", image: "/help/agent.jpg",
+    purpose: "How your agent works: auto-reply to recruiters, follow-up days, the auto-applier and blocked companies.",
+    steps: [
+      "Auto-reply: when a recruiter emails, Saige drafts the answer to what they asked (CTC, notice, location, experience, resume, availability, job ID) from your verified profile, attaching your resume if asked. Approve it in Recruiters → Queue and it's sent from your Gmail.",
+      "Follow-ups: choose the days after sending (e.g. 3, 7, 14). They stop when someone replies.",
+      "Auto-applier: minimum match, how many a day, where, and email applications.",
+      "Blocked companies: jobs, auto-apply and outreach skip these (e.g. your current employer).",
+    ],
+  },
+  {
+    id: "notifications", title: "Notifications & WhatsApp", href: "/alerts", tone: "mint", image: "/help/notifications.jpg",
     purpose: "Everything Saige does is announced in the bell (top right) and, if enabled, on WhatsApp.",
     steps: [
       "Click the bell to see recent updates. Profile updates show each changed field with old → new values.",
       "Click an item to jump to it; “Mark all read” clears the badge.",
-      "Pause or remove WhatsApp alerts from the WhatsApp card at any time.",
+      "Pause, remove or fine-tune WhatsApp alerts in Settings → Alerts & templates.",
     ],
   },
   {
@@ -232,7 +272,9 @@ export const FAQ = [
   { q: "Can Saige auto-apply to jobs on Naukri, LinkedIn or Indeed?", a: "Those sites don't allow third-party auto-apply. The auto-applier prepares applications in bulk every day. After you approve, email applications are sent from your Gmail, and the rest open on the employer's page for your final click." },
   { q: "Where do LinkedIn and Naukri jobs come from?", a: "From the job-alert emails those sites send you. Turn on alerts for your role and city (Settings → Integrations → Hiring portals), connect Gmail, and they appear under Jobs → Job alerts." },
   { q: "Why don't I see jobs in my country?", a: "Set your country (or current city) and target roles in Profile. Jobs for you uses them to fetch and sort jobs." },
-  { q: "Where did Interviews, Analytics and Profile go?", a: "Similar pages are now grouped: Interviews is a tab in Applications, Analytics is a tab in Dashboard, Resume sync is a tab in LinkedIn & Naukri, and Integrations plus Automation & privacy are under Settings. Profile is in the avatar menu (top right)." },
+  { q: "Where did Interviews, Analytics and Integrations go?", a: "Similar pages are grouped with tabs: Interviews is in Applications, Analytics in Dashboard, Resume sync in LinkedIn & Naukri, and Settings holds Alerts & templates, Integrations, Agent, and Automation & privacy. Profile is the last item in the sidebar." },
+  { q: "Can Saige fetch LinkedIn / Naukri jobs every 2–3 minutes?", a: "Not from their websites (both forbid automated access). While Saige is open it syncs your Gmail every 3 minutes, so new LinkedIn / Naukri job alerts, invites and messages appear within minutes. The job feed refreshes every 15 minutes, and the daily scheduler runs each morning." },
+  { q: "Can Saige get recruiters' phone numbers from LinkedIn?", a: "Saige never scrapes LinkedIn. It saves phone numbers and emails that recruiters share with you: in Naukri / LinkedIn invite emails, recruiter emails, and job postings. Import your LinkedIn connections CSV for your network." },
   { q: "Does Saige send emails for me?", a: "Only after you approve each one, and only if you've connected Gmail with an App Password. Limits of 10 a day and 3 per company a week apply." },
   { q: "How do WhatsApp alerts work?", a: "Saige mirrors every notification to your own WhatsApp number via CallMeBot, a free relay. Set it up in Integrations → WhatsApp notifications." },
   { q: "Can Saige invent skills to match a job?", a: "Never. Every claim is checked against your verified profile. Missing skills are shown as gaps to learn." },

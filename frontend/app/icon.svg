@@ -1,16 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1c1c1e"/>
-      <stop offset="1" stop-color="#000000"/>
-    </linearGradient>
-    <linearGradient id="ink" x1="16" y1="10" x2="48" y2="54" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#a1a1aa"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
-  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="14.25" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="1.5"/>
-  <text x="32" y="45" text-anchor="middle" font-family="Google Sans, Helvetica Neue, Arial, sans-serif" font-size="40" font-weight="700" fill="url(#ink)">S</text>
-  <circle cx="48" cy="17" r="2.2" fill="#ffffff" opacity="0.9"/>
+  <rect width="64" height="64" rx="15" fill="#0b0b0c"/>
+  <ellipse cx="32" cy="32" rx="25" ry="10" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="2.2" transform="rotate(-28 32 32)"/>
+  <path d="M42.5 21.5C40 17.5 35.5 16 31 16.2C25.5 16.5 21.5 19.6 21.5 24.3C21.5 34 42.5 29.5 42.5 39.6C42.5 44.6 38 48 31.8 48C26.8 48 22.9 45.9 20.8 42.3" fill="none" stroke="#ffffff" stroke-width="6.2" stroke-linecap="round"/>
+  <circle cx="51.2" cy="20.4" r="4.2" fill="#f07a2e"/>
 </svg>

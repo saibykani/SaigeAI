@@ -21,6 +21,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [d, setD] = useState({ phone: "", current_designation: "", total_experience_years: "", target_role: "", current_location: "",
+    country: "India", notice_period_days: "", linkedin_url: "" });
   const [error, setError] = useState<string | null>(
     params.get("error") === "google_denied"
       ? "Google didn't allow this sign-in. If you saw “Access blocked”, the app owner needs to add your Google account as a test user (Google Cloud → Google Auth Platform → Audience). You can also sign in with email and password."
@@ -35,11 +38,23 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (mode === "register" && step === 1) {
+      setStep(2);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       if (mode === "login") await login(email, password);
-      else await register(name, email, password);
+      else {
+        const num = (v: string) => (v.trim() === "" ? undefined : Number(v));
+        await register(name, email, password, {
+          phone: d.phone || undefined, current_designation: d.current_designation || undefined,
+          total_experience_years: num(d.total_experience_years), target_role: d.target_role || undefined,
+          current_location: d.current_location || undefined, country: d.country || undefined,
+          notice_period_days: num(d.notice_period_days), linkedin_url: d.linkedin_url || undefined,
+        });
+      }
       router.replace(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -96,10 +111,37 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               <form onSubmit={onSubmit} className="auth-dark flex flex-col gap-4">
                 {error && <Notice tone="error">{error}</Notice>}
                 {!isLogin && (
+                  <div className="flex items-center gap-2 text-xs text-white/50">
+                    {[1, 2].map((n) => <span key={n} className={`h-1 flex-1 rounded-full ${step >= n ? "bg-white" : "bg-white/15"}`} />)}
+                    <span className="ml-1">Step {step} of 2 · {step === 1 ? "Account" : "Your career"}</span>
+                  </div>
+                )}
+                {!isLogin && step === 2 && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Current role" htmlFor="role"><Input id="role" required placeholder="QA Engineer" value={d.current_designation} onChange={(e) => setD({ ...d, current_designation: e.target.value })} /></Field>
+                      <Field label="Experience (years)" htmlFor="exp"><Input id="exp" type="number" min={0} max={60} step={0.5} required value={d.total_experience_years} onChange={(e) => setD({ ...d, total_experience_years: e.target.value })} /></Field>
+                    </div>
+                    <Field label="Roles you want" htmlFor="target" hint="Comma-separated, e.g. SDET, QA Automation Engineer">
+                      <Input id="target" required value={d.target_role} onChange={(e) => setD({ ...d, target_role: e.target.value })} />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="City" htmlFor="city"><Input id="city" required placeholder="Hyderabad" value={d.current_location} onChange={(e) => setD({ ...d, current_location: e.target.value })} /></Field>
+                      <Field label="Country" htmlFor="country"><Input id="country" required value={d.country} onChange={(e) => setD({ ...d, country: e.target.value })} /></Field>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Phone" htmlFor="phone"><Input id="phone" type="tel" autoComplete="tel" placeholder="+91 98765 43210" value={d.phone} onChange={(e) => setD({ ...d, phone: e.target.value })} /></Field>
+                      <Field label="Notice period (days)" htmlFor="notice"><Input id="notice" type="number" min={0} max={365} value={d.notice_period_days} onChange={(e) => setD({ ...d, notice_period_days: e.target.value })} /></Field>
+                    </div>
+                    <Field label="LinkedIn profile (optional)" htmlFor="li"><Input id="li" type="url" placeholder="https://www.linkedin.com/in/…" value={d.linkedin_url} onChange={(e) => setD({ ...d, linkedin_url: e.target.value })} /></Field>
+                  </>
+                )}
+                {(isLogin || step === 1) && !isLogin && (
                   <Field label="Full name" htmlFor="name">
                     <Input id="name" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
                   </Field>
                 )}
+                {(isLogin || step === 1) && (<>
                 <Field label="Email" htmlFor="email">
                   <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
                 </Field>
@@ -115,13 +157,17 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </Field>
+                </>)}
                 <button
                   type="submit"
                   disabled={busy}
                   className="sheen mt-2 h-12 cursor-pointer rounded-full bg-white text-[15px] font-semibold text-black shadow-[0_0_40px_-8px_rgba(255,255,255,0.55)] transition hover:shadow-[0_0_55px_-6px_rgba(255,255,255,0.75)] active:scale-[0.99] disabled:opacity-60"
                 >
-                  {busy ? "Please wait…" : isLogin ? "Sign in" : "Create account"}
+                  {busy ? "Please wait…" : isLogin ? "Sign in" : step === 1 ? "Continue" : "Create account"}
                 </button>
+                {!isLogin && step === 2 && (
+                  <button type="button" onClick={() => setStep(1)} className="-mt-1 text-sm text-white/55 hover:text-white">← Back</button>
+                )}
               </form>
               <p className="mt-6 text-center text-sm text-white/55">
                 {isLogin ? "New to Saige AI? " : "Already have an account? "}

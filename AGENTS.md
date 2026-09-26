@@ -58,7 +58,10 @@ backend/app/
                           # auto_apply.py (daily prepare + approve_many: email applications via SMTP with resume attached)
   portals/router.py       # hiring-portal catalogue (/integrations/portals): "api" portals vs "alerts" portals + user profile links
   applications/           # applications, answers (confidence), interviews + .ics
-  email/                  # Gmail OAuth or App Password (imap.py read, smtp.py send approved outreach), classifier, ingest -> status
+  email/                  # Gmail OAuth or App Password (imap.py read from All Mail with a SINCE fallback, smtp.py send approved mail),
+                          # classifier, ingest -> status; portal.py (LinkedIn/Naukri/Indeed mail: categories, recruiter + phone extraction,
+                          # never moves application status); auto_reply.py (reply drafts to recruiter mail from verified profile facts)
+  activity/router.py      # /activity timeline (audit log) + /activity/referrals (outreach grouped per job)
   analytics/              # /analytics/dashboard aggregate + service.breakdowns (source/role/resume/match, weekly, time-to-response)
   automation/             # AutomationSettings (mode, pauses, schedules, limits), is_allowed
   services/whatsapp.py    # mirrors every notify() to the user's WhatsApp via CallMeBot (best effort)
@@ -124,7 +127,9 @@ Never commit env files.
 - The 3D loader is `components/loader3d.tsx`. Use it for full-page and route loading.
 - Every page uses `PageHeader` and `Notice` from `components/app-shell.tsx`. Update the `NAV` and
   `UPCOMING` arrays there when a phase lands.
-- The sidebar is kept short (9 entries). Pages with related data share one entry and switch with `tabs`
-  in `NAV` (Dashboard·Analytics, Applications·Interviews, LinkedIn & Naukri·Resume sync,
-  Settings = Integrations·Automation & privacy). Profile lives in the avatar menu, not the sidebar.
+- The sidebar is kept short. Pages with related data share one entry and switch with `tabs` in `NAV`
+  (Dashboard·Analytics, Applications·Interviews, LinkedIn & Naukri·Resume sync, Settings = Alerts & templates·
+  Integrations·Agent·Automation & privacy). Profile is the last sidebar entry.
+- While the app is open, `useLiveSync` (hooks/use-api.ts) calls `POST /api/live/tick` every 3 minutes (Gmail + portal
+  mail when the last sync is >3 min old, job feed when >15 min old) and fires `saige:refresh` so `useApi` pages reload.
 - Company contact email: `info.saigeai@gmail.com` (`CONTACT_EMAIL` in `components/legal.tsx`).

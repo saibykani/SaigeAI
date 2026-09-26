@@ -158,11 +158,13 @@ async def test_import_contacts_from_inbox(client, auth):
     await client.post("/api/emails/import", headers=auth, json={
         "sender": "Jobs <noreply@naukri.com>", "subject": "Jobs for you", "body": "Would you be interested in these roles"})
     r = (await client.post("/api/recruiters/import-inbox", headers=auth)).json()
-    assert r["created"] == 1
+    assert r["created"] + r["duplicates"] == 1  # the auto-reply draft may already have added Meera
     contacts = (await client.get("/api/recruiters", headers=auth)).json()
-    assert contacts[0]["company"] == "Globex" and contacts[0]["source"] == "gmail"
+    assert len(contacts) == 1 and contacts[0]["company"] == "Globex" and contacts[0]["source"] == "gmail"
     again = (await client.post("/api/recruiters/import-inbox", headers=auth)).json()
     assert again["created"] == 0 and again["duplicates"] == 1
+    replies = [o for o in (await client.get("/api/outreach", headers=auth)).json() if o["kind"] == "reply"]
+    assert len(replies) == 1 and replies[0]["subject"].startswith("Re: Opportunity")
 
 
 async def test_contacts_are_private(client, auth):
@@ -177,11 +179,13 @@ async def test_contacts_are_private(client, auth):
 async def test_templates_and_new_kinds(client, auth, db):
     job, contact = await _setup(client, auth)
     tpls = (await client.get("/api/outreach/templates", headers=auth)).json()
-    kinds = [t["kind"] for t in tpls if t["channel"] != "whatsapp"]
+    kinds = [t["kind"] for t in tpls if t["channel"] in ("email", "linkedin")]
     assert kinds == ["cold", "hiring_manager", "referral", "employee_intro", "linkedin_note", "followup", "thank_you"]
     wa = [t for t in tpls if t["channel"] == "whatsapp"]
     assert [t["kind"] for t in wa] == ["wa_hr", "wa_referral", "wa_followup", "wa_thanks"]
     assert all(t["wa_link"].startswith("https://wa.me/?text=") and len(t["body"]) < 400 for t in wa)
+    sms = [t for t in tpls if t["channel"] == "sms"]
+    assert len(sms) == 3 and all(t["sms_link"].startswith("sms:?body=") for t in sms)
     by = {t["kind"]: t for t in tpls}
     assert by["cold"]["body"].startswith("Hi [First name],") and "[Company]" in by["cold"]["body"]
     assert len(by["linkedin_note"]["body"]) <= 300
