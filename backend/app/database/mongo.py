@@ -15,7 +15,10 @@ _db: AsyncIOMotorDatabase | None = None
 
 def connect(uri: str, db_name: str) -> AsyncIOMotorDatabase:
     global _client, _db
-    _client = AsyncIOMotorClient(uri, uuidRepresentation="standard", tz_aware=True)
+    # Short server-selection timeout: fail fast (and visibly) instead of hanging requests
+    # for 30s when the database is unreachable, e.g. an Atlas IP access-list block.
+    _client = AsyncIOMotorClient(uri, uuidRepresentation="standard", tz_aware=True,
+                                 serverSelectionTimeoutMS=8000, connectTimeoutMS=8000)
     _db = _client[db_name]
     return _db
 
