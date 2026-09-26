@@ -22,12 +22,29 @@ export function AtsScorer({ resumes }: { resumes: Resume[] }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [out, setOut] = useState<AtsScore | null>(null);
+  const [fixing, setFixing] = useState(false);
+  const [fixed, setFixed] = useState<{ resume_id: string; name: string; before: AtsScore; after: AtsScore; changes: string[]; gaps: string[]; note: string } | null>(null);
+
+  async function optimise() {
+    setFixing(true);
+    setErr(null);
+    try {
+      const r = await request<NonNullable<typeof fixed>>("/resumes/ats-optimize", { method: "POST", body: { resume_id: rid, job_id: jobId || null, jd_text: jobId ? null : jd, title: title || null } });
+      setFixed(r);
+      setOut({ ...r.after, job: out?.job ?? "", resume: r.name, tips: r.gaps.map((g) => `Add “${g}” to your Profile only if you've used it, then optimise again.`) });
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : "Could not optimise");
+    } finally {
+      setFixing(false);
+    }
+  }
   const rid = resumeId || resumes[0]?.id || "";
 
   async function score(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setErr(null);
+    setFixed(null);
     try {
       setOut(await request<AtsScore>("/resumes/ats-score", { method: "POST", body: { resume_id: rid, job_id: jobId || null, jd_text: jobId ? null : jd, title: title || null } }));
     } catch (e2) {
@@ -100,6 +117,22 @@ export function AtsScorer({ resumes }: { resumes: Resume[] }) {
                 <div>
                   <p className="mb-1 text-sm font-medium">What to fix</p>
                   <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">{out.tips.map((t) => <li key={t}>{t}</li>)}</ul>
+                </div>
+              )}
+              {!fixed && out.score < 100 && (
+                <Button className="w-fit" disabled={fixing} onClick={optimise}>
+                  {fixing ? <Loader2 className="animate-spin" /> : <Gauge />} {fixing ? "Optimising…" : "Optimise my resume for this job"}
+                </Button>
+              )}
+              {fixed && (
+                <div className="rounded-2xl border p-3 text-sm" style={{ borderColor: "color-mix(in srgb, var(--tone-green) 35%, transparent)" }}>
+                  <p className="font-semibold">
+                    ATS score <span style={{ color: "var(--tone-red)" }}>{fixed.before.score}</span> → <span style={{ color: "var(--tone-green)" }}>{fixed.after.score}</span>
+                    <span className="ml-2 font-normal text-muted-foreground">saved as “{fixed.name}”</span>
+                  </p>
+                  <ul className="mt-2 list-disc space-y-0.5 pl-5 text-muted-foreground">{fixed.changes.map((c) => <li key={c}>{c}</li>)}</ul>
+                  <p className="mt-2 text-xs text-muted-foreground">{fixed.note}</p>
+                  <a href={`/resumes/${fixed.resume_id}`} className="mt-2 inline-block text-xs font-medium underline">Open the optimised resume</a>
                 </div>
               )}
             </div>

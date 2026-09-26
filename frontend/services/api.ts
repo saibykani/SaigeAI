@@ -114,6 +114,7 @@ export async function request<T = unknown>(path: string, opts: RequestOptions = 
     }
     throw new ApiError(res.status, errorMessage(detail, res.status), detail);
   }
+  announce(opts.method ?? "GET", path);
   if (opts.raw) return res as unknown as T;
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -132,4 +133,13 @@ export async function downloadFile(path: string, fallbackName: string) {
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// Background calls that shouldn't trigger the "saved" celebration.
+const QUIET = [/^\/live\//, /^\/assistant\//, /^\/auth\//, /^\/notifications/, /^\/jobs\/feed$/, /^\/emails\/import$/];
+
+/** Tell the UI a change succeeded (components/celebrate.tsx shows a short animation). */
+function announce(method: string, path: string) {
+  if (method === "GET" || typeof window === "undefined" || QUIET.some((r) => r.test(path.split("?")[0]))) return;
+  window.dispatchEvent(new CustomEvent("saige:done", { detail: { method, path } }));
 }

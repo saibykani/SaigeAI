@@ -22,6 +22,7 @@ export function NotificationBell() {
   const router = useRouter();
   const { t } = useT();
   const [open, setOpen] = useState(false);
+  const [ring, setRing] = useState(0);
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<AppNotification[] | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -68,12 +69,12 @@ export function NotificationBell() {
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { setOpen((o) => !o); setRing((r) => r + 1); }}
         className="relative grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
         aria-expanded={open}
       >
-        <Bell className="size-[18px]" />
+        <Bell key={ring} className={cn("size-[18px]", ring > 0 && "bell-ring")} />
         {unread > 0 && (
           <span className="animate-pop absolute right-1.5 top-1.5 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4 text-black" style={{ background: "var(--tone-orange)" }}>
             {unread > 99 ? "99+" : unread}
@@ -81,7 +82,7 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
-        <div className="animate-pop absolute right-0 top-12 z-50 bg-card-solid w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border shadow-[var(--shadow-lift)]">
+        <div className="drop-3d absolute right-0 top-12 z-50 bg-card-solid w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border shadow-[var(--shadow-lift)]">
           <div className="flex items-center justify-between border-b px-4 py-3">
             <p className="text-sm font-semibold">{t("Notifications")}</p>
             <button onClick={readAll} disabled={!unread} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40">

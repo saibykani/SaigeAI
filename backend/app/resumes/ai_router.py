@@ -169,6 +169,61 @@ async def resume_health(resume_id: str, user: dict = Depends(get_current_user), 
     return {**tailor.health_report(ParsedResume.model_validate(v["parsed"])), "resume": resume["name"]}
 
 
+@router.post("/resumes/ats-optimize", status_code=201)
+async def ats_optimize(body: AtsScoreIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Apply the ATS fixes: build an optimised version of the resume for this job from verified facts
+    (keyword-first skills, relevant bullets first, tailored summary, complete contact details), save it
+    as a new resume, and re-score it. Keywords you don't have stay listed as gaps; nothing is invented."""
+    from app.jobs.jd_parser import analyze_jd
+
+    uid = user["_id"]
+    resume = await resumes.get_owned(db, uid, body.resume_id)
+    v = await db[c.RESUME_VERSIONS].find_one({"_id": body.version_id or resume.get("current_version_id"), "resume_id": resume["_id"]})
+    if not v:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume version not found")
+    if body.job_id:
+        job = await jobs.get_owned(db, uid, body.job_id)
+        jd = JDAnalysis.model_validate(job["analysis"])
+    elif body.jd_text and len(body.jd_text.strip()) >= 30:
+        job = {"_id": None, "title": (body.title or "Target role").strip(), "company": "the company"}
+        jd = analyze_jd(job["title"], body.jd_text)
+    else:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Choose a saved job or paste a job description (30+ characters).")
+    base = ParsedResume.model_validate(v["parsed"])
+    before = tailor.ats_report(base, jd)
+    profile = await get_profile(db, uid)
+    matched = _matched(profile, jd)
+    fallback = tailor.template_summary(profile, job["title"], matched)
+    summary, engine = (await tailor.llm_polish("summary", profile, job["title"], job["company"], matched, fallback)
+                       ) if fallback else (None, "deterministic")
+    try:
+        parsed, changes = tailor.tailor_resume(profile, jd, job, base, summary)
+    except tailor.TailorError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    validation = tailor.validate_resume(parsed, profile)
+    # Content carried over unchanged from the user's own resume is their own statement; only new claims must be verified.
+    own = tailor.resume_text(base).lower()
+    new_claims = [x for x in validation["violations"] if str(x.get("value", "")).lower() not in own]
+    if new_claims:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": new_claims})
+    after = tailor.ats_report(parsed, jd)
+    now = utcnow()
+    doc = {"_id": new_id(), "user_id": uid, "name": f"{resume['name']} · ATS {job['title']}"[:120], "kind": "Tailored Resume",
+           "status": "active", "file_id": None, "filename": None, "content_type": None, "size": None, "job_id": job.get("_id"),
+           "base_resume_id": resume["_id"], "current_version_id": None, "version_count": 0, "created_at": now, "updated_at": now,
+           "ats": after, "engine": engine}
+    await db[c.RESUMES].insert_one(doc)
+    await resumes.add_version(db, doc, parsed=parsed, raw_text=tailor.resume_text(parsed), source="ats_optimized",
+                              changes=changes or ["Optimised for this job"], base_resume_id=resume["_id"], job_id=job.get("_id"))
+    await log_action(db, user_id=uid, action="resume.ats_optimized", entity="resume", entity_id=doc["_id"],
+                     details={"before": before["score"], "after": after["score"]})
+    gaps = after["missing_required"]
+    return {"resume_id": doc["_id"], "name": doc["name"], "before": before, "after": after, "changes": changes, "engine": engine,
+            "gaps": gaps, "note": ("Every required keyword is covered." if not gaps else
+                                   f"To go higher, the job asks for {', '.join(gaps[:6])}. Add them to your Profile only if you've "
+                                   "really used them, then optimise again.")}
+
+
 # ------------------------------------------------------------------ cover letters
 
 def _letter_out(d: dict) -> dict:

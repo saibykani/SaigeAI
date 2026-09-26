@@ -1,12 +1,13 @@
 "use client";
 
-import { Check, Globe, LifeBuoy, LogOut, MessageCircle, MessageSquareHeart, Puzzle } from "lucide-react";
+import { Check, Globe, LifeBuoy, LogOut, MessageCircle, MessageSquareHeart, Palette, Puzzle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { LANGUAGES, useT } from "@/components/i18n";
 import { CONTACT_EMAIL } from "@/components/legal";
+import { THEMES, useTheme } from "@/components/theme";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/utils/cn";
 
@@ -21,6 +22,8 @@ export function UserMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [theme, setTheme] = useTheme();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,6 +72,25 @@ export function UserMenu() {
                 </Link>
               </li>
             ))}
+            <li>
+              <button onClick={() => setThemeOpen((o) => !o)} aria-expanded={themeOpen} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-muted">
+                <Palette className="size-4" style={{ color: "var(--tone-orange)" }} /> {t("Theme")}
+                <span className="ml-auto text-xs text-muted-foreground">{THEMES.find((x) => x.id === theme)?.name}</span>
+              </button>
+              {themeOpen && (
+                <ul className="mb-1 ml-9 flex flex-col">
+                  {THEMES.map((th) => (
+                    <li key={th.id}>
+                      <button onClick={() => setTheme(th.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-muted">
+                        <span className="size-4 shrink-0 rounded-md ring-1 ring-border" style={{ background: th.swatch[0], boxShadow: `inset 0 0 0 3px ${th.swatch[0]}, inset 0 0 0 8px ${th.swatch[1]}` }} />
+                        <span className="flex-1 text-left">{th.name}</span>
+                        {theme === th.id && <Check className="size-4" style={{ color: "var(--tone-green)" }} />}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
             <li>
               <button onClick={() => setLangOpen((o) => !o)} aria-expanded={langOpen} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-muted">
                 <Globe className="size-4" style={{ color: "var(--tone-purple)" }} /> {t("Language")}

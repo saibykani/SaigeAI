@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowUp, Loader2, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -72,16 +72,42 @@ function useChat() {
   return { msgs, busy, send, clear: () => { setMsgs([]); save([]); } };
 }
 
-/** A glossy 3D orb in one tone (the assistant's mark). */
+/** The assistant's mark: a tiny spiral galaxy that slowly turns (same warm palette as the login galaxy). */
 export function Orb({ size = 40, spinning = false }: { size?: number; spinning?: boolean }) {
+  const arms = [0, 1, 2].map((k) => {
+    const pts: string[] = [];
+    for (let i = 0; i <= 26; i++) {
+      const t = i / 26;
+      const a = k * ((2 * Math.PI) / 3) + t * 4.4;
+      const r = 5 + t * 40;
+      pts.push(`${(50 + Math.cos(a) * r).toFixed(1)},${(50 + Math.sin(a) * r).toFixed(1)}`);
+    }
+    return pts.join(" ");
+  });
+  const dots = Array.from({ length: 34 }, (_, i) => {
+    const t = ((i * 37) % 100) / 100;
+    const a = (i % 3) * ((2 * Math.PI) / 3) + t * 4.4 + ((i * 13) % 7) / 20;
+    const r = 6 + t * 40;
+    return { x: 50 + Math.cos(a) * r, y: 50 + Math.sin(a) * r, s: 0.8 + ((i * 7) % 5) / 4 };
+  });
   return (
-    <span className="relative inline-grid shrink-0 place-items-center" style={{ width: size, height: size }}>
-      <span className="absolute inset-0 rounded-full" style={{
-        background: "radial-gradient(circle at 32% 28%, #fff 0%, color-mix(in srgb, var(--tone-purple) 70%, #fff) 16%, var(--tone-purple) 48%, color-mix(in srgb, var(--tone-purple) 45%, #000) 100%)",
-        boxShadow: "0 8px 24px -6px color-mix(in srgb, var(--tone-purple) 70%, transparent), inset -4px -6px 12px rgba(0,0,0,.35)",
-      }} />
-      <span className={cn("absolute -inset-1 rounded-full border border-white/25", spinning && "orb-ring")} style={{ transform: "rotateX(70deg)" }} />
-      <Sparkles className="relative size-[45%] text-white drop-shadow" />
+    <span className="relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full"
+      style={{ width: size, height: size, background: "radial-gradient(circle at 50% 50%, #1b1610 0%, #07070a 70%)",
+        boxShadow: "0 8px 26px -8px rgba(255,200,140,.55), inset 0 0 0 1px rgba(255,236,210,.14)" }}>
+      <svg viewBox="0 0 100 100" className="absolute inset-0 size-full" style={{ transform: "perspective(160px) rotateX(55deg) scale(1.35)" }} aria-hidden>
+        <defs>
+          <radialGradient id="saige-core" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stopColor="#fff8e8" />
+            <stop offset="0.25" stopColor="#ffd9a3" stopOpacity="0.9" />
+            <stop offset="1" stopColor="#ffb36b" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <g className={spinning ? "galaxy-spin-fast" : "galaxy-spin"} style={{ transformBox: "view-box", transformOrigin: "50% 50%" }}>
+          {arms.map((d, i) => <polyline key={i} points={d} fill="none" stroke="#ffe8c8" strokeOpacity="0.35" strokeWidth="5" strokeLinecap="round" />)}
+          {dots.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={d.s} fill="#fff4e0" opacity={0.85} />)}
+        </g>
+        <circle cx="50" cy="50" r="20" fill="url(#saige-core)" />
+      </svg>
     </span>
   );
 }

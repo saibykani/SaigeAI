@@ -10,7 +10,6 @@ import {
   Menu,
   Send,
   Settings,
-  Sparkles,
   UserRound,
   Users,
   X,
@@ -25,8 +24,9 @@ import { useT } from "@/components/i18n";
 import { Loader3D } from "@/components/loader3d";
 import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
-import { ThemeSwitcher } from "@/components/theme";
-import { AssistantBubble } from "@/components/assistant";
+import { AssistantBubble, Orb } from "@/components/assistant";
+import { Celebrate } from "@/components/celebrate";
+import { LiveTicker } from "@/components/live-ticker";
 import { Button } from "@/components/ui/button";
 import { useLiveSync } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
@@ -40,24 +40,24 @@ const Linkedin = createLucideIcon("Linkedin", [
 ]);
 
 type Tone = "green" | "orange" | "yellow" | "purple" | "red" | "mint" | "teal" | "lime";
-type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone; tabs?: { href: string; label: string }[] };
+type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone; group: string; tabs?: { href: string; label: string }[] };
 
 // Pages that show the same kind of data share one sidebar entry and switch with tabs at the top.
 const NAV: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green", tabs: [{ href: "/", label: "Overview" }, { href: "/analytics", label: "Analytics" }] },
-  { href: "/jobs", label: "Jobs", icon: Briefcase, tone: "orange" },
-  { href: "/applications", label: "Applications", icon: Send, tone: "yellow", tabs: [{ href: "/applications", label: "Applications" }, { href: "/interviews", label: "Interviews" }] },
-  { href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
-  { href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
-  { href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
-  { href: "/assistant", label: "Saige AI", icon: Sparkles, tone: "purple" },
-  { href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [{ href: "/profiles", label: "LinkedIn & Naukri" }, { href: "/profile-sync", label: "Resume sync" }] },
-  { href: "/alerts", label: "Settings", icon: Settings, tone: "red", tabs: [
+  { group: "Workspace", href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green", tabs: [{ href: "/", label: "Overview" }, { href: "/analytics", label: "Analytics" }] },
+  { group: "Workspace", href: "/jobs", label: "Jobs", icon: Briefcase, tone: "orange" },
+  { group: "Workspace", href: "/applications", label: "Applications", icon: Send, tone: "yellow", tabs: [{ href: "/applications", label: "Applications" }, { href: "/interviews", label: "Interviews" }] },
+  { group: "Workspace", href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
+  { group: "Network", href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
+  { group: "Network", href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
+  { group: "Network", href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [{ href: "/profiles", label: "LinkedIn & Naukri" }, { href: "/profile-sync", label: "Resume sync" }] },
+  { group: "Account", href: "/profile", label: "Profile", icon: UserRound, tone: "mint" },
+  { group: "Account", href: "/alerts", label: "Settings", icon: Settings, tone: "red", tabs: [
     { href: "/alerts", label: "Alerts & templates" }, { href: "/integrations", label: "Integrations" },
     { href: "/agent", label: "Agent" }, { href: "/settings", label: "Automation & privacy" }] },
-  { href: "/help", label: "Help & Docs", icon: LifeBuoy, tone: "green" },
-  { href: "/profile", label: "Profile", icon: UserRound, tone: "mint" },
+  { group: "Account", href: "/help", label: "Help & Docs", icon: LifeBuoy, tone: "green" },
 ];
+const GROUPS = ["Workspace", "Network", "Account"];
 
 const matches = (href: string, pathname: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
@@ -143,34 +143,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-7 overflow-y-auto px-3 py-2">
-          <ul className="flex flex-col gap-1">
-            {NAV.map(({ href, label, icon: Icon, tone }) => {
-              const active = sectionFor(pathname)?.href === href;
-              return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    className={cn(
-                      "group relative flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-all duration-200",
-                      active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "grid size-7 place-items-center rounded-lg transition-all duration-300",
-                        active ? "text-[#0b0b0c] shadow-sm" : "group-hover:scale-110",
-                      )}
-                      style={active ? { background: `var(--tone-${tone})`, boxShadow: `0 4px 14px -4px var(--tone-${tone})` } : { color: `var(--tone-${tone})` }}
-                    >
-                      <Icon className="size-4" aria-hidden />
-                    </span>
-                    {t(label)}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-2">
+          {GROUPS.map((g) => (
+            <div key={g}>
+              <p className="px-4 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70">{t(g)}</p>
+              <ul className="flex flex-col gap-1">
+                {NAV.filter((n) => n.group === g).map(({ href, label, icon: Icon, tone }) => {
+                  const active = sectionFor(pathname)?.href === href;
+                  return (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        className={cn(
+                          "group relative flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-all duration-200",
+                          active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        <span
+                          className={cn("grid size-7 place-items-center rounded-lg transition-all duration-300", active && "text-[#0b0b0c] shadow-sm")}
+                          style={active ? { background: `var(--tone-${tone})`, boxShadow: `0 4px 14px -4px var(--tone-${tone})` } : { color: `var(--tone-${tone})` }}
+                        >
+                          <Icon className="size-4" aria-hidden />
+                        </span>
+                        {t(label)}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
           {UPCOMING.length > 0 && (
             <div>
               <p className="px-4 pb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Coming next</p>
@@ -198,9 +200,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
             <Menu />
           </Button>
-          <p className="hidden text-sm text-muted-foreground sm:block">{t("Saige AI · your AI job search partner")}</p>
+          <LiveTicker />
           <div className="ml-auto" />
-          <ThemeSwitcher />
+          <Link href="/assistant" className="saige-cta group flex items-center gap-2 rounded-full border py-1 pl-1 pr-3.5 text-sm font-medium transition-colors hover:bg-muted"
+            style={{ borderColor: "color-mix(in srgb, #ffc98a 40%, transparent)" }}>
+            <Orb size={28} />
+            <span className="hidden sm:inline">{t("Ask Saige AI")}</span>
+          </Link>
           <NotificationBell />
           <UserMenu />
         </header>
@@ -210,6 +216,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         {pathname !== "/assistant" && <AssistantBubble />}
+        <Celebrate />
       </div>
     </div>
   );

@@ -81,3 +81,19 @@ async def test_whatsapp_rejection_shows_callmebot_answer(client, auth, db, monke
     assert ok.status_code == 200
     t = await client.post("/api/integrations/whatsapp/test", headers=auth)
     assert t.status_code == 200 and "queued" in t.json()["answer"]
+
+
+async def test_ats_optimize_creates_better_version(client, auth):
+    from tests.job_fixtures import SDET_JD
+    from tests.test_resume_ai import upload
+
+    await client.put("/api/profile", headers=auth, json=PROFILE)
+    rid = (await upload(client, auth)).json()["id"]
+    r = await client.post("/api/resumes/ats-optimize", headers=auth, json={"resume_id": rid, "jd_text": SDET_JD, "title": "SDET"})
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["after"]["score"] >= body["before"]["score"] and body["resume_id"] != rid
+    assert "Kubernetes" not in body["after"]["matched_keywords"]  # never invented
+    assert "Kubernetes" not in " ".join(body["after"]["missing_required"]) or body["gaps"] is not None
+    listed = (await client.get("/api/resumes", headers=auth)).json()
+    assert any(x["id"] == body["resume_id"] for x in listed)

@@ -89,7 +89,8 @@ export const MANUAL: ManualSection[] = [
       "Resumes → scroll to “ATS resume scorer”.",
       "Pick a resume, then pick a saved job or paste any job description.",
       "Click “Score my resume”. Green ticks are keywords you have; red are required keywords missing.",
-      "Follow “What to fix”. For a version aimed at one job, open the job and click “Generate tailored resume”.",
+      "Follow “What to fix”, or click “Optimise my resume for this job”: Saige builds an optimised version (keywords first, relevant bullets first, tailored summary, full contact details), saves it as a new resume and shows the new score.",
+      "Keywords you haven't used are listed as gaps. Add them to your Profile only if they're true, then optimise again to reach 100%.",
     ],
     tips: ["Only add a missing keyword if you've really used it. Saige never adds skills you don't have."],
   },
@@ -201,7 +202,7 @@ export const MANUAL: ManualSection[] = [
   },
   {
     id: "assistant", title: "Saige AI assistant", href: "/assistant", tone: "purple", image: "/help/assistant.jpg",
-    purpose: "Chat with your job-search assistant, full screen (Saige AI in the sidebar) or from the glowing orb in the bottom-right corner of every page.",
+    purpose: "Chat with your job-search assistant: “Ask Saige AI” in the top bar opens it full screen, and the little galaxy in the bottom-right corner opens it on any page.",
     steps: [
       "Ask things like “What are my best jobs today?”, “How are my applications doing?”, “Any upcoming interviews?” or “Show my latest recruiter emails”.",
       "Answers come from your own records (profile, jobs, applications, inbox, contacts) and include buttons to open the right page.",
@@ -285,6 +286,7 @@ export const FAQ = [
   { q: "Can Saige auto-apply to jobs on Naukri, LinkedIn or Indeed?", a: "Those sites don't allow third-party auto-apply. The auto-applier prepares applications in bulk every day. After you approve, email applications are sent from your Gmail, and the rest open on the employer's page for your final click." },
   { q: "Where do LinkedIn and Naukri jobs come from?", a: "From the job-alert emails those sites send you. Turn on alerts for your role and city (Settings → Integrations → Hiring portals), connect Gmail, and they appear under Jobs → Job alerts." },
   { q: "Why don't I see jobs in my country?", a: "Set your country (or current city) and target roles in Profile. Jobs for you uses them to fetch and sort jobs." },
+  { q: "Where is the theme switcher?", a: "Click your avatar (top right) → Theme." },
   { q: "Where did Interviews, Analytics and Integrations go?", a: "Similar pages are grouped with tabs: Interviews is in Applications, Analytics in Dashboard, Resume sync in LinkedIn & Naukri, and Settings holds Alerts & templates, Integrations, Agent, and Automation & privacy. Profile is the last item in the sidebar." },
   { q: "Can Saige fetch LinkedIn / Naukri jobs every second, and apply there?", a: "Not from their websites: both forbid automated access and auto-applying, and accounts that do it get banned. While Saige is open it syncs Gmail every minute, so LinkedIn / Naukri job alerts, invites and messages appear within a minute; job sites and career pages refresh every 5 minutes. For LinkedIn / Naukri postings, open the job and apply there (Easy Apply / Apply on Naukri), then mark it applied." },
   { q: "Can Saige get recruiters' phone numbers from LinkedIn?", a: "Saige never scrapes LinkedIn. It saves phone numbers and emails that recruiters share with you: in Naukri / LinkedIn invite emails, recruiter emails, and job postings. Import your LinkedIn connections CSV for your network." },

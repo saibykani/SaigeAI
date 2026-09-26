@@ -105,8 +105,16 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl border bg-[image:var(--hero-gradient)] p-7 text-white shadow-[var(--shadow-lift)] md:p-9">
+      <section className="relative overflow-hidden rounded-3xl border p-7 text-white shadow-[var(--shadow-lift)] md:p-9"
+        style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--tone-green) 62%, #021a0f) 0%, color-mix(in srgb, var(--tone-green) 30%, #01100a) 55%, #010a06 100%)" }}>
         <div aria-hidden className="animate-float pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-white/10 blur-3xl" />
+        {/* Slowly turning 3D rings behind the banner */}
+        <div aria-hidden className="hero-rings pointer-events-none absolute -right-10 top-1/2 size-[420px] -translate-y-1/2 opacity-40 [perspective:900px]">
+          <span className="hero-ring absolute inset-0 rounded-full border border-white/30" />
+          <span className="hero-ring hero-ring-2 absolute inset-10 rounded-full border border-white/25" />
+          <span className="hero-ring hero-ring-3 absolute inset-24 rounded-full border border-white/20" />
+          <span className="hero-moon absolute left-1/2 top-1/2 size-3 rounded-full bg-white shadow-[0_0_18px_rgba(255,255,255,0.9)]" />
+        </div>
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:linear-gradient(to_left,black,transparent_70%)]" />
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">

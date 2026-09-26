@@ -11,8 +11,8 @@ import { useEffect, useRef } from "react";
  *  - Drag: orbit the camera (tilt / yaw) in 3D; releases with inertia.
  *  - Horizontal and slightly tilted, spread across the whole screen, with a glowing bulge and dust lanes.
  *  - Our solar system sits out on one of the arms and travels with the galaxy: the Sun, its planets on
- *    their orbits, and a small blue Earth (with its Moon) revolving around it.
- *  - Comets fall slowly across the sky.
+ *    their orbits, and a small blue planet (with its moon) revolving around it.
+ *  - Comets fall slowly across the sky, and a shooting star crosses it every 2-3 seconds.
  *  - Slow, stately rotation. Reduced motion: still frame.
  * Performance: stars are pre-sorted into a few colour buckets, so each frame sets fillStyle only a
  * handful of times; glows are pre-rendered sprites (no canvas filters).
@@ -179,6 +179,7 @@ export function Galaxy({ className }: { className?: string }) {
     document.addEventListener("pointerleave", onLeave);
 
     let frame = 0, time = 0, last = performance.now();
+    let nextMeteor = performance.now() + 800;
     const ROT = 0.4; // rotation speed factor
 
     const project = (r: number, a: number, y0: number, yaw: number, cosT: number, sinT: number, focal: number) => {
@@ -361,10 +362,7 @@ export function Galaxy({ className }: { className?: string }) {
             ctx.beginPath();
             ctx.arc(x + Math.cos(ma) * 3.4 * k, y + Math.sin(ma) * 3.4 * k * inc, 0.55 * k, 0, Math.PI * 2);
             ctx.fill();
-            ctx.globalAlpha = 0.7;
-            ctx.font = `${Math.round(9 * Math.min(1.2, k))}px system-ui, sans-serif`;
-            ctx.fillStyle = "rgba(200,225,255,0.85)";
-            ctx.fillText("Earth", x + 4 * k, y - 3 * k);
+
           }
           if (pl.r === 52) { // Saturn's ring
             ctx.strokeStyle = "rgba(230,210,160,0.6)";
@@ -389,7 +387,8 @@ export function Galaxy({ className }: { className?: string }) {
 
       // Rare shooting star.
       if (!reduce) {
-        if (Math.random() < dt * 0.12) {
+        if (now >= nextMeteor) { // a shooting star every 2-3 seconds, continuously
+          nextMeteor = now + 2000 + Math.random() * 1000;
           meteors.push({ x: Math.random() * w, y: Math.random() * h * 0.45, vx: -(260 + Math.random() * 240), vy: 120 + Math.random() * 100, life: 1 });
         }
         for (const m of meteors) {
