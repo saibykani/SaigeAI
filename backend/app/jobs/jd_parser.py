@@ -66,10 +66,14 @@ _EMPLOYMENT = [("internship", "Internship"), ("part-time", "Part-time"), ("part 
                ("full-time", "Full-time"), ("full time", "Full-time"), ("permanent", "Full-time")]
 
 
-def html_to_text(raw: str) -> str:
-    """Convert ATS HTML (possibly entity-escaped) to plain text with bullets and line breaks."""
+def html_to_text(raw: str, keep_links: bool = False) -> str:
+    """Convert ATS HTML (possibly entity-escaped) to plain text with bullets and line breaks.
+
+    keep_links puts each link's URL on the line after its text (used for job-alert emails)."""
     text = html.unescape(html.unescape(raw))
     text = re.sub(r"(?is)<(script|style).*?</\1>", " ", text)
+    if keep_links:
+        text = re.sub(r"(?is)<a\s[^>]*?href=[\"'](https?://[^\"']+)[\"'][^>]*>(.*?)</a>", r"\2\n\1\n", text)
     text = re.sub(r"(?i)<li[^>]*>", "\n- ", text)
     text = re.sub(r"(?i)<br\s*/?>|</(p|div|h[1-6]|ul|ol|li|tr)>", "\n", text)
     text = re.sub(r"(?i)<(h[1-6])[^>]*>", "\n", text)

@@ -120,6 +120,45 @@ async def ats_check(job_id: str, body: AtsIn, user: dict = Depends(get_current_u
     return tailor.ats_report(ParsedResume.model_validate(v["parsed"]), JDAnalysis.model_validate(job["analysis"]))
 
 
+class AtsScoreIn(BaseModel):
+    resume_id: str
+    version_id: str | None = None
+    job_id: str | None = None
+    jd_text: str | None = Field(default=None, max_length=60000)
+    title: str | None = Field(default=None, max_length=200)
+
+
+@router.post("/resumes/ats-score")
+async def ats_score(body: AtsScoreIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """ATS resume scorer: any resume against a saved job or a pasted job description, with fixes to make."""
+    from app.jobs.jd_parser import analyze_jd
+
+    uid = user["_id"]
+    resume = await resumes.get_owned(db, uid, body.resume_id)
+    v = await db[c.RESUME_VERSIONS].find_one({"_id": body.version_id or resume.get("current_version_id"), "resume_id": resume["_id"]})
+    if not v:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume version not found")
+    if body.job_id:
+        job = await jobs.get_owned(db, uid, body.job_id)
+        jd, title = JDAnalysis.model_validate(job["analysis"]), f"{job['title']} at {job['company']}"
+    elif body.jd_text and len(body.jd_text.strip()) >= 30:
+        title = (body.title or "Pasted job description").strip()
+        jd = analyze_jd(title, body.jd_text)
+    else:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Choose a saved job or paste a job description (30+ characters).")
+    report = tailor.ats_report(ParsedResume.model_validate(v["parsed"]), jd)
+    tips = [f"Add “{s}” if you have used it — the job lists it as required." for s in report["missing_required"][:6]]
+    fixes = {"Email present": "Add your email address at the top.", "Phone present": "Add your phone number at the top.",
+             "Professional summary": "Add a 2–3 line professional summary.", "Skills section": "List at least 5 skills in a Skills section.",
+             "Dated work experience": "Give every job a start date (and end date or Present).",
+             "Achievement bullets": "Add bullet points under each job describing what you did.",
+             "Education listed": "Add your education.", "Length 250-1200 words": "Aim for 250–1,200 words (about 1–2 pages)."}
+    tips += [fixes.get(ch["check"], f"Fix: {ch['check']}.") for ch in report["checks"] if not ch["passed"]]
+    if report["score"] < 80:
+        tips.append("Use Jobs → a job → Tailor resume to create a version aimed at this job (only verified facts are used).")
+    return {**report, "job": title, "resume": resume["name"], "tips": tips[:10]}
+
+
 # ------------------------------------------------------------------ cover letters
 
 def _letter_out(d: dict) -> dict:

@@ -229,11 +229,31 @@ async def import_from_jobs(db: AsyncIOMotorDatabase, user_id: str) -> dict:
     return result
 
 
+async def import_from_feed(db: AsyncIOMotorDatabase, user_id: str) -> dict:
+    """HR emails published in postings in Jobs for you (public postings for the user's roles)."""
+    result = {"created": 0, "duplicates": 0}
+    doc = await db[c.JOB_FEED].find_one({"_id": user_id}, {"items.hr_emails": 1, "items.company": 1}) or {}
+    for it in doc.get("items", []):
+        for addr in it.get("hr_emails") or []:
+            company = (it.get("company") or _company_from_domain(addr.split("@")[-1]) or "").strip()
+            if not company:
+                continue
+            local = addr.split("@")[0]
+            generic = bool(re.match(r"^(hr|careers?|jobs?|recruit(ing|ment)?|talent|hiring|resumes?|cv)(?![a-z])", local))
+            name = f"{company} {'Hiring team' if generic else local.replace('.', ' ').title()}"[:120]
+            _, created = await create_contact(db, user_id, ContactIn(name=name, company=company[:200], email=addr,
+                                                                     source="job", role="recruiter"))
+            result["created" if created else "duplicates"] += 1
+    return result
+
+
 async def sync_contacts(db: AsyncIOMotorDatabase, user_id: str) -> dict:
     inbox = await import_from_inbox(db, user_id)
     jobs = await import_from_jobs(db, user_id)
-    return {"created": inbox["created"] + jobs["created"], "from_inbox": inbox["created"], "from_jobs": jobs["created"],
-            "duplicates": inbox["duplicates"] + jobs["duplicates"]}
+    feed = await import_from_feed(db, user_id)
+    return {"created": inbox["created"] + jobs["created"] + feed["created"], "from_inbox": inbox["created"],
+            "from_jobs": jobs["created"] + feed["created"],
+            "duplicates": inbox["duplicates"] + jobs["duplicates"] + feed["duplicates"]}
 
 
 # ------------------------------------------------------------------ drafts
@@ -281,7 +301,8 @@ def build_draft(kind: str, profile: Profile, contact: dict, job: dict | None, pa
     role = job["title"] if job else None
     company = job["company"] if job else contact["company"]
     link = f" ({job['application_url']})" if job and job.get("application_url") else ""
-    sign = f"\n\nThanks,\n{name}" if name else "\n\nThanks"
+    phone = f"\n{profile.personal.phone}" if profile.personal.phone else ""
+    sign = f"\n\nThanks,\n{name}{phone}" if name else "\n\nThanks"
 
     if kind == "referral":
         subject = f"Referral request: {role} at {company}" if role else f"Referral request at {company}"
@@ -337,9 +358,40 @@ def templates(profile: Profile) -> list[dict]:
     for kind, name, audience, when in TEMPLATE_INFO:
         subject, body = build_draft(kind, profile, sample, job if kind != "employee_intro" else None,
                                     parent if kind == "followup" else None, None)
-        out.append({"kind": kind, "name": name, "audience": audience, "description": when,
-                    "subject": subject, "body": body})
+        out.append({"kind": kind, "name": name, "audience": audience, "description": when, "subject": subject,
+                    "body": body, "channel": "linkedin" if kind == "linkedin_note" else "email"})
+    for kind, name, audience, when in WHATSAPP_INFO:
+        text = whatsapp_text(kind, profile, sample, "[Role]", "[Company]")
+        out.append({"kind": kind, "name": name, "audience": audience, "description": when, "subject": "",
+                    "body": text, "channel": "whatsapp", "wa_link": f"https://wa.me/?text={quote(text)}"})
     return out
+
+
+WHATSAPP_INFO = [
+    ("wa_hr", "WhatsApp to HR / recruiter", "HR · recruiter", "When a recruiter shares a WhatsApp number or a posting lists one."),
+    ("wa_referral", "WhatsApp referral ask", "Friend · ex-colleague", "For someone you already know at the company."),
+    ("wa_followup", "WhatsApp follow-up", "Recruiter you've spoken to", "A short nudge 3–5 days after applying or talking."),
+    ("wa_thanks", "WhatsApp thank-you", "Interviewer · recruiter", "Same day, after a call or interview."),
+]
+
+
+def whatsapp_text(kind: str, profile: Profile, contact: dict, role: str | None, company: str) -> str:
+    """Short WhatsApp messages from verified facts only (no claims beyond the profile)."""
+    first = _first_name(contact["name"])
+    skills = _matching_skills(profile, None, 3)
+    about = f" ({', '.join(skills)})" if skills else ""
+    role_txt = f"the {role} role" if role else "open roles"
+    if kind == "wa_hr":
+        return (f"Hi {first}, {_intro(profile)}{about}. I saw {role_txt} at {company} and would love to be considered. "
+                f"May I share my resume here? Thank you!")
+    if kind == "wa_referral":
+        return (f"Hi {first}! Hope you're doing well. {company} has {role_txt} that fits my experience{about}. "
+                f"Would you be comfortable referring me? I can send my resume and the job link.")
+    if kind == "wa_followup":
+        return (f"Hi {first}, following up on {role_txt} at {company}. I'm still very interested, "
+                f"happy to share anything else you need. Thanks!")
+    return (f"Hi {first}, thank you for your time today. I enjoyed learning more about {company}"
+            f"{f' and the {role} role' if role else ''}. Looking forward to the next steps!")
 
 
 def check_truth(profile: Profile, body: str) -> dict:

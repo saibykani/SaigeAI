@@ -53,7 +53,10 @@ backend/app/
   auth/                   # register/login/refresh/logout, Google OAuth (+ Gmail link branch in callback)
   profiles/               # master profile (service._deep_merge), optimizer, LinkedIn/Naukri sync
   resumes/                # parser, import-to-profile, tailor/ATS/cover letter, DOCX export
-  jobs/                   # jd_parser, 9-dimension matching, dedupe, ATS board sources, discover.py (Adzuna/Remotive/Arbeitnow search)
+  jobs/                   # jd_parser, 9-dimension matching, dedupe, ATS board sources, discover.py (job APIs + role-family title filter),
+                          # feed.py (Jobs for you: country/remote scope, walk-ins, HR emails; cached in job_feed), alerts.py (portal job-alert emails),
+                          # auto_apply.py (daily prepare + approve_many: email applications via SMTP with resume attached)
+  portals/router.py       # hiring-portal catalogue (/integrations/portals): "api" portals vs "alerts" portals + user profile links
   applications/           # applications, answers (confidence), interviews + .ics
   email/                  # Gmail OAuth or App Password (imap.py read, smtp.py send approved outreach), classifier, ingest -> status
   analytics/              # /analytics/dashboard aggregate + service.breakdowns (source/role/resume/match, weekly, time-to-response)
@@ -121,3 +124,7 @@ Never commit env files.
 - The 3D loader is `components/loader3d.tsx`. Use it for full-page and route loading.
 - Every page uses `PageHeader` and `Notice` from `components/app-shell.tsx`. Update the `NAV` and
   `UPCOMING` arrays there when a phase lands.
+- The sidebar is kept short (9 entries). Pages with related data share one entry and switch with `tabs`
+  in `NAV` (Dashboard·Analytics, Applications·Interviews, LinkedIn & Naukri·Resume sync,
+  Settings = Integrations·Automation & privacy). Profile lives in the avatar menu, not the sidebar.
+- Company contact email: `info.saigeai@gmail.com` (`CONTACT_EMAIL` in `components/legal.tsx`).

@@ -12,7 +12,7 @@ import { request } from "@/services/api";
 import type { DiscoverResponse, DiscoverResult } from "@/types/api";
 import { cn } from "@/utils/cn";
 
-const SOURCE_LABEL: Record<string, string> = { adzuna: "Adzuna", remotive: "Remotive", arbeitnow: "Arbeitnow" };
+const SOURCE_LABEL: Record<string, string> = { adzuna: "Adzuna", remotive: "Remotive", arbeitnow: "Arbeitnow", himalayas: "Himalayas", jobicy: "Jobicy" };
 
 function scoreTone(s: number) {
   return s >= 85 ? "green" : s >= 70 ? "yellow" : s >= 55 ? "orange" : "red";
@@ -76,11 +76,10 @@ export function JobDiscover({ onSaved }: { onSaved: () => void }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <span className="grid size-8 place-items-center rounded-lg text-[#0b0b0c]" style={{ background: "var(--tone-orange)" }}><Radar className="size-4" /></span>
-          Discover jobs for your role
+          Search any role
         </CardTitle>
         <CardDescription>
-          Searches official job APIs (Adzuna for India, Remotive, Arbeitnow) and scores every result against your verified profile. Nothing is saved until you choose.
-          LinkedIn, Naukri and Indeed don&apos;t allow automated searches, so use the Chrome extension on their pages.
+          Look for a role that isn&apos;t in your target roles. Searches Himalayas (your country), Remotive, Jobicy and Arbeitnow, and scores every result against your verified profile. Nothing is saved until you choose.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -106,9 +105,6 @@ export function JobDiscover({ onSaved }: { onSaved: () => void }) {
               <Button size="sm" variant="outline" disabled={!picked.size || saving} onClick={() => save(false)}>Save selected</Button>
               <Button size="sm" disabled={!picked.size || saving} onClick={() => save(true)}>{saving ? "Working…" : "Save & prepare applications"}</Button>
             </div>
-            {!data.providers.includes("adzuna") && (
-              <p className="text-xs text-muted-foreground">Tip: add a free Adzuna key (ADZUNA_APP_ID / ADZUNA_APP_KEY in the backend settings) for India-wide results.</p>
-            )}
             <ul className="flex max-h-[34rem] flex-col gap-2 overflow-y-auto pr-1">
               {shown.length === 0 && <li className="py-8 text-center text-sm text-muted-foreground">No results. Try a broader role or remove the location.</li>}
               {shown.map(({ r, i }) => (
@@ -118,7 +114,7 @@ export function JobDiscover({ onSaved }: { onSaved: () => void }) {
                     <span className="grid size-11 shrink-0 place-items-center rounded-xl text-sm font-semibold text-[#0b0b0c]" style={{ background: `var(--tone-${scoreTone(r.score)})` }}>{r.score}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{r.title}</span>
-                      <span className="block truncate text-sm text-muted-foreground">{r.company || "Company not listed"} · {r.location || "Location not listed"} · {SOURCE_LABEL[r.source] ?? r.source}{r.posted ? ` · ${r.posted}` : ""}</span>
+                      <span className="block truncate text-sm text-muted-foreground">{r.company || "Company not listed"} · {r.location || "Location not listed"} · {r.source_label ?? SOURCE_LABEL[r.source] ?? r.source}{r.posted ? ` · ${r.posted}` : ""}</span>
                       {r.matched_skills.length > 0 && <span className="mt-1 block truncate text-xs" style={{ color: "var(--tone-green)" }}>✓ {r.matched_skills.join(" · ")}</span>}
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1 text-xs">

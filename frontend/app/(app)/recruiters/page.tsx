@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, ClipboardCopy, FileText, Inbox, MailCheck, Reply, Send, Upload, UserPlus, Users } from "lucide-react";
+import { Building2, ClipboardCopy, FileText, Inbox, MailCheck, MessageCircle, Reply, Send, Upload, UserPlus, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
@@ -22,6 +22,7 @@ type Msg = { tone: "success" | "error" | "warning"; text: string } | null;
 const TEMPLATE_TONE: Record<string, string> = {
   cold: "orange", hiring_manager: "purple", referral: "green", employee_intro: "teal",
   linkedin_note: "yellow", followup: "mint", thank_you: "red",
+  wa_hr: "green", wa_referral: "green", wa_followup: "green", wa_thanks: "green",
 };
 
 function TemplateCard({ t, contacts, onUse, delay }: { t: OutreachTemplate; contacts: RecruiterContact[]; onUse: (c: RecruiterContact, kind: OutreachKind) => void; delay: number }) {
@@ -32,7 +33,7 @@ function TemplateCard({ t, contacts, onUse, delay }: { t: OutreachTemplate; cont
     <Card className="lift animate-rise flex flex-col" style={{ animationDelay: `${delay}ms`, borderColor: `color-mix(in srgb, ${tone} 30%, transparent)`, backgroundImage: `radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, ${tone} 14%, transparent), transparent 60%)` }}>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <span className="grid size-8 place-items-center rounded-lg text-[#0b0b0c]" style={{ background: tone }}><FileText className="size-4" /></span>
+          <span className="grid size-8 place-items-center rounded-lg text-[#0b0b0c]" style={{ background: tone }}>{t.channel === "whatsapp" ? <MessageCircle className="size-4" /> : <FileText className="size-4" />}</span>
           <div className="min-w-0">
             <CardTitle className="text-base">{t.name}</CardTitle>
             <p className="text-xs text-muted-foreground">For: {t.audience}</p>
@@ -41,19 +42,24 @@ function TemplateCard({ t, contacts, onUse, delay }: { t: OutreachTemplate; cont
         <CardDescription>{t.description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3">
-        {t.kind !== "linkedin_note" && <p className="text-sm"><span className="text-muted-foreground">Subject: </span>{t.subject}</p>}
+        {t.channel === "email" && <p className="text-sm"><span className="text-muted-foreground">Subject: </span>{t.subject}</p>}
         <p className="flex-1 whitespace-pre-wrap rounded-xl border bg-muted/40 p-3 text-sm leading-relaxed">{t.body}</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={async () => { await navigator.clipboard.writeText(t.kind === "linkedin_note" ? t.body : `Subject: ${t.subject}\n\n${t.body}`); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
             <ClipboardCopy /> {copied ? "Copied" : "Copy"}
           </Button>
-          {t.kind !== "followup" && contacts.length > 0 && (
+          {t.wa_link && (
+            <a href={t.wa_link} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium text-[#0b0b0c]" style={{ background: "#25D366" }}>
+              <MessageCircle className="size-3.5" /> Open in WhatsApp
+            </a>
+          )}
+          {t.channel !== "whatsapp" && t.kind !== "followup" && contacts.length > 0 && (
             <>
               <Select value={contactId} onChange={(e) => setContactId(e.target.value)} className="h-8 w-auto max-w-[12rem] text-xs" aria-label="Contact">
                 <option value="">Use with a contact…</option>
                 {contacts.filter((c) => !c.unsubscribed).map((c) => <option key={c.id} value={c.id}>{c.name} · {c.company}</option>)}
               </Select>
-              <Button size="sm" disabled={!contactId} onClick={() => { const c = contacts.find((x) => x.id === contactId); if (c) onUse(c, t.kind); }}>Draft</Button>
+              <Button size="sm" disabled={!contactId} onClick={() => { const c = contacts.find((x) => x.id === contactId); if (c) onUse(c, t.kind as OutreachKind); }}>Draft</Button>
             </>
           )}
         </div>
@@ -123,7 +129,7 @@ export default function RecruitersPage() {
     { id: "queue", label: "Queue", count: queue.length },
     { id: "sent", label: "Sent & replies", count: sent.length },
     { id: "contacts", label: "Contacts", count: contacts.data?.length },
-    { id: "templates", label: "Email templates" },
+    { id: "templates", label: "Email & WhatsApp templates" },
   ];
 
   return (
@@ -209,18 +215,30 @@ export default function RecruitersPage() {
       {tab === "templates" && (
         <div className="flex flex-col gap-4">
           <Notice>
-            Templates are filled from your verified profile. Bracketed parts like [First name] and [Company] are replaced automatically when you draft for a contact. Nothing is ever sent for you.
+            Templates are filled from your verified profile. Bracketed parts like [First name] and [Company] are replaced automatically when you draft for a contact. Emails go out only after you approve them.
           </Notice>
           {!tpls.data ? <div className="skeleton h-72 rounded-3xl" /> : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {tpls.data.map((t, i) => (
-                <TemplateCard key={t.kind} t={t} contacts={contacts.data ?? []} delay={i * 40}
-                  onUse={(c, kind) => run(async () => {
-                    await request("/outreach/draft", { method: "POST", body: { contact_id: c.id, kind } });
-                    setTab("queue");
-                  }, `Draft for ${c.name} is ready in the queue.`)} />
-              ))}
-            </div>
+            ([["email", "Email templates"], ["linkedin", "LinkedIn"], ["whatsapp", "WhatsApp messages"]] as const).map(([ch, title]) => {
+              const list = tpls.data!.filter((t) => t.channel === ch);
+              if (!list.length) return null;
+              return (
+                <section key={ch} className="flex flex-col gap-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold">
+                    {ch === "whatsapp" ? <MessageCircle className="size-4" style={{ color: "#25D366" }} /> : <FileText className="size-4 text-muted-foreground" />} {title}
+                    {ch === "whatsapp" && <span className="font-normal text-muted-foreground">· opens WhatsApp with the message ready; you pick the chat and press send</span>}
+                  </h2>
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {list.map((t, i) => (
+                      <TemplateCard key={t.kind} t={t} contacts={contacts.data ?? []} delay={i * 40}
+                        onUse={(c, kind) => run(async () => {
+                          await request("/outreach/draft", { method: "POST", body: { contact_id: c.id, kind } });
+                          setTab("queue");
+                        }, `Draft for ${c.name} is ready in the queue.`)} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })
           )}
         </div>
       )}

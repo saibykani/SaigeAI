@@ -173,7 +173,11 @@ async def discover_jobs(body: DiscoverIn, user: dict = Depends(get_current_user)
     if not query:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Add a target role in your profile, or type what to search for.")
     location = (body.location or "").strip() or (profile.preferences.preferred_locations[0] if profile.preferences.preferred_locations else None)
-    result = await discover.search(query, location, profile, await service.get_weights(db, uid))
+    from app.jobs import feed
+
+    country = feed.country_for(profile)
+    result = await discover.search(query, location, profile, await service.get_weights(db, uid), country=country)
+    result["results"] = [feed.annotate(r, country) for r in result["results"]]
     # Mark results already in your jobs list.
     urls = [r["url"] for r in result["results"] if r.get("url")]
     known = {}
@@ -216,6 +220,78 @@ async def discover_save(body: DiscoverSaveIn, user: dict = Depends(get_current_u
     await log_action(db, user_id=uid, action="jobs.discover_saved", entity="job",
                      details={"saved": len(saved), "prepared": prepared})
     return {"saved": len(saved), "job_ids": saved, "applications_prepared": prepared, "skipped": skipped}
+
+
+# ------------------------------------------------------------ jobs for you (auto-fetched feed) + auto-applier
+
+@router.get("/feed", dependencies=[Depends(sync_limiter.dependency("job_feed"))])
+async def job_feed(refresh: bool = False, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Every job for your target roles in your country (plus remote), from job APIs, career pages and your job alerts."""
+    from app.jobs import feed
+
+    uid = user["_id"]
+    if not await is_allowed(db, uid, "job_discovery"):
+        raise HTTPException(status.HTTP_423_LOCKED, "Job discovery is paused. Resume it in Automation settings.")
+    doc = await feed.get(db, uid, refresh=refresh)
+    items = doc.get("items", [])
+    await feed.mark_saved(db, uid, items)
+    counts = {"all": len(items), "country": sum(i["scope"] == "country" for i in items),
+              "remote": sum(i["scope"] == "remote" for i in items), "abroad": sum(i["scope"] == "abroad" for i in items),
+              "walk_in": sum(bool(i.get("walk_in")) for i in items),
+              "alerts": sum(i["source_label"].endswith("alert") for i in items),
+              "careers": sum(i.get("source") in ("greenhouse", "lever", "ashby") for i in items),
+              "with_email": sum(bool(i.get("hr_emails")) for i in items)}
+    return {"roles": doc.get("roles", []), "country": doc.get("country"), "built_at": doc.get("built_at"),
+            "errors": doc.get("errors", {}), "counts": counts, "items": [feed.public(i) for i in items]}
+
+
+class FeedSaveIn(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=100)
+    prepare_applications: bool = False
+
+
+@router.post("/feed/save", status_code=201)
+async def feed_save(body: FeedSaveIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Save the feed jobs the user selected (select all works too); optionally prepare an application for each."""
+    from app.applications import service as apps
+    from app.jobs import discover
+
+    uid = user["_id"]
+    doc = await db[c.JOB_FEED].find_one({"_id": uid}) or {}
+    by_id = {i["id"]: i for i in doc.get("items", [])}
+    profile = await get_profile(db, uid)
+    weights = await service.get_weights(db, uid)
+    saved, prepared, missing = [], 0, 0
+    for fid in dict.fromkeys(body.ids):
+        it = by_id.get(fid)
+        if not it:
+            missing += 1
+            continue
+        try:
+            job, _ = await service.ingest(db, uid, discover.to_job_in(it), profile=profile, weights=weights)
+        except ValueError:
+            missing += 1
+            continue
+        saved.append(job["_id"])
+        if body.prepare_applications:
+            try:
+                a = await apps.create(db, uid, job["_id"], None, None)
+                extra = {"walk_in": it.get("walk_in")}
+                if it.get("apply_by_email") and it.get("hr_emails"):
+                    extra["apply_email"] = it["hr_emails"][0]
+                await db[c.APPLICATIONS].update_one({"_id": a["_id"]}, {"$set": extra})
+                prepared += 1
+            except HTTPException:
+                pass
+    await log_action(db, user_id=uid, action="jobs.feed_saved", entity="job", details={"saved": len(saved), "prepared": prepared})
+    return {"saved": len(saved), "job_ids": saved, "applications_prepared": prepared, "missing": missing}
+
+
+@router.post("/auto-apply/run")
+async def auto_apply_run(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    from app.jobs import auto_apply
+
+    return await auto_apply.run(db, user["_id"], trigger="manual")
 
 
 # ------------------------------------------------------------ matching config

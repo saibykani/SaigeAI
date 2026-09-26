@@ -177,8 +177,11 @@ async def test_contacts_are_private(client, auth):
 async def test_templates_and_new_kinds(client, auth, db):
     job, contact = await _setup(client, auth)
     tpls = (await client.get("/api/outreach/templates", headers=auth)).json()
-    kinds = [t["kind"] for t in tpls]
+    kinds = [t["kind"] for t in tpls if t["channel"] != "whatsapp"]
     assert kinds == ["cold", "hiring_manager", "referral", "employee_intro", "linkedin_note", "followup", "thank_you"]
+    wa = [t for t in tpls if t["channel"] == "whatsapp"]
+    assert [t["kind"] for t in wa] == ["wa_hr", "wa_referral", "wa_followup", "wa_thanks"]
+    assert all(t["wa_link"].startswith("https://wa.me/?text=") and len(t["body"]) < 400 for t in wa)
     by = {t["kind"]: t for t in tpls}
     assert by["cold"]["body"].startswith("Hi [First name],") and "[Company]" in by["cold"]["body"]
     assert len(by["linkedin_note"]["body"]) <= 300

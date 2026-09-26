@@ -197,6 +197,20 @@ async def _job_discovery(db: AsyncIOMotorDatabase, uid: str, trigger: str) -> di
     if totals["new"]:
         await notify(db, user_id=uid, kind="job_discovery", title=f"{totals['new']} new job(s) found on followed boards",
                      link="/jobs")
+    # Refresh Jobs for you (job APIs + career pages + job alerts), then let the auto-applier prepare strong matches.
+    from app.jobs import auto_apply, feed
+
+    try:
+        doc = await feed.build(db, uid)
+        strong = [i for i in doc["items"] if i["score"] >= 80 and i["scope"] != "abroad"]
+        totals["feed"], totals["strong"] = len(doc["items"]), len(strong)
+        if strong:
+            await notify(db, user_id=uid, kind="job_feed", title=f"{len(strong)} strong match(es) in Jobs for you",
+                         body=f"{len(doc['items'])} jobs for {', '.join(doc['roles'])}" + (f" in {doc['country']}" if doc.get("country") else ""),
+                         link="/jobs", details=[{"platform": i["company"], "field": i["title"], "after": f"{i['score']}%"} for i in strong[:5]])
+        totals["auto_apply"] = await auto_apply.run(db, uid, trigger="schedule")
+    except Exception as exc:  # noqa: BLE001 - a feed failure must not fail the other daily jobs
+        totals["feed_error"] = str(exc)[:200]
     return totals
 
 

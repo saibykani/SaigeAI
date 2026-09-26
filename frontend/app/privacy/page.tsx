@@ -64,7 +64,18 @@ export default function PrivacyPage() {
       <Section title="Sending email on your behalf">
         <p>
           If you connect Gmail with an App Password, Saige can send a recruiter email from your address, but only one you
-          approved, and never more than 10 a day. Every sent email is listed in Recruiters.
+          approved, and never more than 10 a day. Every sent email is listed in Recruiters. When you approve an application
+          to a job that asks for CVs by email, Saige sends that one application email, with your resume attached, to the
+          address the job posting published.
+        </p>
+      </Section>
+
+      <Section title="Job alerts and job listings">
+        <p>
+          With Gmail connected, Saige also reads (read-only) the job-alert emails that LinkedIn, Naukri, Indeed and similar
+          portals send you, and keeps only the job title, company, location and link to list them in Jobs. Jobs from public
+          job APIs and company career pages are fetched for your target roles and country. Saige never logs into job portals
+          or stores their passwords.
         </p>
       </Section>
 

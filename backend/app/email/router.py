@@ -186,9 +186,30 @@ async def run_sync(db: AsyncIOMotorDatabase, uid: str, integ: dict) -> dict:
     from app.recruiters.service import import_from_inbox
 
     run.output["recruiters_added"] = (await import_from_inbox(db, uid))["created"]
+    run.output["alert_jobs"] = await sync_job_alerts(db, uid, integ)
     if actions:
         await notify(db, user_id=uid, kind="gmail_sync", title=f"Gmail: {actions} application update(s) detected", link="/inbox")
     return run.output
+
+
+async def sync_job_alerts(db: AsyncIOMotorDatabase, uid: str, integ: dict) -> int:
+    """Read LinkedIn / Naukri / Indeed job-alert emails (read-only) so their jobs show in Jobs for you."""
+    from app.jobs import alerts
+
+    known = {a["gmail_id"] async for a in db[c.JOB_ALERTS].find({"user_id": uid}, {"gmail_id": 1})}
+    try:
+        if integ.get("method") == "app_password":
+            msgs = await imap.fetch_messages(integ["email"], crypto.decrypt(integ["app_password_enc"]), limit=25, skip=known,
+                                             query=alerts.ALERT_QUERY)
+        else:
+            token = await gmail.access_token(crypto.decrypt(integ["refresh_token_enc"]))
+            msgs = await gmail.fetch_messages(token, query=alerts.ALERT_QUERY, limit=25, skip=known)
+    except Exception:  # noqa: BLE001 - job alerts are a best-effort extra; they must never fail the main sync
+        return 0
+    found = await alerts.store(db, uid, msgs)
+    if found:  # rebuild the feed on the next visit so the new alert jobs appear
+        await db[c.JOB_FEED].delete_one({"_id": uid})
+    return found
 
 
 @router.delete("/emails", status_code=204)

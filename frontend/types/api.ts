@@ -322,6 +322,16 @@ export interface AutomationSettings {
     daily_recruiter_contact_limit: number;
     min_match_score: number;
   };
+  auto_apply: AutoApplySettings;
+}
+
+export interface AutoApplySettings {
+  enabled: boolean;
+  min_score: number;
+  daily_max: number;
+  scopes: JobScope[];
+  include_walk_in: boolean;
+  email_apply: boolean;
 }
 
 export interface ConnectedAccount {
@@ -571,6 +581,10 @@ export interface Application {
   interview_id: string | null;
   created_at: string;
   updated_at: string;
+  auto?: boolean;
+  apply_email?: string | null;
+  applied_via?: string | null;
+  walk_in?: WalkIn | null;
 }
 
 export interface ApplicationAnswer {
@@ -726,7 +740,9 @@ export interface Breakdowns {
 }
 
 export interface OutreachTemplate {
-  kind: OutreachKind;
+  kind: OutreachKind | "wa_hr" | "wa_referral" | "wa_followup" | "wa_thanks";
+  channel: "email" | "linkedin" | "whatsapp";
+  wa_link?: string;
   name: string;
   audience: string;
   description: string;
@@ -751,6 +767,57 @@ export interface DiscoverResult {
   matched_skills: string[];
   missing_skills: string[];
   saved_job_id: string | null;
+  id?: string;
+  source_label?: string;
+  scope?: JobScope;
+  walk_in?: WalkIn | null;
+  hr_emails?: string[];
+  apply_by_email?: boolean;
+  exp_min?: number | null;
+  exp_max?: number | null;
+  employment_type?: string | null;
+  snippet?: string;
+}
+
+export type JobScope = "country" | "remote" | "abroad";
+export interface WalkIn { date: string | null; time: string | null; venue: string | null }
+
+export type FeedItem = Omit<DiscoverResult, "description" | "id" | "scope" | "source_label"> & { id: string; scope: JobScope; source_label: string };
+
+export interface JobFeed {
+  roles: string[];
+  country: string | null;
+  built_at: string | null;
+  errors: Record<string, string>;
+  counts: { all: number; country: number; remote: number; abroad: number; walk_in: number; alerts: number; careers: number; with_email: number };
+  items: FeedItem[];
+}
+
+export interface HiringPortal {
+  key: string;
+  name: string;
+  method: "api" | "alerts";
+  region: string;
+  url: string;
+  alert_help?: string;
+  state: "connected" | "receiving" | "waiting" | "needs_gmail" | "setup";
+  jobs: number;
+  profile_url: string | null;
+  alerts_on: boolean;
+}
+
+export interface AtsScore {
+  score: number;
+  required_coverage: number;
+  preferred_coverage: number;
+  matched_keywords: string[];
+  missing_required: string[];
+  missing_preferred: string[];
+  checks: { check: string; passed: boolean }[];
+  word_count: number;
+  job: string;
+  resume: string;
+  tips: string[];
 }
 
 export interface DiscoverResponse {

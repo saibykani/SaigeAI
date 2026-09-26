@@ -19,6 +19,7 @@ from app.jobs.router import agent_router
 from app.jobs.router import router as jobs_router
 from app.logging_setup import configure_logging, request_id_var
 from app.notifications.router import router as notifications_router
+from app.portals.router import router as portals_router
 from app.privacy.router import audit_router
 from app.privacy.router import router as privacy_router
 from app.profiles.router import router as profile_router
@@ -119,7 +120,7 @@ def create_app() -> FastAPI:
         return {"status": "ok" if db_ok else "degraded", "database": db_ok}
 
     for r in (auth_router, profile_sync_router, profile_router, resume_ai_router, resumes_router, jobs_router,
-              applications_router, email_router, analytics_router,
+              applications_router, portals_router, email_router, analytics_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
               recruiters_router, extension_router):
         api.include_router(r)

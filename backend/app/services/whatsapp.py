@@ -29,15 +29,47 @@ def normalize_phone(phone: str) -> str:
     return digits if digits.startswith("+") else f"+{digits}"
 
 
+ICONS = [  # first matching keyword in the title picks the icon
+    ("interview", "📅"), ("offer", "🎉"), ("auto-applier", "🤖"), ("applied", "✅"), ("application", "📨"),
+    ("email sent", "✉️"), ("sent to", "✉️"), ("reply", "📥"), ("recruiter", "📥"), ("updated", "🔄"), ("refresh", "🔄"),
+    ("match", "🎯"), ("job", "💼"), ("follow", "⏰"), ("gmail", "📬"), ("connected", "🔗"),
+]
+
+
+def _icon(title: str) -> str:
+    t = title.lower()
+    return next((icon for key, icon in ICONS if key in t), "🔔")
+
+
 def format_message(title: str, body: str = "", details: list[dict] | None = None, link: str | None = None) -> str:
-    lines = [f"*Saige AI* · {title}"]
+    """Clean WhatsApp layout: a bold header line, the message, one bullet per detail, then an open link.
+
+    *Saige AI* · 🔄 LinkedIn updated · Headline
+    Your change is recorded.
+
+    • *LinkedIn · Headline*
+      Senior QA Engineer → Senior SDET | Selenium · Java
+    ↗ https://saige-ai.vercel.app/profiles
+    """
+    lines = [f"*Saige AI* · {_icon(title)} {title.strip()}"]
     if body:
-        lines.append(body)
-    for d in (details or [])[:5]:
-        lines.append(f"• {d.get('platform', '')} {d.get('field', '')}: {d.get('after', '')}".strip())
+        lines.append(body.strip())
+    rows = (details or [])[:5]
+    if rows:
+        lines.append("")
+    for d in rows:
+        head = " · ".join(x for x in (str(d.get("platform") or "").strip(), str(d.get("field") or "").strip()) if x)
+        before, after = str(d.get("before") or "").strip(), str(d.get("after") or "").strip()
+        lines.append(f"• *{head}*" if head else "•")
+        if before and after:
+            lines.append(f"   {before[:120]} → {after[:160]}")
+        elif after:
+            lines.append(f"   {after[:200]}")
+    if len(details or []) > 5:
+        lines.append(f"   …and {len(details) - 5} more")
     if link:
         base = get_settings().frontend_url.rstrip("/")
-        lines.append(f"{base}{link}" if link.startswith("/") else link)
+        lines.append(f"↗ {base}{link}" if link.startswith("/") else f"↗ {link}")
     return "\n".join(lines)[:1500]
 
 

@@ -58,6 +58,16 @@ class Limits(BaseModel):
     min_match_score: int = 70
 
 
+class AutoApply(BaseModel):
+    """Auto-applier: prepares applications for strong matches every day; the user approves them in one click."""
+    enabled: bool = False
+    min_score: int = Field(default=80, ge=50, le=100)
+    daily_max: int = Field(default=10, ge=1, le=25)
+    scopes: list[Literal["country", "remote", "abroad"]] = ["country", "remote"]
+    include_walk_in: bool = True
+    email_apply: bool = True  # when a posting asks for CVs by email, send the approved application from Gmail
+
+
 class AutomationSettings(BaseModel):
     mode: AutomationMode = "conservative"
     paused_all: bool = False
@@ -65,6 +75,7 @@ class AutomationSettings(BaseModel):
     schedules: Schedules = Schedules()
     limits: Limits = Limits()
     profile_schedule: ProfileSchedule = ProfileSchedule()
+    auto_apply: AutoApply = AutoApply()
 
 
 class AutomationSettingsUpdate(BaseModel):
@@ -73,6 +84,7 @@ class AutomationSettingsUpdate(BaseModel):
     schedules: Schedules | None = None
     limits: Limits | None = None
     profile_schedule: ProfileSchedule | None = None
+    auto_apply: AutoApply | None = None
 
 
 async def get_settings_doc(db: AsyncIOMotorDatabase, user_id: str) -> AutomationSettings:

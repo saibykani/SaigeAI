@@ -15,13 +15,17 @@ HOST = "smtp.gmail.com"
 SMTP_FACTORY = smtplib.SMTP_SSL  # patched in tests
 
 
-def _send_sync(address: str, app_password: str, from_name: str, to: str, subject: str, body: str) -> str:
+def _send_sync(address: str, app_password: str, from_name: str, to: str, subject: str, body: str,
+               attachments: list[tuple[str, bytes, str]] | None = None) -> str:
     msg = EmailMessage()
     msg["From"] = formataddr((from_name, address)) if from_name else address
     msg["To"] = to
     msg["Subject"] = subject
     msg["Message-ID"] = make_msgid(domain=address.split("@")[-1])
     msg.set_content(body)
+    for filename, data, mime in attachments or []:
+        maintype, _, subtype = mime.partition("/")
+        msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=filename)
     try:
         with SMTP_FACTORY(HOST, 465, timeout=20) as s:
             s.login(address, app_password)
@@ -33,5 +37,6 @@ def _send_sync(address: str, app_password: str, from_name: str, to: str, subject
     return msg["Message-ID"]
 
 
-async def send(address: str, app_password: str, from_name: str, to: str, subject: str, body: str) -> str:
-    return await asyncio.to_thread(_send_sync, address, app_password, from_name, to, subject, body)
+async def send(address: str, app_password: str, from_name: str, to: str, subject: str, body: str,
+               attachments: list[tuple[str, bytes, str]] | None = None) -> str:
+    return await asyncio.to_thread(_send_sync, address, app_password, from_name, to, subject, body, attachments)

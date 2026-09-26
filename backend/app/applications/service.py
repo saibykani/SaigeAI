@@ -35,6 +35,8 @@ def app_out(a: dict) -> dict:
         "applied_at": _iso(a.get("applied_at")), "last_contact_at": _iso(a.get("last_contact_at")),
         "next_followup_at": _iso(a.get("next_followup_at")), "recruiter_id": a.get("recruiter_id"),
         "interview_id": a.get("interview_id"), "created_at": _iso(a["created_at"]), "updated_at": _iso(a["updated_at"]),
+        "auto": bool(a.get("auto")), "apply_email": a.get("apply_email"), "applied_via": a.get("applied_via"),
+        "walk_in": a.get("walk_in"),
     }
 
 

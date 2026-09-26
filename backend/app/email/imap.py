@@ -46,14 +46,14 @@ def _text(msg: email.message.EmailMessage) -> str:
     if plain is not None:
         return plain.get_content()
     html = msg.get_body(preferencelist=("html",))
-    return html_to_text(html.get_content()) if html is not None else ""
+    return html_to_text(html.get_content(), keep_links=True) if html is not None else ""
 
 
-def _fetch_sync(address: str, app_password: str, limit: int, skip: set[str]) -> list[dict]:
+def _fetch_sync(address: str, app_password: str, limit: int, skip: set[str], query: str = DEFAULT_QUERY) -> list[dict]:
     conn = _login(address, app_password)
     try:
         conn.select("INBOX", readonly=True)
-        status, data = conn.uid("SEARCH", "X-GM-RAW", f'"{DEFAULT_QUERY}"')
+        status, data = conn.uid("SEARCH", "X-GM-RAW", f'"{query}"')
         if status != "OK":
             raise GmailError("Gmail search failed")
         uids = (data[0] or b"").split()[-limit:]
@@ -91,5 +91,6 @@ async def verify(address: str, app_password: str) -> None:
     await asyncio.to_thread(check)
 
 
-async def fetch_messages(address: str, app_password: str, limit: int = 50, skip: set[str] | None = None) -> list[dict]:
-    return await asyncio.to_thread(_fetch_sync, address, app_password, limit, skip or set())
+async def fetch_messages(address: str, app_password: str, limit: int = 50, skip: set[str] | None = None,
+                         query: str = DEFAULT_QUERY) -> list[dict]:
+    return await asyncio.to_thread(_fetch_sync, address, app_password, limit, skip or set(), query)

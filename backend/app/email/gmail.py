@@ -90,7 +90,7 @@ def _body(payload: dict) -> str:
     walk(payload)
     if plain:
         return "\n".join(plain)
-    return html_to_text("\n".join(html)) if html else ""
+    return html_to_text("\n".join(html), keep_links=True) if html else ""
 
 
 async def fetch_messages(token: str, query: str = DEFAULT_QUERY, limit: int = 50, skip: set[str] | None = None) -> list[dict]:

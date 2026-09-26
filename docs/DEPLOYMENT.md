@@ -100,11 +100,20 @@ Integrations → Connect Gmail → **Option 1** connects over Gmail IMAP with a 
 review. The password is encrypted at rest, mail is read with `BODY.PEEK` (never marked read), and
 the user can revoke it in their Google account at any time.
 
-### Job discovery (Adzuna, optional)
+### Jobs for you (no keys needed)
 
-Jobs → **Discover jobs for your role** searches Remotive and Arbeitnow out of the box. For India-wide
-results, create a free app at https://developer.adzuna.com and set these in the backend Vercel project:
-`ADZUNA_APP_ID`, `ADZUNA_APP_KEY`, and optionally `ADZUNA_COUNTRY` (default `in`).
+Jobs → **Jobs for you** (`GET /api/jobs/feed`, `backend/app/jobs/feed.py`) fetches every job for the
+user's target roles and country with no API keys:
+
+- Himalayas (country filter), Remotive, Jobicy and Arbeitnow job APIs,
+- the public Greenhouse / Lever / Ashby career pages in `feed.CAREER_BOARDS`, plus boards the user follows,
+- LinkedIn / Naukri / Indeed / other portal **job-alert emails** in the user's Gmail (`jobs/alerts.py`,
+  read during Gmail sync).
+
+The feed is cached per user for 6 hours (`job_feed` collection) and rebuilt by the daily `job_discovery`
+scheduler job, which then runs the auto-applier (`jobs/auto_apply.py`) for users who turned it on.
+
+Adzuna is optional and off by default. Only set `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` if you have a working key.
 
 ### WhatsApp alerts
 

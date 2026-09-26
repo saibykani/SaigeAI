@@ -36,6 +36,11 @@ const STRINGS: Record<string, Partial<Record<Lang, string>>> = {
   "Send feedback": { hi: "सुझाव भेजें", te: "అభిప్రాయం పంపండి" },
   "Sign out": { hi: "साइन आउट", te: "సైన్ అవుట్" },
   "Your account": { hi: "आपका खाता", te: "మీ ఖాతా" },
+  Settings: { hi: "सेटिंग्स", te: "సెట్టింగ్‌లు" },
+  Overview: { hi: "सारांश", te: "అవలోకనం" },
+  "Resume sync": { hi: "रिज़्यूमे सिंक", te: "రెజ్యూమే సింక్" },
+  "Automation & privacy": { hi: "ऑटोमेशन और गोपनीयता", te: "ఆటోమేషన్ & గోప్యత" },
+  "Hiring portals": { hi: "हायरिंग पोर्टल", te: "హైరింగ్ పోర్టల్‌లు" },
 };
 
 const KEY = "saige-lang";

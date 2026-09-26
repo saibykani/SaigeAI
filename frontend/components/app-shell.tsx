@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  BarChart3,
-  CalendarDays,
   Briefcase,
   createLucideIcon,
   FileText,
@@ -10,11 +8,8 @@ import {
   LifeBuoy,
   Mail,
   Menu,
-  Plug,
   Send,
   Settings,
-  Sparkles,
-  UserRound,
   Users,
   X,
   type LucideIcon,
@@ -41,24 +36,48 @@ const Linkedin = createLucideIcon("Linkedin", [
 ]);
 
 type Tone = "green" | "orange" | "yellow" | "purple" | "red" | "mint" | "teal" | "lime";
-type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone };
+type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone; tabs?: { href: string; label: string }[] };
 
+// Pages that show the same kind of data share one sidebar entry and switch with tabs at the top.
 const NAV: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green" },
-  { href: "/profile", label: "Profile", icon: UserRound, tone: "mint" },
-  { href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "teal" },
-  { href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green", tabs: [{ href: "/", label: "Overview" }, { href: "/analytics", label: "Analytics" }] },
   { href: "/jobs", label: "Jobs", icon: Briefcase, tone: "orange" },
-  { href: "/applications", label: "Applications", icon: Send, tone: "yellow" },
-  { href: "/interviews", label: "Interviews", icon: CalendarDays, tone: "red" },
+  { href: "/applications", label: "Applications", icon: Send, tone: "yellow", tabs: [{ href: "/applications", label: "Applications" }, { href: "/interviews", label: "Interviews" }] },
+  { href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
   { href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, tone: "purple" },
   { href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
-  { href: "/profile-sync", label: "Profile Sync", icon: Sparkles, tone: "mint" },
-  { href: "/integrations", label: "Integrations", icon: Plug, tone: "orange" },
-  { href: "/settings", label: "Automation & Privacy", icon: Settings, tone: "yellow" },
+  { href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [{ href: "/profiles", label: "LinkedIn & Naukri" }, { href: "/profile-sync", label: "Resume sync" }] },
+  { href: "/integrations", label: "Settings", icon: Settings, tone: "red", tabs: [{ href: "/integrations", label: "Integrations" }, { href: "/settings", label: "Automation & privacy" }] },
   { href: "/help", label: "Help & Docs", icon: LifeBuoy, tone: "green" },
 ];
+
+const matches = (href: string, pathname: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
+
+/** The sidebar entry a path belongs to (its own page or one of its tabs). */
+function sectionFor(pathname: string): NavItem | undefined {
+  const all = NAV.flatMap((n) => [n.href, ...(n.tabs ?? []).map((t) => t.href)].map((href) => ({ href, n })));
+  return all.sort((a, b) => b.href.length - a.href.length).find(({ href }) => matches(href, pathname))?.n;
+}
+
+/** Tabs across the top of merged sections (e.g. Applications · Interviews). */
+function SectionTabs({ pathname }: { pathname: string }) {
+  const { t } = useT();
+  const section = sectionFor(pathname);
+  if (!section?.tabs) return null;
+  const current = [...section.tabs].sort((a, b) => b.href.length - a.href.length).find((x) => matches(x.href, pathname));
+  if (!current || pathname !== current.href) return null; // detail pages (e.g. /applications/123) keep their own header
+  return (
+    <nav aria-label={t(section.label)} className="mb-6 inline-flex rounded-full border bg-muted/50 p-1 text-sm">
+      {section.tabs.map((tab) => (
+        <Link key={tab.href} href={tab.href} aria-current={tab.href === current.href ? "page" : undefined}
+          className={cn("rounded-full px-4 py-1.5 transition-colors", tab.href === current.href ? "font-medium text-[#0b0b0c] shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          style={tab.href === current.href ? { background: `var(--tone-${section.tone})` } : undefined}>
+          {t(tab.label)}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 
 // Features announced in the sidebar before they ship. Empty once every phase has landed.
 const UPCOMING: { label: string; icon: LucideIcon; phase: number }[] = [];
@@ -118,7 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex flex-1 flex-col gap-7 overflow-y-auto px-3 py-2">
           <ul className="flex flex-col gap-1">
             {NAV.map(({ href, label, icon: Icon, tone }) => {
-              const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+              const active = sectionFor(pathname)?.href === href;
               return (
                 <li key={href}>
                   <Link
@@ -175,6 +194,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         {/* key on pathname replays the entrance animation on every navigation */}
         <main id="main" tabIndex={-1} key={pathname} className="animate-rise outline-none mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-10 md:py-10">
+          <SectionTabs pathname={pathname} />
           {children}
         </main>
       </div>
@@ -184,9 +204,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
   const pathname = usePathname();
-  const section = [...NAV].sort((a, b) => b.href.length - a.href.length)
-    .find((n) => (n.href === "/" ? pathname === "/" : pathname === n.href || pathname.startsWith(`${n.href}/`)));
-  const tone = section?.tone ?? "green";
+  const tone = sectionFor(pathname)?.tone ?? "green";
   return (
     <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>

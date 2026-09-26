@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel, Field
 from pymongo import ASCENDING, DESCENDING
 
 from app.applications import service as svc
@@ -86,6 +87,18 @@ async def approve(app_id: str, user: dict = Depends(get_current_user), db: Async
     if a["status"] not in {"READY_TO_APPLY", "APPROVAL_REQUIRED", "SHORTLISTED", "APPLICATION_FAILED"}:
         raise HTTPException(status.HTTP_409_CONFLICT, f"Cannot apply from status {a['status']}")
     return await svc.approve_and_apply(db, user["_id"], a)
+
+
+class BulkApproveIn(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=50)
+
+
+@router.post("/applications/approve-bulk")
+async def approve_bulk(body: BulkApproveIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Approve many prepared applications at once: email applications are sent from Gmail, the rest open for submission."""
+    from app.jobs import auto_apply
+
+    return await auto_apply.approve_many(db, user["_id"], body.ids)
 
 
 @router.post("/applications/{app_id}/mark-applied")

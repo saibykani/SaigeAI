@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/brand";
 
 // Shown on the public Privacy and Terms pages (Google's OAuth review requires a reachable contact).
-export const CONTACT_EMAIL = "saibykani07@gmail.com";
+export const CONTACT_EMAIL = "info.saigeai@gmail.com";
 export const UPDATED = "26 September 2026";
 
 /** Shared layout for public legal pages: readable, black, no sign-in required. */

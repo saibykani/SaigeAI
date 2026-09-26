@@ -13,6 +13,8 @@ from tests.test_gmail_imap import FakeIMAP
 
 
 class FakeResponse:
+    status_code = 200
+
     def __init__(self, data):
         self._data = data
 
@@ -44,6 +46,8 @@ class FakeClient:
             return FakeResponse({"jobs": [{"id": 9, "title": "QA Automation Engineer", "company_name": "Remote Co",
                                            "candidate_required_location": "Worldwide", "url": "https://remotive.example/9",
                                            "publication_date": "2026-09-21T00:00:00", "description": f"<p>{SDET_JD}</p>"}]})
+        if "himalayas" in url or "jobicy" in url:
+            return FakeResponse({"jobs": []})
         raise RuntimeError("arbeitnow down")  # one provider failing must not break the search
 
 
@@ -146,3 +150,7 @@ def test_title_matching_uses_role_families():
     assert not discover.title_matches("Content Reviewer - United States", "QA automation")
     assert not discover.title_matches("Remote Office Assistant", "SDET")
     assert discover.title_matches("Backend Developer (Python)", "Software engineer")
+    assert not discover.title_matches("Automation Engineer - PLC / Plant Control", "QA Automation Engineer")
+    assert not discover.title_matches("Senior Staff Software Engineer- Search Quality", "SDET")
+    assert discover.title_matches("Quality Assurance Engineer", "QA Automation Engineer")
+    assert not discover.title_matches("Staff Information Security Analyst - Security Assurance", "SDET")

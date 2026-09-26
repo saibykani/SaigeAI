@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
 import { JobDiscover } from "@/components/job-discover";
+import { AutoApplyCard, JobsFeed } from "@/components/jobs-feed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -158,9 +159,9 @@ function SourcesCard({ onSynced }: { onSynced: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Company job boards</CardTitle>
+        <CardTitle>Career pages you follow</CardTitle>
         <CardDescription>
-          Follow companies that publish jobs through official Greenhouse, Lever or Ashby APIs. The board id is in their careers URL, e.g.
+          Saige already checks 17 companies' career pages for you. Add more companies that publish jobs on Greenhouse, Lever or Ashby. The board id is in their careers URL, e.g.
           boards.greenhouse.io/<b>stripe</b>.
         </CardDescription>
       </CardHeader>
@@ -212,19 +213,28 @@ function SourcesCard({ onSynced }: { onSynced: () => void }) {
   );
 }
 
+type View = "feed" | "saved" | "search" | "add";
+
 export default function JobsPage() {
+  const [view, setView] = useState<View>("feed");
   const [filters, setFilters] = useState({ q: "", classification: "", status: "", sort: "score" });
   const [applied, setApplied] = useState(filters);
   const qs = new URLSearchParams(Object.entries(applied).filter(([, v]) => v) as [string, string][]).toString();
   const { data, error, loading, reload } = useApi<{ total: number; items: JobSummary[] }>(`/jobs?${qs}`);
   const [rematching, setRematching] = useState(false);
+  const views: { id: View; label: string }[] = [
+    { id: "feed", label: "Jobs for you" },
+    { id: "saved", label: `Saved jobs${data ? ` · ${data.total}` : ""}` },
+    { id: "search", label: "Search any role" },
+    { id: "add", label: "Add manually" },
+  ];
 
   return (
     <>
       <PageHeader
         title="Jobs"
-        description="Every job is analyzed and scored against your verified profile. Duplicates across sources are merged."
-        actions={
+        description="Jobs for your target roles in your country, fetched automatically and scored against your verified profile. Select the ones you like, or let the auto-applier prepare them."
+        actions={view === "saved" ? (
           <Button
             variant="outline"
             disabled={rematching}
@@ -240,14 +250,34 @@ export default function JobsPage() {
           >
             <RefreshCw className={cn(rematching && "animate-spin")} /> Re-score all
           </Button>
-        }
+        ) : undefined}
       />
-      <JobDiscover onSaved={reload} />
-      <div className="mb-6 grid gap-6 xl:grid-cols-2">
-        <ImportCard onImported={reload} />
-        <SourcesCard onSynced={reload} />
+      <div role="tablist" className="mb-6 inline-flex flex-wrap rounded-full border bg-muted/50 p-1 text-sm">
+        {views.map((v) => (
+          <button key={v.id} role="tab" aria-selected={view === v.id} onClick={() => setView(v.id)}
+            className={cn("rounded-full px-4 py-1.5 transition-colors", view === v.id ? "font-medium text-[#0b0b0c] shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            style={view === v.id ? { background: "var(--tone-orange)" } : undefined}>
+            {v.label}
+          </button>
+        ))}
       </div>
 
+      {view === "feed" && (
+        <>
+          <JobsFeed onSaved={reload} />
+          <AutoApplyCard />
+        </>
+      )}
+      {view === "search" && <JobDiscover onSaved={reload} />}
+      {view === "add" && (
+        <div className="mb-6 grid gap-6 xl:grid-cols-2">
+          <ImportCard onImported={reload} />
+          <SourcesCard onSynced={reload} />
+        </div>
+      )}
+
+      {view === "saved" && (
+      <>
       <form
         className="mb-3 flex flex-wrap items-end gap-2"
         onSubmit={(e) => {
@@ -276,7 +306,7 @@ export default function JobsPage() {
       {error && <Notice tone="error">{error}</Notice>}
       {loading && !data && <p className="text-sm text-muted-foreground">Loading…</p>}
       {data && data.items.length === 0 && (
-        <Card className="p-8 text-center text-sm text-muted-foreground">No jobs yet. Paste a job description above to see your match.</Card>
+        <Card className="p-8 text-center text-sm text-muted-foreground">No saved jobs yet. Pick jobs in <b>Jobs for you</b> and click Save, or let the auto-applier prepare them.</Card>
       )}
       {data && data.items.length > 0 && (
         <>
@@ -313,6 +343,8 @@ export default function JobsPage() {
             ))}
           </ul>
         </>
+      )}
+      </>
       )}
     </>
   );

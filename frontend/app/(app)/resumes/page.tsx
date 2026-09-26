@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { AtsScorer } from "@/components/ats-scorer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,7 +59,7 @@ export default function ResumesPage() {
 
   return (
     <>
-      <PageHeader title="Resumes" description="Upload, parse and version every resume variant. Originals are kept untouched." />
+      <PageHeader title="Resumes" description="Upload, parse and version every resume variant, and score any of them against a job like an ATS would. Originals are kept untouched." />
 
       <Card className="mb-6">
         <CardHeader>
@@ -133,6 +134,7 @@ export default function ResumesPage() {
           ))}
         </div>
       )}
+      {data && data.length > 0 && <div className="mt-6"><AtsScorer resumes={data.filter((r) => r.status === "active")} /></div>}
     </>
   );
 }
