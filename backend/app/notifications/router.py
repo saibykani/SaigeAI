@@ -32,3 +32,14 @@ async def mark_read(notification_id: str, user: dict = Depends(get_current_user)
     if not res.matched_count:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Notification not found")
     return {"ok": True}
+
+
+@router.get("/unread-count")
+async def unread_count(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    return {"unread": await db[c.NOTIFICATIONS].count_documents({"user_id": user["_id"], "read": False})}
+
+
+@router.post("/read-all")
+async def mark_all_read(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    res = await db[c.NOTIFICATIONS].update_many({"user_id": user["_id"], "read": False}, {"$set": {"read": True}})
+    return {"updated": res.modified_count}

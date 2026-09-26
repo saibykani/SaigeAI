@@ -51,6 +51,8 @@
   --ord-5: #256abf; --ord-6: #1c5cab; --ord-7: #184f95; --ord-8: #104281;
   --tone-green: #1e8e3e; --tone-orange: #e8710a; --tone-yellow: #c58a00; --tone-purple: #8e44d6;
   --tone-red: #d93025; --tone-mint: #0f9d8a; --tone-teal: #0b8bb0; --tone-lime: #5f9e0f;
+  /* Chart series: validated categorical order (no blue/pink), light steps */
+  --chart-1: #b8460f; --chart-2: #6a55cf; --chart-3: #0e7f5a; --chart-4: #9a7400;
   --grid: #e3e5ec;
 }
 
@@ -76,6 +78,8 @@
   /* One solid accent per KPI card (Apple system colours, dark steps) */
   --tone-green: #30d158; --tone-orange: #ff9f0a; --tone-yellow: #ffd60a; --tone-purple: #bf5af2;
   --tone-red: #ff453a; --tone-mint: #63e6be; --tone-teal: #40c8e0; --tone-lime: #a3e635;
+  /* Chart series: validated categorical order (no blue/pink), dark steps */
+  --chart-1: #d95926; --chart-2: #9085e9; --chart-3: #199e70; --chart-4: #a88400;
 }
 
 /* Graphite: pure black, Apple-style monochrome with silver highlights */

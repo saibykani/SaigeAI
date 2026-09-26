@@ -174,3 +174,10 @@ async def dashboard(user: dict = Depends(get_current_user),
                     "unknown_fields": profile["unknown_fields"]},
         "automation": {"mode": automation.mode, "paused_all": automation.paused_all},
     }
+
+
+@router.get("/breakdowns")
+async def breakdowns(weeks: int = 8, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    from app.analytics.service import breakdowns as compute
+
+    return await compute(db, user["_id"], max(4, min(weeks, 26)))

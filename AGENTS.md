@@ -56,7 +56,7 @@ backend/app/
   jobs/                   # jd_parser, 9-dimension matching, dedupe, ATS board sources
   applications/           # applications, answers (confidence), interviews + .ics
   email/                  # Gmail OAuth, classifier/extractor, ingest -> application status
-  analytics/router.py     # /analytics/dashboard aggregate
+  analytics/              # /analytics/dashboard aggregate + service.breakdowns (source/role/resume/match, weekly, time-to-response)
   automation/             # AutomationSettings (mode, pauses, schedules, limits), is_allowed
   notifications/, privacy/ (export + account delete), services/ (truth_guard, crypto, audit, notify, rate_limit, agent_runs, skills_vocab)
   scheduler/              # daily jobs (service.run_due_jobs), /api/cron/daily (CRON_SECRET), /api/scheduler/*
@@ -110,6 +110,8 @@ Never commit env files.
   purple, red, mint, teal, lime). Surfaces stay black or neutral.
 - The login page is a full-screen interactive canvas Milky Way (`components/galaxy.tsx`). It rotates
   slowly, reacts to hover and click, and shows the "Saige AI" wordmark only, with no logo mark.
+- Charts use the validated series tokens `--chart-1..4` (orange, violet, green, amber; no blue or pink).
+  Keep one axis, neutral label text, a legend, and a table-view toggle.
 - The 3D loader is `components/loader3d.tsx`. Use it for full-page and route loading.
 - Every page uses `PageHeader` and `Notice` from `components/app-shell.tsx`. Update the `NAV` and
   `UPCOMING` arrays there when a phase lands.

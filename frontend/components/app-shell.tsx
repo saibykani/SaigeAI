@@ -2,7 +2,6 @@
 
 import {
   BarChart3,
-  Bell,
   CalendarDays,
   Briefcase,
   createLucideIcon,
@@ -27,6 +26,7 @@ import { useEffect, useState } from "react";
 
 import { Wordmark } from "@/components/brand";
 import { Loader3D } from "@/components/loader3d";
+import { NotificationBell } from "@/components/notification-bell";
 import { ThemeSwitcher } from "@/components/theme";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -50,6 +50,7 @@ const NAV: NavItem[] = [
   { href: "/applications", label: "Applications", icon: Send, slot: 6 },
   { href: "/interviews", label: "Interviews", icon: CalendarDays, slot: 8 },
   { href: "/recruiters", label: "Recruiters", icon: Users, slot: 6 },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, slot: 2 },
   { href: "/inbox", label: "Inbox", icon: Mail, slot: 3 },
   { href: "/profile-sync", label: "Profile Sync", icon: Sparkles, slot: 4 },
   { href: "/integrations", label: "Integrations", icon: Plug, slot: 5 },
@@ -57,9 +58,8 @@ const NAV: NavItem[] = [
   { href: "/help", label: "Help & Docs", icon: LifeBuoy, slot: 1 },
 ];
 
-const UPCOMING = [
-  { label: "Analytics", icon: BarChart3, phase: 8 },
-];
+// Features announced in the sidebar before they ship. Empty once every phase has landed.
+const UPCOMING: { label: string; icon: LucideIcon; phase: number }[] = [];
 
 export function Logo({ className, onDark = false }: { className?: string; onDark?: boolean }) {
   return (
@@ -145,18 +145,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </ul>
-          <div>
-            <p className="px-4 pb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Coming next</p>
-            <ul className="flex flex-col gap-0.5">
-              {UPCOMING.map(({ label, icon: Icon, phase }) => (
-                <li key={label} className="flex items-center gap-3 px-4 py-1.5 text-sm text-muted-foreground/70" title={`Arrives in Phase ${phase}`}>
-                  <Icon className="size-4" aria-hidden />
-                  {label}
-                  <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">P{phase}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {UPCOMING.length > 0 && (
+            <div>
+              <p className="px-4 pb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Coming next</p>
+              <ul className="flex flex-col gap-0.5">
+                {UPCOMING.map(({ label, icon: Icon, phase }) => (
+                  <li key={label} className="flex items-center gap-3 px-4 py-1.5 text-sm text-muted-foreground/70" title={`Arrives in Phase ${phase}`}>
+                    <Icon className="size-4" aria-hidden />
+                    {label}
+                    <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">P{phase}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </nav>
 
         <div className="m-3 rounded-2xl border bg-card-solid/60 p-3">
@@ -192,13 +194,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <p className="text-sm text-muted-foreground">Saige AI · your AI job search partner</p>
           <div className="ml-auto" />
           <ThemeSwitcher />
-          <Link
-            href="/settings#notifications"
-            className="grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Notifications"
-          >
-            <Bell className="size-[18px]" />
-          </Link>
+          <NotificationBell />
         </header>
         {/* key on pathname replays the entrance animation on every navigation */}
         <main key={pathname} className="animate-rise mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-10 md:py-10">

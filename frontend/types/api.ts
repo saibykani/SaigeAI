@@ -695,3 +695,27 @@ export interface OutreachStats {
   reply_rate: number | null;
   followups_due: { followup_id: string; outreach_id: string; contact_id: string; contact_name: string | null; company: string | null; subject: string; sequence: number; due_at: string }[];
 }
+
+// ---------------- Analytics
+export interface GroupMetrics {
+  label: string;
+  applications: number;
+  sent: number;
+  responses: number;
+  interviews: number;
+  offers: number;
+  response_rate: number | null;
+  interview_rate: number | null;
+  offer_rate: number | null;
+}
+
+export interface Breakdowns {
+  overall: Omit<GroupMetrics, "label">;
+  by_source: GroupMetrics[];
+  by_role_family: GroupMetrics[];
+  by_resume: GroupMetrics[];
+  by_match: GroupMetrics[];
+  weekly: { week: string; applied: number; responses: number; interviews: number; offers: number }[];
+  time_to_response: { bucket: string; count: number }[];
+  outreach: { kind: OutreachKind; sent: number; replied: number; reply_rate: number | null }[];
+}

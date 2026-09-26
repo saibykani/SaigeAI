@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, BookOpen, Briefcase, CalendarDays, FileText, LifeBuoy, Mail, Plug, Search, Send, Settings, ShieldCheck, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { BarChart3, Users, BookOpen, Briefcase, CalendarDays, FileText, LifeBuoy, Mail, Plug, Search, Send, Settings, ShieldCheck, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -49,6 +49,11 @@ const GUIDES: Guide[] = [
     "Add people you know, import a CSV (LinkedIn’s connections export works), or pull recruiters who emailed you.",
     "On any job, “Get a referral” lists your contacts there and drafts a truth-checked request.",
     "Approve, send it yourself from Gmail or LinkedIn, then click “I sent it”. Max 10 a day and 3 per company a week; follow-ups stop when they reply.",
+  ] },
+  { title: "Analytics", icon: BarChart3, href: "/analytics", tone: "purple", steps: [
+    "See response, interview and offer rates by job source, role family, resume version and match score.",
+    "Weekly activity and time-to-first-response show whether your search is speeding up.",
+    "Every number is counted from your own records. Use the table icon on any chart to see the raw figures.",
   ] },
   { title: "Automation & privacy", icon: Settings, href: "/settings", tone: "lime", steps: [
     "Pick a mode (conservative, balanced or aggressive), set daily limits, and pause any agent, or everything, with one switch.",
