@@ -121,11 +121,16 @@ export default function ResumeDetailPage() {
       </Link>
       <PageHeader
         title={data.name}
-        description={`${data.kind} · version ${data.version_count} · ${data.filename ?? "no file"}`}
+        description={`${data.kind} · version ${data.version_count}${data.filename ? ` · ${data.filename}` : ""}${data.job_id ? " · tailored for a job" : ""}`}
         actions={
           <>
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => downloadFile(`/resumes/${id}/download`, data.filename ?? "resume")}>
-              <Download /> Original
+            {data.filename && (
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => downloadFile(`/resumes/${id}/download`, data.filename ?? "resume")}>
+                <Download /> Original
+              </Button>
+            )}
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => downloadFile(`/resumes/${id}/export.docx`, "resume.docx")}>
+              <Download /> Word (ATS)
             </Button>
             <Button variant="outline" size="sm" disabled={busy} onClick={duplicate}>
               <Copy /> Duplicate

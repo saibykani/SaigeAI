@@ -31,6 +31,7 @@ def resume_out(doc: dict) -> dict:
         "filename": doc.get("filename"), "content_type": doc.get("content_type"),
         "size": doc.get("size"), "current_version_id": doc.get("current_version_id"),
         "version_count": doc.get("version_count", 0),
+        "job_id": doc.get("job_id"), "base_resume_id": doc.get("base_resume_id"),
         "created_at": _iso(doc.get("created_at")), "updated_at": _iso(doc.get("updated_at")),
     }
 

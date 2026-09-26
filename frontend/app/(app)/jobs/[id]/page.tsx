@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { JobDocuments } from "@/components/job-documents";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -176,6 +177,7 @@ export default function JobDetailPage() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <JobDocuments jobId={id} />
           {m && m.issues.length > 0 && (
             <Card>
               <CardHeader><CardTitle>Things to note</CardTitle></CardHeader>
@@ -214,7 +216,7 @@ export default function JobDetailPage() {
               ) : (
                 <p className="text-muted-foreground">Upload a resume to get a recommendation.</p>
               )}
-              <p className="mt-2 text-xs text-muted-foreground">JD-tailored resumes and cover letters arrive in Phase 3.</p>
+              
             </CardContent>
           </Card>
 

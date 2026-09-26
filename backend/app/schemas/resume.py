@@ -67,6 +67,8 @@ class ResumeOut(BaseModel):
     size: int | None
     current_version_id: str | None
     version_count: int
+    job_id: str | None = None
+    base_resume_id: str | None = None
     created_at: str
     updated_at: str
 

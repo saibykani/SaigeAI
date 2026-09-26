@@ -174,6 +174,8 @@ export interface Resume {
   size: number | null;
   current_version_id: string | null;
   version_count: number;
+  job_id?: string | null;
+  base_resume_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -465,4 +467,32 @@ export interface NaukriSnapshot {
   notice_period_days: number | null;
   resume_updated_on: string | null;
   profile_updated_on: string | null;
+}
+
+// ---------------- Phase 3: resume AI
+export interface AtsReport {
+  score: number;
+  required_coverage: number;
+  preferred_coverage: number;
+  matched_keywords: string[];
+  missing_required: string[];
+  missing_preferred: string[];
+  checks: { check: string; passed: boolean }[];
+  word_count: number;
+}
+
+export interface CoverLetter {
+  id: string;
+  job_id: string;
+  resume_id: string | null;
+  text: string;
+  validation: { status: string; violations: { type: string; value: string; reason: string }[] } | null;
+  engine: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobDocuments {
+  resumes: (Resume & { ats: AtsReport | null; engine: string | null })[];
+  cover_letters: CoverLetter[];
 }
