@@ -127,6 +127,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                   {isLogin ? "Create an account" : "Sign in"}
                 </Link>
               </p>
+              <p className="mt-4 text-center text-xs text-white/35">
+                By continuing you agree to the <Link href="/terms" className="underline-offset-4 hover:text-white/70 hover:underline">Terms</Link> and{" "}
+                <Link href="/privacy" className="underline-offset-4 hover:text-white/70 hover:underline">Privacy Policy</Link>.
+              </p>
             </div>
           </div>
         </section>

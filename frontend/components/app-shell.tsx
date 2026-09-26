@@ -103,6 +103,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[264px_1fr]">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground">
+        Skip to content
+      </a>
       <aside
         className={cn(
           "glass fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col border-r transition-transform duration-300 md:sticky md:top-0 md:h-screen md:translate-x-0",
@@ -191,13 +194,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
             <Menu />
           </Button>
-          <p className="text-sm text-muted-foreground">Saige AI · your AI job search partner</p>
+          <p className="hidden text-sm text-muted-foreground sm:block">Saige AI · your AI job search partner</p>
           <div className="ml-auto" />
           <ThemeSwitcher />
           <NotificationBell />
         </header>
         {/* key on pathname replays the entrance animation on every navigation */}
-        <main key={pathname} className="animate-rise mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-10 md:py-10">
+        <main id="main" tabIndex={-1} key={pathname} className="animate-rise outline-none mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-10 md:py-10">
           {children}
         </main>
       </div>

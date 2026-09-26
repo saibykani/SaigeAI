@@ -112,9 +112,27 @@ that uses the restricted Gmail scope requires Google's verification.
    https://cron-job.org that calls `https://saige-ai-api.vercel.app/api/cron/daily` hourly, with the
    header `Authorization: Bearer <secret>`. Each job still runs at most once per user per day.
 
+## 6. "Access blocked: has not completed the Google verification process"
+
+Your Google Cloud project is in **Testing** mode, so only listed test users can sign in. Pick one:
+
+- **Quick (private use):** Google Auth Platform → **Audience** → **Test users** → **Add users**. Add every
+  Google account that should sign in (up to 100).
+- **Public:** Google Auth Platform → **Audience** → **Publish app**. Sign-in uses only `openid email profile`,
+  which needs no review. For **Branding**, set:
+  - the home page to `https://saige-ai.vercel.app/login`;
+  - the privacy policy to `https://saige-ai.vercel.app/privacy`;
+  - the terms to `https://saige-ai.vercel.app/terms`.
+
+  Gmail's `gmail.readonly` is a *restricted* scope. Until Google verifies it (a review plus a CASA
+  security assessment), people who connect Gmail see an "unverified app" warning, and the app is capped at 100 users.
+  The privacy policy already includes the required Limited Use disclosure.
+
 ## Production checklist
 
 - `ENVIRONMENT=production`: turns off the `/api/docs` page and enables HSTS.
 - `COOKIE_SECURE=true`: required on HTTPS.
 - Use a different `JWT_SECRET` from development.
 - Change the Atlas password and the Google client secret if they were ever shared.
+- Every write request is rate-limited to 180 per minute per session (or per client address), and feature
+  limits are stricter. Limits are in-memory per instance: move them to Redis if you scale out.

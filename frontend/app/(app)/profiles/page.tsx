@@ -234,7 +234,8 @@ function ProfilesHub() {
           )}
         >
           <Clock className="size-4" />
-          Daily Schedule & History
+          <span className="sm:hidden">Schedule</span>
+          <span className="hidden sm:inline">Daily Schedule & History</span>
           {tab === "schedule" && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" />}
         </button>
       </div>

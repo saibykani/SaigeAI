@@ -18,7 +18,7 @@ from mongomock_motor import AsyncMongoMockClient  # noqa: E402
 
 from app.database import mongo  # noqa: E402
 from app.main import app  # noqa: E402
-from app.services.rate_limit import auth_limiter, upload_limiter  # noqa: E402
+from app.services.rate_limit import auth_limiter, upload_limiter, write_limiter  # noqa: E402
 
 CSRF = {"X-Requested-With": "saige"}
 
@@ -30,6 +30,7 @@ async def db():
     await mongo.ensure_indexes(database)
     auth_limiter.reset()
     upload_limiter.reset()
+    write_limiter.reset()
     yield database
     mongo.set_db(None)
 

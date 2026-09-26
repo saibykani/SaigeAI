@@ -1,7 +1,7 @@
 # Saige AI: prompt for the remaining phases
 
 Paste the block below into Antigravity (or any coding agent), **one phase at a time**. Phases 6–9
-are done, so start with "Phase 10". After each phase, check the app locally, then send "Continue with the next phase".
+are done and Phase 10 is partly done, so start with "Phase 10 (remaining items)". After each phase, check the app locally, then send "Continue with the next phase".
 
 ---
 
@@ -166,17 +166,25 @@ Frontend:
 
 ---
 
-## Phase 10: Hardening and launch
+## Phase 10: Hardening and launch (PARTLY DONE)
 
-- Google OAuth verification: privacy policy page (`/privacy`), terms page (`/terms`), the app
-  homepage, a domain you own, then submit for verification. The `gmail.readonly` scope is restricted
-  and needs a security assessment (CASA) for public users. Until then, keep the app in **Testing**
-  with up to 100 test users.
-- Rate limiting on every write endpoint, and structured logging with request IDs.
-- Sentry (frontend and backend), uptime check on `/api/health`, and daily Atlas backup.
-- Accessibility pass (keyboard, focus rings, contrast in all themes), mobile layout pass, and
-  Lighthouse ≥ 90.
+Done:
+- public `/privacy` (with the Google Limited Use disclosure) and `/terms`, linked from sign-in;
+- `robots.txt` allows only the public pages;
+- a write-request rate-limit backstop, with limiter keys that respect `X-Forwarded-For` behind Vercel;
+- a skip-to-content link and mobile header and tab fixes.
+
+Remaining:
+
+- Google OAuth verification, done by the owner in Google Cloud: a custom domain (optional), branding
+  links to `/privacy` and `/terms`, then submit. `gmail.readonly` is restricted and needs a CASA
+  security assessment for public users. Until then, use Testing mode with up to 100 test users.
+- Move rate limits and the scheduler lock to Redis (Upstash) if the backend runs on more than one
+  instance.
+- Sentry (frontend and backend), an uptime check on `/api/health`, and a daily Atlas backup.
+- A contrast check in all six themes (especially Daylight) and Lighthouse ≥ 90.
 - Playwright e2e: register → import resume → add job → tailor → application → mark applied.
+- A Chrome Web Store listing for the extension (needs icons, screenshots and the privacy URL).
 
 ---
 
@@ -205,7 +213,7 @@ Phases 1–9 are shipped:
   suggested answers through `/api/ext/*`, using revocable personal access tokens
   (Settings → Browser extension). Rebuild the zip with `node scripts/build-extension.mjs`.
 
-There are 193 backend tests. Set `CRON_SECRET` in the backend Vercel project to enable the daily cron.
+There are 195 backend tests. Set `CRON_SECRET` in the backend Vercel project to enable the daily cron.
 
 **Known manual setup:**
 - Google Cloud → Google Auth Platform → **Audience → Test users**: add every Google account that

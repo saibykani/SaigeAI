@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -26,7 +27,16 @@ from app.recruiters.router import router as recruiters_router
 from app.resumes.ai_router import router as resume_ai_router
 from app.resumes.router import router as resumes_router
 from app.scheduler.router import router as scheduler_router
+from app.services.rate_limit import client_key, write_limiter
 from app.utils import new_id
+
+WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def write_key(request: Request) -> str:
+    """Per signed-in session where possible (a hash of the bearer token), otherwise per client address."""
+    auth = request.headers.get("authorization")
+    return hashlib.sha256(auth.encode()).hexdigest()[:24] if auth else client_key(request)
 
 logger = logging.getLogger("saige.api")
 
@@ -74,7 +84,13 @@ def create_app() -> FastAPI:
         token = request_id_var.set(rid)
         start = time.perf_counter()
         try:
-            response = await call_next(request)
+            if (request.method in WRITE_METHODS and request.url.path.startswith("/api/")
+                    and not request.url.path.startswith(("/api/auth/login", "/api/auth/register", "/api/auth/refresh"))
+                    and not write_limiter.hit(f"write:{write_key(request)}")):
+                response = JSONResponse({"detail": "Too many requests. Slow down a little.", "request_id": rid},
+                                        status_code=429, headers={"Retry-After": "60"})
+            else:
+                response = await call_next(request)
         except Exception:
             logger.exception("Unhandled error")
             response = JSONResponse({"detail": "Internal server error", "request_id": rid},
