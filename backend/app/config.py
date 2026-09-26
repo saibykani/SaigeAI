@@ -1,0 +1,53 @@
+"""Application settings loaded from environment variables (never hard-coded)."""
+
+from functools import lru_cache
+from typing import Annotated
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
+
+    environment: str = "development"
+
+    mongodb_uri: str = Field(..., description="MongoDB Atlas connection string")
+    mongodb_db: str = "saige_ai"
+
+    jwt_secret: str = Field(..., min_length=32)
+    jwt_algorithm: str = "HS256"
+    access_token_minutes: int = 15
+    refresh_token_days: int = 14
+    cookie_secure: bool = False
+
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    google_redirect_uri: str = "http://localhost:3000/api/auth/google/callback"
+
+    openai_api_key: str | None = None
+
+    frontend_url: str = "http://localhost:3000"
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
+
+    max_upload_mb: int = 5
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, v: object) -> object:
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
+
+    @property
+    def google_oauth_enabled(self) -> bool:
+        return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() == "production"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()  # type: ignore[call-arg]
