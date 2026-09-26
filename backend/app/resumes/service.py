@@ -139,6 +139,34 @@ async def delete_resume(db: AsyncIOMotorDatabase, resume: dict) -> None:
     await db[c.RESUMES].delete_one({"_id": resume["_id"]})
 
 
+def _years_from_roles(parsed: ParsedResume) -> float | None:
+    """Total experience from dated roles, rounded down to 0.1 year; None if any role is undated."""
+    from datetime import date
+
+    from app.applications.answers import _parse_date
+
+    if not parsed.experience:
+        return None
+    today = date.today()
+    spans: list[tuple[int, int]] = []  # months since year 0, merged so overlapping jobs count once
+    for e in parsed.experience:
+        start = _parse_date(e.start_date, today=today)
+        end = today if e.is_current else _parse_date(e.end_date, today=today)
+        if not start or not end or end < start:
+            return None
+        spans.append((start.year * 12 + start.month, end.year * 12 + end.month))
+    spans.sort()
+    months, cur_start, cur_end = 0, *spans[0]
+    for s, e in spans[1:]:
+        if s <= cur_end:
+            cur_end = max(cur_end, e)
+        else:
+            months += cur_end - cur_start
+            cur_start, cur_end = s, e
+    months += cur_end - cur_start
+    return int(months / 12 * 10) / 10
+
+
 async def import_to_profile(db: AsyncIOMotorDatabase, user_id: str, parsed: ParsedResume) -> dict:
     """Merge parsed resume data into the master profile.
 
@@ -150,7 +178,14 @@ async def import_to_profile(db: AsyncIOMotorDatabase, user_id: str, parsed: Pars
     skipped: list[str] = []
 
     personal = profile.personal
+    # Facts derived from the resume's own dated roles (never guessed from prose like "3+ years").
+    current_role = next((e for e in parsed.experience if e.is_current and e.title and e.company), None)
+    derived_years = _years_from_roles(parsed)
     for field, value in (("name", parsed.name), ("email", parsed.email), ("phone", parsed.phone),
+                         ("current_location", parsed.location),
+                         ("current_designation", current_role.title if current_role else None),
+                         ("current_company", current_role.company if current_role else None),
+                         ("total_experience_years", derived_years),
                          ("linkedin_url", parsed.links.linkedin),
                          ("github_url", parsed.links.github),
                          ("portfolio_url", parsed.links.portfolio)):
@@ -163,7 +198,7 @@ async def import_to_profile(db: AsyncIOMotorDatabase, user_id: str, parsed: Pars
                 skipped.append(f"personal.{field} (parsed value '{value}' is not valid)")
                 continue
             applied.append(f"personal.{field}")
-        elif str(getattr(personal, field)).rstrip("/") != value.rstrip("/"):
+        elif str(getattr(personal, field)).rstrip("/") != str(value).rstrip("/"):
             skipped.append(f"personal.{field} (profile already has a different verified value)")
 
     skills = profile.skills.model_copy(deep=True)

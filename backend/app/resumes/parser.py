@@ -22,7 +22,8 @@ SECTION_HEADINGS: dict[str, set[str]] = {
     "experience": {"experience", "work experience", "professional experience",
                    "employment history", "work history", "employment", "career history"},
     "skills": {"skills", "technical skills", "key skills", "core competencies", "skill set",
-               "technical expertise", "tools and technologies", "technologies", "expertise"},
+               "technical expertise", "tools and technologies", "technologies", "expertise", "core skills",
+               "skills summary", "technical proficiency", "tech stack", "areas of expertise"},
     "projects": {"projects", "key projects", "personal projects", "academic projects",
                  "project experience", "project details"},
     "education": {"education", "academic background", "qualifications",
@@ -111,6 +112,21 @@ def _parse_name(header: list[str]) -> str | None:
     return None
 
 
+def _parse_location(header: list[str]) -> str | None:
+    """City from a contact line like 'Hyderabad | +91 ... | me@x.com'. Only returns a token that
+    has no digits, no @ and no URL - i.e. the text the candidate wrote as their location."""
+    for line in header[:6]:
+        if "|" not in line and "•" not in line:
+            continue
+        if not (_EMAIL_RE.search(line) or _PHONE_RE.search(line)):
+            continue
+        for token in re.split(r"\s*[|•]\s*", line):
+            t = token.strip()
+            if t and not re.search(r"[\d@/]", t) and len(t.split()) <= 4 and "." not in t:
+                return t
+    return None
+
+
 def _parse_links(text: str) -> ParsedLinks:
     links = ParsedLinks()
     for m in _URL_RE.findall(text):
@@ -145,7 +161,14 @@ def _parse_skills(lines: list[str]) -> list[str]:
 
 
 def _classify_header_tokens(parts: list[str], exp: ParsedExperience) -> None:
-    tokens = [t.strip(" |,()") for p in parts for t in _SPLIT_HEADER_RE.split(p) if t.strip(" |,()")]
+    tokens = []
+    for p in parts:
+        for t in _SPLIT_HEADER_RE.split(p):
+            t = t.strip(" |,")
+            if t.startswith("(") and t.endswith(")"):
+                t = t[1:-1].strip()  # "(Remote)" -> "Remote"; "Engineer (SDET)" stays intact
+            if t:
+                tokens.append(t)
     rest: list[str] = []
     for t in tokens:
         if exp.title is None and _TITLE_WORDS.search(t):
@@ -217,11 +240,25 @@ def _parse_experience(lines: list[str], warnings: list[str]) -> list[ParsedExper
 def _parse_education(lines: list[str]) -> list[ParsedEducation]:
     entries: list[ParsedEducation] = []
     current: ParsedEducation | None = None
+    pending: str | None = None  # institution/dates line that appears before its degree line
     for line in lines:
         text = _strip_bullet(line)
         deg = _DEGREE_RE.search(text)
+        if not deg and _INSTITUTION_RE.search(text) and (current is None or current.institution):
+            pending = text
+            continue
         if deg:
             current = ParsedEducation(degree=deg.group(0).strip(), raw=text)
+            if pending:
+                current.raw = f"{pending} {text}"
+                parts = [p.strip() for p in re.split(r"\s+\|\s+|[,–—]", pending)]
+                current.institution = next((p for p in parts if _INSTITUTION_RE.search(p)), None)
+                years = [int(y) for y in re.findall(r"\b(19\d{2}|20\d{2})\b", pending)]
+                if len(years) >= 2:
+                    current.start_year, current.end_year = years[0], years[1]
+                elif years:
+                    current.end_year = years[0]
+                pending = None
             after = text[deg.end():].strip(" ,-–|")
             field_m = re.match(r"(?:in|of)?\s*([A-Za-z &]+?)(?:\s*[,|(\-–]|$)", after)
             if field_m and field_m.group(1).strip() and not _INSTITUTION_RE.search(field_m.group(1)):
@@ -255,6 +292,10 @@ def _parse_projects(lines: list[str]) -> list[ParsedProject]:
             projects[-1].technologies += [canonical(t) for t in re.split(r"[,|;]", tech.group(1))
                                           if t.strip()]
             continue
+        named = re.match(r"^([A-Z][^:]{2,60}):\s+(.{10,})$", text)
+        if named and not text.lower().startswith(("technologies", "tech stack", "tools", "environment")):
+            projects.append(ParsedProject(name=named.group(1).strip(), highlights=[named.group(2).strip()]))
+            continue
         if _looks_like_header(text):
             name = re.sub(r"^project\s*(?:name)?\s*[:\-]\s*", "", text, flags=re.I)
             name = re.split(r"\s+\|\s+|\s+[-–—]\s+", name)[0].strip()
@@ -280,6 +321,7 @@ def parse_resume(text: str) -> ParsedResume:
     skills = list(dict.fromkeys(skills_section + vocab_skills))
 
     result = ParsedResume(
+        location=_parse_location(header),
         name=_parse_name(header),
         email=email_m.group(0) if email_m else None,
         phone=phone_m.group(0).strip() if phone_m else None,

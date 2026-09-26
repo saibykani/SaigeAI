@@ -71,3 +71,30 @@ Test Lead    March 2018 to Present
     assert exp.title == "Test Lead"
     assert exp.company == "Initech Solutions"
     assert exp.is_current
+
+
+def test_real_world_layout_institution_first_and_named_projects():
+    text = """JANE DOE
+QA Automation Engineer
+Pune | +91 90000 12345 | jane@example.com
+PROFESSIONAL EXPERIENCE
+Software Development Engineer in Test (SDET)
+Example Payments Private Limited | July 2023 – Present
+- Built Rest Assured API suites for UPI flows
+PROJECTS
+API Automation Framework: Developed reusable Rest Assured components for payment APIs
+CORE SKILLS
+Automation: Selenium, TestNG
+EDUCATION
+Example Engineering College, Hyderabad     |    Oct 2020 – July 2023
+B.Tech, Electrical and Electronics Engineering
+"""
+    r = parse_resume(text)
+    assert r.location == "Pune"
+    assert r.experience[0].title == "Software Development Engineer in Test (SDET)"
+    assert r.experience[0].company == "Example Payments Private Limited"
+    assert [p.name for p in r.projects] == ["API Automation Framework"]
+    assert "Selenium" in r.skills and "skills" in r.sections_found
+    ed = r.education[0]
+    assert ed.degree == "B.Tech" and ed.field == "Electrical and Electronics Engineering"
+    assert ed.institution == "Example Engineering College" and (ed.start_year, ed.end_year) == (2020, 2023)

@@ -100,3 +100,14 @@ async def test_audit_endpoint(client, auth):
     await upload(client, auth)
     actions = [x["action"] for x in (await client.get("/api/audit", headers=auth)).json()]
     assert "resume.uploaded" in actions and "user.registered" in actions
+
+
+async def test_dashboard_trends_health_and_activity(client, db, auth):
+    await upload(client, auth)
+    d = (await client.get("/api/analytics/dashboard", headers=auth)).json()
+    assert all(len(v) == 7 for v in d["trend"].values())
+    assert set(d["health"]) >= {"active_applications", "response_rate", "interview_rate", "avg_match", "avg_ats",
+                                "followups_due", "tailored_resumes", "cover_letters"}
+    assert d["health"]["response_rate"] is None  # nothing applied yet: rate is UNKNOWN, not 0
+    assert any(a["label"] == "Resume uploaded" for a in d["activity"])
+    assert d["upcoming_interviews"] == [] and isinstance(d["skills_in_demand"], list)

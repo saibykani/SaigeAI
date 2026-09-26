@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Notice } from "@/components/app-shell";
-import { SaigeMark, Wordmark } from "@/components/brand";
 import { Galaxy } from "@/components/galaxy";
 import { Field, Input } from "@/components/ui/form";
 import { useAuth } from "@/hooks/use-auth";
@@ -49,57 +48,50 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   const isLogin = mode === "login";
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#02030a] text-white">
-      {/* Deep-space backdrop: nebula wash + animated 3D galaxy */}
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="aurora absolute -left-1/4 top-0 size-[60vw] rounded-full bg-[#1d4ed8] opacity-25 blur-[120px]" />
-        <div className="aurora absolute -right-1/4 bottom-0 size-[55vw] rounded-full bg-[#7c3aed] opacity-25 blur-[120px]" style={{ animationDelay: "-9s" }} />
-      </div>
-      <Galaxy className="absolute inset-0 h-full w-full lg:left-[-12%] lg:w-[80%]" />
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(2,3,10,0.85)_100%)]" />
+    <main className="relative min-h-screen overflow-hidden bg-black text-white">
+      {/* Interactive galaxy fills the page, centred */}
+      <Galaxy className="absolute inset-0 h-full w-full cursor-grab" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.75)_100%)]" />
 
-      <div className="relative z-10 mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-5 py-10 lg:grid-cols-[1.2fr_1fr] lg:px-10">
+      <div className="pointer-events-none relative z-10 mx-auto flex min-h-screen max-w-[1500px] flex-col justify-between gap-10 px-5 py-8 lg:flex-row lg:items-center lg:px-12">
         {/* Brand */}
-        <section className="flex flex-col gap-6">
-          <div className="animate-pop flex items-center gap-4">
-            <SaigeMark size={64} />
-            <Wordmark size="xl" className="text-white" />
-          </div>
-          <h2 className="max-w-xl text-3xl font-semibold leading-tight tracking-tight md:text-5xl [perspective:600px]">
+        <section className="pointer-events-auto flex max-w-md flex-col gap-5 lg:max-w-sm xl:max-w-md">
+          <h1 className="animate-pop text-5xl font-semibold tracking-tight md:text-6xl">
+            Saige <span className="bg-gradient-to-r from-white via-neutral-300 to-neutral-500 bg-clip-text text-transparent">AI</span>
+          </h1>
+          <p className="text-2xl font-medium leading-snug tracking-tight text-white/90 md:text-3xl [perspective:600px]">
             {"Your career, in perfect orbit.".split(" ").map((w, i) => (
               <span key={i} className="word-in mr-[0.25em]" style={{ animationDelay: `${250 + i * 110}ms` }}>
                 {w}
               </span>
             ))}
-          </h2>
-          <p className="animate-rise max-w-lg text-lg text-white/70" style={{ animationDelay: "900ms" }}>
-            Saige finds and scores jobs across the universe of job boards, tailors every resume, keeps LinkedIn and Naukri sharp, and tracks each application to offer — using only what&apos;s true about you.
           </p>
-          <ul className="animate-rise flex flex-wrap gap-2 text-sm" style={{ animationDelay: "1100ms" }}>
-            {["AI job matching", "Tailored resumes", "LinkedIn · Naukri sync", "Application tracking", "Zero fabrication"].map((t) => (
-              <li key={t} className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-white/80 backdrop-blur">{t}</li>
-            ))}
-          </ul>
+          <p className="animate-rise text-[15px] leading-relaxed text-white/55" style={{ animationDelay: "900ms" }}>
+            Jobs found and scored for you, resumes tailored to every role, LinkedIn and Naukri kept sharp, and every application tracked to offer — using only what&apos;s true about you.
+          </p>
+          <p className="animate-rise hidden text-xs text-white/35 lg:block" style={{ animationDelay: "1300ms" }}>
+            Move your mouse through the stars · click for a shockwave · drag to orbit
+          </p>
         </section>
 
         {/* Form */}
-        <section className="animate-rise w-full max-w-md justify-self-center lg:justify-self-end" style={{ animationDelay: "300ms" }}>
-          <div className="relative rounded-[28px] p-px [background:linear-gradient(140deg,rgba(34,211,238,0.6),rgba(109,124,255,0.25)_40%,rgba(168,85,247,0.6))]">
-            <div className="rounded-[27px] bg-[#070a18]/80 p-8 shadow-[0_40px_80px_-30px_rgba(40,60,200,0.6)] backdrop-blur-2xl">
-              <h1 className="text-2xl font-semibold tracking-tight">{isLogin ? "Welcome back" : "Create your account"}</h1>
-              <p className="mt-1.5 text-sm text-white/60">
-                {isLogin ? "Sign in to your career command center." : "Your verified profile powers everything Saige does."}
+        <section className="pointer-events-auto animate-rise w-full max-w-md self-center lg:self-auto" style={{ animationDelay: "300ms" }}>
+          <div className="rounded-[28px] bg-[linear-gradient(145deg,rgba(255,255,255,0.35),rgba(255,255,255,0.05)_45%,rgba(255,255,255,0.22))] p-px">
+            <div className="rounded-[27px] bg-black/70 p-8 shadow-[0_40px_90px_-30px_rgba(255,255,255,0.12)] backdrop-blur-2xl">
+              <h2 className="text-2xl font-semibold tracking-tight">{isLogin ? "Welcome back" : "Create your account"}</h2>
+              <p className="mt-1.5 text-sm text-white/55">
+                {isLogin ? "Sign in to continue your job search." : "Your verified profile powers everything Saige does."}
               </p>
 
               {/* Full-page navigation: the backend redirects to Google and back via the proxy. */}
-              <a href="/api/auth/google/authorize" className="mt-7 flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-white text-[15px] font-medium text-[#111] transition hover:bg-white/90 active:scale-[0.99]">
+              <a href="/api/auth/google/authorize" className="mt-7 flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-white/15 bg-white/[0.04] text-[15px] font-medium text-white transition hover:bg-white/10 active:scale-[0.99]">
                 <GoogleMark /> Continue with Google
               </a>
-              <div className="my-6 flex items-center gap-3 text-xs text-white/40">
+              <div className="my-6 flex items-center gap-3 text-xs text-white/35">
                 <span className="h-px flex-1 bg-white/10" /> or use email <span className="h-px flex-1 bg-white/10" />
               </div>
 
-              <form onSubmit={onSubmit} className="flex flex-col gap-4 [&_input]:border-white/10 [&_input]:bg-white/5 [&_input]:text-white [&_input]:placeholder:text-white/30 [&_label]:text-white/60">
+              <form onSubmit={onSubmit} className="auth-dark flex flex-col gap-4">
                 {error && <Notice tone="error">{error}</Notice>}
                 {!isLogin && (
                   <Field label="Full name" htmlFor="name">
@@ -124,14 +116,14 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="sheen animate-gradient mt-2 h-12 cursor-pointer rounded-full bg-[linear-gradient(120deg,#22d3ee,#6d7cff,#a855f7,#22d3ee)] bg-[length:200%_200%] text-[15px] font-semibold text-white shadow-[0_12px_30px_-10px_rgba(109,124,255,0.8)] transition hover:brightness-110 active:scale-[0.99] disabled:opacity-60"
+                  className="sheen mt-2 h-12 cursor-pointer rounded-full bg-white text-[15px] font-semibold text-black shadow-[0_0_40px_-8px_rgba(255,255,255,0.55)] transition hover:shadow-[0_0_55px_-6px_rgba(255,255,255,0.75)] active:scale-[0.99] disabled:opacity-60"
                 >
                   {busy ? "Please wait…" : isLogin ? "Sign in" : "Create account"}
                 </button>
               </form>
-              <p className="mt-6 text-center text-sm text-white/60">
+              <p className="mt-6 text-center text-sm text-white/55">
                 {isLogin ? "New to Saige AI? " : "Already have an account? "}
-                <Link href={isLogin ? "/register" : "/login"} className="font-medium text-cyan-300 hover:underline">
+                <Link href={isLogin ? "/register" : "/login"} className="font-medium text-white underline-offset-4 hover:underline">
                   {isLogin ? "Create an account" : "Sign in"}
                 </Link>
               </p>

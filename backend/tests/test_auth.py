@@ -73,11 +73,28 @@ async def test_refresh_rotates_token(client):
     assert me.status_code == 200
 
 
-async def test_refresh_token_reuse_revokes_family(client):
+async def test_concurrent_refresh_within_grace_is_not_theft(client):
+    """Two tabs refreshing with the same cookie at the same moment must not sign the user out."""
+    await register(client)
+    same = client.cookies.get(REFRESH_COOKIE)
+    assert (await client.post("/api/auth/refresh", headers=CSRF)).status_code == 200
+    client.cookies.clear()
+    client.cookies.set(REFRESH_COOKIE, same, path="/api/auth")
+    assert (await client.post("/api/auth/refresh", headers=CSRF)).status_code == 200
+
+
+async def test_refresh_token_reuse_after_grace_revokes_family(client, db):
     await register(client)
     stolen = client.cookies.get(REFRESH_COOKIE)
     assert (await client.post("/api/auth/refresh", headers=CSRF)).status_code == 200
     legit = client.cookies.get(REFRESH_COOKIE)
+    # Age the rotation beyond the grace window, as if the old token leaked and is replayed later.
+    from datetime import timedelta
+
+    from app.auth.security import hash_token
+    from app.utils import utcnow
+    await db[c.REFRESH_TOKENS].update_one({"_id": hash_token(stolen)},
+                                          {"$set": {"rotated_at": utcnow() - timedelta(minutes=5)}})
 
     client.cookies.clear()
     client.cookies.set(REFRESH_COOKIE, stolen, path="/api/auth")

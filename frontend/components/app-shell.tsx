@@ -22,7 +22,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { SaigeMark, Wordmark } from "@/components/brand";
+import { Wordmark } from "@/components/brand";
 import { ThemeSwitcher } from "@/components/theme";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -31,7 +31,7 @@ import { cn } from "@/utils/cn";
 type NavItem = { href: string; label: string; icon: LucideIcon; slot: number };
 
 const NAV: NavItem[] = [
-  { href: "/", label: "Command Center", icon: LayoutDashboard, slot: 1 },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, slot: 1 },
   { href: "/profile", label: "Master Profile", icon: UserRound, slot: 7 },
   { href: "/resumes", label: "Resumes", icon: FileText, slot: 3 },
   { href: "/jobs", label: "Jobs", icon: Briefcase, slot: 2 },
@@ -49,9 +49,8 @@ const UPCOMING = [
 
 export function Logo({ className, onDark = false }: { className?: string; onDark?: boolean }) {
   return (
-    <span className={cn("flex items-center gap-2.5", className)}>
-      <SaigeMark size={34} />
-      <Wordmark className={onDark ? "text-white" : undefined} />
+    <span className={cn("flex items-center", className)}>
+      <Wordmark className={cn("text-[19px]", onDark && "text-white")} />
     </span>
   );
 }
@@ -107,9 +106,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <nav className="flex flex-1 flex-col gap-7 overflow-y-auto px-3 py-2">
           <ul className="flex flex-col gap-1">
-            {NAV.map(({ href, label, icon: Icon, slot }) => {
+            {NAV.map(({ href, label, icon: Icon }) => {
               const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-              const color = `var(--series-${slot})`;
               return (
                 <li key={href}>
                   <Link
@@ -122,9 +120,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <span
                       className={cn(
                         "grid size-7 place-items-center rounded-lg transition-all duration-300",
-                        active ? "text-white shadow-sm" : "group-hover:scale-110",
+                        active ? "bg-primary text-primary-foreground shadow-sm" : "group-hover:scale-110",
                       )}
-                      style={active ? { background: color } : { color }}
                     >
                       <Icon className="size-4" aria-hidden />
                     </span>
@@ -178,7 +175,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
             <Menu />
           </Button>
-          <p className="text-sm text-muted-foreground">AI Career Command Center</p>
+          <p className="text-sm text-muted-foreground">Saige AI · your AI job search partner</p>
           <div className="ml-auto" />
           <ThemeSwitcher />
           <Link

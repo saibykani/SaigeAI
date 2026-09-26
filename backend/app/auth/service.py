@@ -20,6 +20,9 @@ from app.utils import as_utc, new_id, utcnow
 
 REFRESH_COOKIE = "saige_refresh"
 REFRESH_COOKIE_PATH = "/api/auth"
+# A rotated refresh token presented again within this window is a concurrent-refresh race
+# (two tabs, a quick reload), not theft.
+ROTATION_GRACE_SECONDS = 60
 
 
 def user_out(user: dict) -> dict:
@@ -112,9 +115,18 @@ async def rotate_session(db: AsyncIOMotorDatabase, refresh: str | None, response
     if not record:
         raise unauthorized
     if record["revoked"]:
-        # Reuse of a rotated token: assume theft and revoke the whole session family.
+        rotated_at = record.get("rotated_at")
+        benign_race = (rotated_at is not None and not record.get("family_revoked")
+                       and utcnow() - as_utc(rotated_at) < timedelta(seconds=ROTATION_GRACE_SECONDS))
+        if benign_race:
+            # Two tabs (or a fast reload) refreshed with the same cookie at once: not theft.
+            user = await db[c.USERS].find_one({"_id": record["user_id"], "is_active": True})
+            if not user:
+                raise unauthorized
+            return await issue_session(db, user, response, family_id=record["family_id"])
+        # Reuse of a rotated token outside the grace window: assume theft, revoke the family.
         await db[c.REFRESH_TOKENS].update_many(
-            {"family_id": record["family_id"]}, {"$set": {"revoked": True}}
+            {"family_id": record["family_id"]}, {"$set": {"revoked": True, "family_revoked": True}}
         )
         await log_action(db, user_id=record["user_id"], action="auth.refresh_token_reuse",
                          entity="session", entity_id=record["family_id"])
@@ -124,7 +136,8 @@ async def rotate_session(db: AsyncIOMotorDatabase, refresh: str | None, response
     user = await db[c.USERS].find_one({"_id": record["user_id"], "is_active": True})
     if not user:
         raise unauthorized
-    await db[c.REFRESH_TOKENS].update_one({"_id": record["_id"]}, {"$set": {"revoked": True}})
+    await db[c.REFRESH_TOKENS].update_one({"_id": record["_id"]},
+                                          {"$set": {"revoked": True, "rotated_at": utcnow()}})
     return await issue_session(db, user, response, family_id=record["family_id"])
 
 
@@ -134,5 +147,5 @@ async def revoke_session(db: AsyncIOMotorDatabase, refresh: str | None) -> None:
     record = await db[c.REFRESH_TOKENS].find_one({"_id": hash_token(refresh)})
     if record:
         await db[c.REFRESH_TOKENS].update_many(
-            {"family_id": record["family_id"]}, {"$set": {"revoked": True}}
+            {"family_id": record["family_id"]}, {"$set": {"revoked": True, "family_revoked": True}}
         )

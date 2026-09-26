@@ -2,7 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-/** Horizontal funnel. Stages are ordered, so bars use one ordinal blue ramp (light -> dark
+/** Horizontal funnel. Stages are ordered, so bars use one ordinal ramp of the theme ink (faint -> strong
  *  by stage), not categorical hues. Values/labels stay in text ink; hover shows a tooltip. */
 export function FunnelChart({ data }: { data: { stage: string; count: number }[] }) {
   const empty = data.every((d) => d.count === 0);
@@ -27,7 +27,8 @@ export function FunnelChart({ data }: { data: { stage: string; count: number }[]
           />
           <Bar dataKey="count" name="Count" radius={[0, 6, 6, 0]} maxBarSize={24} animationDuration={900} animationEasing="ease-out">
             {data.map((d, i) => (
-              <Cell key={d.stage} fill={`var(--ord-${Math.min(i + 1, 8)})`} />
+              // Monochrome ordinal ramp: later stages in stronger ink
+              <Cell key={d.stage} fill={`color-mix(in srgb, var(--primary) ${Math.round(38 + (62 * i) / Math.max(1, data.length - 1))}%, transparent)`} />
             ))}
             <LabelList dataKey="count" position="right" style={{ fontSize: 12, fill: "var(--muted-foreground)", fontWeight: 500 }} />
           </Bar>

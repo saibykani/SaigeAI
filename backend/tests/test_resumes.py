@@ -163,3 +163,15 @@ async def test_import_into_brand_new_profile_persists_everything(client, auth):
     assert "Java" in profile["skills"]["programming_languages"]
     assert "Skills" not in profile["unknown_fields"]
     assert result["completeness"] == profile["completeness"]
+
+
+def test_years_from_roles_merges_overlaps():
+    from app.resumes.service import _years_from_roles
+    from app.schemas.resume import ParsedExperience, ParsedResume
+    r = ParsedResume(experience=[
+        ParsedExperience(company="A", title="QA", start_date="Jan 2020", end_date="Dec 2021"),
+        ParsedExperience(company="B", title="QA", start_date="Jan 2021", end_date="Jan 2022"),  # overlaps A
+    ])
+    assert _years_from_roles(r) == 2.0
+    undated = ParsedResume(experience=[ParsedExperience(company="A", title="QA")])
+    assert _years_from_roles(undated) is None

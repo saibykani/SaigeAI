@@ -240,6 +240,21 @@ export interface Dashboard {
   funnel: { stage: string; count: number }[];
   profile: { completeness: number; unknown_fields: string[] };
   automation: { mode: AutomationMode; paused_all: boolean };
+  trend: Record<"jobs_found" | "relevant_jobs" | "applications_submitted" | "interviews" | "documents" | "profile_changes", number[]>;
+  health: {
+    active_applications: number;
+    response_rate: number | null;
+    interview_rate: number | null;
+    offer_rate: number | null;
+    avg_match: number | null;
+    avg_ats: number | null;
+    followups_due: number;
+    tailored_resumes: number;
+    cover_letters: number;
+  };
+  upcoming_interviews: { id: string; company: string | null; role: string | null; round: string | null; scheduled_at: string; meeting_url: string | null }[];
+  activity: { id: string; label: string; action: string; at: string }[];
+  skills_in_demand: { skill: string; pct: number; jobs: number; candidate_has: boolean }[];
 }
 
 export type AutomationMode = "conservative" | "balanced" | "autonomous";

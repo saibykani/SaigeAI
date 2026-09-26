@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(..., min_length=32)
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 15
-    refresh_token_days: int = 14
+    refresh_token_days: int = 30  # sliding: every refresh issues a fresh 30-day cookie
     cookie_secure: bool = False
 
     google_client_id: str | None = None
