@@ -6,7 +6,7 @@ Every agent/worker added in later phases MUST call `is_allowed()` before acting.
 from typing import Literal
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.database import collections as c
 from app.services.audit import log_action
@@ -37,6 +37,20 @@ class Schedules(BaseModel):
     gmail_sync_minutes: int = 30
 
 
+class ProfileSchedule(BaseModel):
+    """Daily LinkedIn/Naukri refresh. Saige prepares truthful, copy-ready edits; the user applies them."""
+    linkedin_enabled: bool = True
+    naukri_enabled: bool = True
+    refresh_time: str = Field(default="08:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    days: list[int] = Field(default=[0, 1, 2, 3, 4, 5, 6])  # Monday = 0
+    naukri_daily_freshness: bool = True
+
+    @field_validator("days")
+    @classmethod
+    def _valid_days(cls, v: list[int]) -> list[int]:
+        return sorted({d for d in v if 0 <= d <= 6})
+
+
 class Limits(BaseModel):
     daily_application_limit: int = 20
     daily_email_limit: int = 20
@@ -50,6 +64,7 @@ class AutomationSettings(BaseModel):
     pauses: Pauses = Pauses()
     schedules: Schedules = Schedules()
     limits: Limits = Limits()
+    profile_schedule: ProfileSchedule = ProfileSchedule()
 
 
 class AutomationSettingsUpdate(BaseModel):
@@ -57,6 +72,7 @@ class AutomationSettingsUpdate(BaseModel):
     pauses: Pauses | None = None
     schedules: Schedules | None = None
     limits: Limits | None = None
+    profile_schedule: ProfileSchedule | None = None
 
 
 async def get_settings_doc(db: AsyncIOMotorDatabase, user_id: str) -> AutomationSettings:

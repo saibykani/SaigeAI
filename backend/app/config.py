@@ -38,6 +38,9 @@ class Settings(BaseSettings):
 
     max_upload_mb: int = 5
 
+    # Shared secret for /api/cron/daily (Vercel Cron sends it as a Bearer token).
+    cron_secret: str | None = None
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, v: object) -> object:

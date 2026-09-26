@@ -7,7 +7,9 @@ import {
   Briefcase,
   CalendarCheck,
   CheckCircle2,
+  Clock,
   FileText,
+  Flame,
   Gauge,
   MailCheck,
   Pause,
@@ -33,7 +35,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useApi } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 import { request } from "@/services/api";
-import type { AutomationSettings, Dashboard } from "@/types/api";
+import type { AutomationSettings, Dashboard, SchedulerStatus } from "@/types/api";
 import { cn } from "@/utils/cn";
 import { formatDateTime } from "@/utils/format";
 
@@ -63,6 +65,7 @@ function Skeleton() {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { data, error, loading, reload } = useApi<Dashboard>("/analytics/dashboard");
+  const scheduler = useApi<SchedulerStatus>("/scheduler/status");
   const [toggling, setToggling] = useState(false);
 
   if (error) return <Notice tone="error">{error}</Notice>;
@@ -77,15 +80,22 @@ export default function DashboardPage() {
     { n: data.action_required.applications_need_approval, label: "applications need your approval", href: "/applications" },
     { n: hl.followups_due, label: "follow-ups are due", href: "/applications" },
     { n: data.action_required.upcoming_interviews, label: "upcoming interviews", href: "/interviews" },
-    { n: data.action_required.profile_changes_pending, label: "profile suggestions to review", href: "/profile-sync" },
+    { n: data.action_required.profile_changes_pending, label: "profile suggestions to review", href: "/profiles" },
     { n: data.action_required.unknown_profile_fields, label: "profile fields are still UNKNOWN", href: "/profile" },
   ].filter((a) => a.n > 0);
+
+  const sched = scheduler.data;
+  const refreshJob = sched?.jobs.find((j) => j.job === "profile_refresh");
+  const lastRan = refreshJob?.last_run?.status === "succeeded" ? "✓" : refreshJob?.last_run?.status ? refreshJob.last_run.status : "pending";
+  const refreshTime = sched?.profile_schedule?.refresh_time ?? "08:00";
+  const tzLabel = sched?.timezone === "Asia/Kolkata" ? "IST" : (sched?.timezone ?? "");
 
   async function togglePause() {
     setToggling(true);
     try {
       await request<AutomationSettings>(paused ? "/automation/resume-all" : "/automation/pause-all", { method: "POST" });
       await reload();
+      void scheduler.reload();
     } finally {
       setToggling(false);
     }
@@ -107,9 +117,32 @@ export default function DashboardPage() {
               <span><b className="text-lg font-semibold text-white"><CountUp value={data.totals.interviews} /></b> interviews</span>
               <span><b className="text-lg font-semibold text-white"><CountUp value={data.totals.resumes} /></b> resumes</span>
             </div>
+
+            {/* Scheduler & Streak Status Badge */}
+            <div className="mt-4 flex flex-wrap items-center gap-2.5">
+              <Link
+                href="/profiles?tab=schedule"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/90 backdrop-blur-sm transition-colors hover:bg-white/20"
+              >
+                <Clock className="size-3.5" />
+                <span>
+                  Next profile refresh <b>{refreshTime} {tzLabel}</b> · last ran {lastRan}
+                </span>
+              </Link>
+              {sched && sched.naukri_streak > 0 && (
+                <Link
+                  href="/profiles?tab=naukri"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/90 backdrop-blur-sm transition-colors hover:bg-white/20"
+                >
+                  <Flame className="size-3.5 text-[var(--tone-orange)]" />
+                  <span>Naukri streak: <b>{sched.naukri_streak}d</b></span>
+                </Link>
+              )}
+            </div>
+
             <div className="mt-6 flex flex-wrap gap-2">
               <Link href="/jobs" className={buttonVariants({ className: "bg-white text-black hover:bg-white/90" })}>Find jobs <ArrowRight /></Link>
-              <Link href="/profile-sync" className={buttonVariants({ className: "border border-white/25 bg-white/10 text-white hover:bg-white/15" })}><Sparkles /> Optimize profiles</Link>
+              <Link href="/profiles" className={buttonVariants({ className: "border border-white/25 bg-white/10 text-white hover:bg-white/15" })}><Sparkles /> Optimize profiles</Link>
               <Button onClick={togglePause} disabled={toggling} className={cn("border border-white/25 bg-transparent text-white hover:bg-white/10", paused && "bg-white/20")}>
                 {paused ? <Play /> : <Pause />} {paused ? "Resume automation" : "Pause all automation"}
               </Button>
@@ -142,7 +175,7 @@ export default function DashboardPage() {
           <TrendKpi label="Applied" series={t.applications_submitted} icon={Send} href="/applications" delay={100} tone="purple" />
           <TrendKpi label="Interviews" series={t.interviews} icon={CalendarCheck} href="/interviews" delay={150} tone="yellow" />
           <TrendKpi label="AI documents" series={t.documents} icon={Wand2} delay={200} tone="mint" />
-          <TrendKpi label="Profile suggestions" series={t.profile_changes} icon={Sparkles} href="/profile-sync" delay={250} tone="red" />
+          <TrendKpi label="Profile suggestions" series={t.profile_changes} icon={Sparkles} href="/profiles" delay={250} tone="red" />
         </div>
       </section>
 

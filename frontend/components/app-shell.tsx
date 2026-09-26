@@ -5,6 +5,7 @@ import {
   Bell,
   CalendarDays,
   Briefcase,
+  createLucideIcon,
   FileText,
   LayoutDashboard,
   LifeBuoy,
@@ -31,11 +32,19 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/utils/cn";
 
+// lucide dropped brand icons, so the LinkedIn glyph is defined here.
+const Linkedin = createLucideIcon("Linkedin", [
+  ["path", { d: "M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z", key: "k1" }],
+  ["rect", { width: "4", height: "12", x: "2", y: "9", key: "k2" }],
+  ["circle", { cx: "4", cy: "4", r: "2", key: "k3" }],
+]);
+
 type NavItem = { href: string; label: string; icon: LucideIcon; slot: number };
 
 const NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, slot: 1 },
   { href: "/profile", label: "Master Profile", icon: UserRound, slot: 7 },
+  { href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, slot: 4 },
   { href: "/resumes", label: "Resumes", icon: FileText, slot: 3 },
   { href: "/jobs", label: "Jobs", icon: Briefcase, slot: 2 },
   { href: "/applications", label: "Applications", icon: Send, slot: 6 },
@@ -48,7 +57,6 @@ const NAV: NavItem[] = [
 ];
 
 const UPCOMING = [
-  { label: "LinkedIn & Naukri hub", icon: UserRound, phase: 6 },
   { label: "Recruiters", icon: Users, phase: 7 },
   { label: "Analytics", icon: BarChart3, phase: 8 },
 ];

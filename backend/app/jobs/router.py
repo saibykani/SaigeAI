@@ -96,8 +96,17 @@ async def sync_source(source_id: str, user: dict = Depends(get_current_user),
         raise HTTPException(status.HTTP_423_LOCKED,
                             "Job discovery is paused. Resume it in Automation settings.")
 
+    try:
+        return await run_board_sync(db, uid, src)
+    except SourceError as exc:
+        raise _source_error(exc) from exc
+
+
+async def run_board_sync(db: AsyncIOMotorDatabase, uid: str, src: dict, trigger: str = "manual") -> dict:
+    """Fetch one followed ATS board and ingest relevant postings. Raises SourceError on fetch failure."""
+    source_id = src["_id"]
     async with agent_run(db, "job_discovery_agent", uid,
-                         {"provider": src["provider"], "board": src["board"]}) as run:
+                         {"provider": src["provider"], "board": src["board"], "trigger": trigger}) as run:
         try:
             async with sources.http_client() as client:
                 fetch = sources.BOARD_FETCHERS[src["provider"]]
@@ -106,7 +115,7 @@ async def sync_source(source_id: str, user: dict = Depends(get_current_user),
             run.errors.append(str(exc))
             await db[c.JOB_SOURCES].update_one({"_id": source_id}, {"$set": {
                 "last_synced_at": utcnow().isoformat(), "last_result": {"error": str(exc)}}})
-            raise _source_error(exc) from exc
+            raise
 
         profile = await get_profile(db, uid)
         weights = await service.get_weights(db, uid)

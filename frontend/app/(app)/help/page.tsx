@@ -40,10 +40,10 @@ const GUIDES: Guide[] = [
     "Saige spots confirmations, assessments, interviews, rejections and offers, and updates applications (status only moves forward).",
     "Disconnect at any time. Access is revoked immediately.",
   ] },
-  { title: "LinkedIn & Naukri profiles", icon: UserRound, href: "/profile-sync", tone: "mint", steps: [
-    "Paste your current headline, About/summary and skills in Profile Sync.",
-    "Saige suggests truthful improvements from real job descriptions. Copy them and click Mark applied.",
-    "LinkedIn and Naukri have no public edit API, so Saige never logs in for you or stores those passwords.",
+  { title: "LinkedIn & Naukri profiles", icon: UserRound, href: "/profiles", tone: "mint", steps: [
+    "Paste your current headline, About/summary and skills in the LinkedIn & Naukri hub.",
+    "Saige schedules truthful daily optimizations from target JDs, plus a daily 2-minute micro-edit to keep your Naukri profile active.",
+    "LinkedIn and Naukri have no public edit API, so Saige never logs in for you or stores those passwords. Suggestions are copy-ready.",
   ] },
   { title: "Automation & privacy", icon: Settings, href: "/settings", tone: "lime", steps: [
     "Pick a mode (conservative, balanced or aggressive), set daily limits, and pause any agent, or everything, with one switch.",

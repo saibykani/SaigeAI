@@ -59,9 +59,10 @@ backend/app/
   analytics/router.py     # /analytics/dashboard aggregate
   automation/             # AutomationSettings (mode, pauses, schedules, limits), is_allowed
   notifications/, privacy/ (export + account delete), services/ (truth_guard, crypto, audit, notify, rate_limit, agent_runs, skills_vocab)
-  recruiters/, scheduler/ # EMPTY packages reserved for Phase 7 / Phase 6
+  scheduler/              # daily jobs (service.run_due_jobs), /api/cron/daily (CRON_SECRET), /api/scheduler/*
+  recruiters/             # EMPTY package reserved for Phase 7
 backend/tests/            # pytest + mongomock-motor; conftest disables .env and pops GOOGLE_*/ANTHROPIC_*
-frontend/app/(app)/       # authenticated pages; frontend/app/login, /register = galaxy sign-in
+frontend/app/(app)/       # authenticated pages (profiles = LinkedIn & Naukri hub); frontend/app/login, /register = galaxy sign-in
 frontend/components/      # app-shell (nav), kpi, galaxy, loader3d, theme, motion, ui/*
 frontend/services/api.ts  # request() wrapper (auto refresh, CSRF header); types in types/api.ts
 docs/                     # ARCHITECTURE.md, DEPLOYMENT.md, NEXT_PHASES_PROMPT.md

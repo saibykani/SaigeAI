@@ -23,6 +23,7 @@ from app.profiles.router import router as profile_router
 from app.profiles.sync_router import router as profile_sync_router
 from app.resumes.ai_router import router as resume_ai_router
 from app.resumes.router import router as resumes_router
+from app.scheduler.router import router as scheduler_router
 from app.utils import new_id
 
 logger = logging.getLogger("saige.api")
@@ -99,7 +100,7 @@ def create_app() -> FastAPI:
 
     for r in (auth_router, profile_sync_router, profile_router, resume_ai_router, resumes_router, jobs_router,
               applications_router, email_router, analytics_router,
-              automation_router, agent_router, notifications_router, privacy_router, audit_router):
+              automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router):
         api.include_router(r)
     app.include_router(api)
     return app

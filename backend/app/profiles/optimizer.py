@@ -249,3 +249,42 @@ def resume_suggestions(profile: Profile, resume_skills: list[str], trends: list[
     return [{"field": "skills", "before": resume_skills, "after": resume_skills + to_add,
              "reason": "Verified skills that recent target JDs ask for but your master resume doesn't list.",
              "confidence": 0.85}]
+
+
+FRESHNESS_VARIANTS = ("headline", "key_skills", "summary")
+
+
+def naukri_freshness_edit(profile: Profile, nk: NaukriProfile, trends: list[SkillTrend], day_index: int,
+                          skip_fields: frozenset[str] = frozenset()) -> dict | None:
+    """One small, truthful Naukri edit per day. Naukri ranks recently modified profiles higher, so
+    a daily micro-change keeps the profile fresh. Variants rotate by day; every value is built only
+    from verified profile data (the caller still runs the truth guard)."""
+    ordered = _verified_skills_by_demand(profile, trends)
+    for step in range(len(FRESHNESS_VARIANTS)):
+        variant = FRESHNESS_VARIANTS[(day_index + step) % len(FRESHNESS_VARIANTS)]
+        if variant in skip_fields:  # a suggestion for this field is already waiting for the user
+            continue
+        # Rotate which in-demand skills lead, so consecutive days produce different wording.
+        k = day_index % max(1, min(len(trends), 6))
+        rotated = trends[k:] + trends[:k]
+        if variant == "headline":
+            after = build_headline(profile, rotated, 250)
+            before = nk.headline
+            reason = "Daily freshness: headline re-ordered to lead with different in-demand verified skills."
+        elif variant == "key_skills":
+            listed = nk.key_skills or ordered
+            verified = {_key(s) for s in ordered}
+            keep = [s for s in listed if _key(s) in verified]
+            if len(keep) < 2:
+                continue
+            j = day_index % len(keep)
+            after = keep[j:] + keep[:j]
+            before = nk.key_skills
+            reason = "Daily freshness: key skills re-ordered (same verified skills, new order)."
+        else:
+            after = build_summary(profile, rotated, 1000)
+            before = nk.summary
+            reason = "Daily freshness: summary refreshed from your verified experience."
+        if after and after != before:
+            return {"field": variant, "before": before, "after": after, "reason": reason, "confidence": 0.7}
+    return None

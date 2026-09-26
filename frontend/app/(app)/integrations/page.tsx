@@ -78,13 +78,13 @@ export default function IntegrationsPage() {
       name: "LinkedIn", icon: UserRound,
       status: { label: data.linkedin.snapshot ? "Profile added" : "Add your profile", tone: data.linkedin.snapshot ? "success" : "warning" },
       body: "Daily headline, About and skills suggestions from real job descriptions, truth-checked. LinkedIn offers no profile-edit API, so changes are copy-ready.",
-      action: <Link href="/profile-sync" className={buttonVariants({ size: "sm", variant: "outline" })}>Profile Sync</Link>,
+      action: <Link href="/profiles?tab=linkedin" className={buttonVariants({ size: "sm", variant: "outline" })}>Manage profile</Link>,
     },
     {
       name: "Naukri", icon: UserRound,
       status: { label: data.naukri.snapshot ? "Profile added" : "Add your profile", tone: data.naukri.snapshot ? "success" : "warning" },
       body: "Resume headline, key skills and summary tuned to your target roles, plus resume-freshness reminders. Copy-ready updates — no login automation.",
-      action: <Link href="/profile-sync" className={buttonVariants({ size: "sm", variant: "outline" })}>Profile Sync</Link>,
+      action: <Link href="/profiles?tab=naukri" className={buttonVariants({ size: "sm", variant: "outline" })}>Manage profile</Link>,
     },
     {
       name: "Greenhouse · Lever · Ashby", icon: Briefcase,

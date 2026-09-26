@@ -270,6 +270,39 @@ export const CAPABILITIES = [
 
 export type Capability = (typeof CAPABILITIES)[number][0];
 
+export interface ProfileSchedule {
+  linkedin_enabled: boolean;
+  naukri_enabled: boolean;
+  refresh_time: string;
+  days: number[];
+  naukri_daily_freshness: boolean;
+}
+
+export interface SchedulerJobRun {
+  id: string;
+  job: string;
+  label: string;
+  run_date: string;
+  trigger: "cron" | "manual";
+  status: "running" | "succeeded" | "failed" | "skipped";
+  result: Record<string, unknown>;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface SchedulerStatus {
+  timezone: string;
+  paused_all: boolean;
+  profile_schedule: ProfileSchedule;
+  jobs: {
+    job: string;
+    label: string;
+    next_run: string | null;
+    last_run: SchedulerJobRun | null;
+  }[];
+  naukri_streak: number;
+}
+
 export interface AutomationSettings {
   mode: AutomationMode;
   paused_all: boolean;
@@ -282,6 +315,7 @@ export interface AutomationSettings {
     analytics_time: string;
     gmail_sync_minutes: number;
   };
+  profile_schedule: ProfileSchedule;
   limits: {
     daily_application_limit: number;
     daily_email_limit: number;

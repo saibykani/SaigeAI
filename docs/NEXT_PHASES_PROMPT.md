@@ -1,7 +1,7 @@
 # Saige AI: prompt for the remaining phases
 
-Paste the block below into Antigravity (or any coding agent), **one phase at a time**. Start with
-"Phase 6". After each phase, check the app locally, then send "Continue with the next phase".
+Paste the block below into Antigravity (or any coding agent), **one phase at a time**. Phase 6 is
+done, so start with "Phase 7". After each phase, check the app locally, then send "Continue with the next phase".
 
 ---
 
@@ -46,7 +46,7 @@ Now do: <PHASE NAME FROM BELOW>
 
 ---
 
-## Phase 6: Connected Profiles hub and daily profile-refresh scheduler (highest priority)
+## Phase 6: Connected Profiles hub and daily profile-refresh scheduler (DONE; kept for reference)
 
 **Goal:** give LinkedIn and Naukri a dedicated **"LinkedIn & Naukri"** section, separate from the
 generic Integrations page. Add a scheduler that refreshes both profiles every day, truthfully.
@@ -182,7 +182,7 @@ Frontend:
 
 ## Current state (September 2026)
 
-Phases 1–5 are shipped:
+Phases 1–6 are shipped:
 - auth and 30-day sessions;
 - master profile filled from the resume;
 - resumes, parsing, tailoring, ATS checks, cover letters and DOCX export;
@@ -193,9 +193,11 @@ Phases 1–5 are shipped:
 - Dashboard with coloured KPIs;
 - themes: Graphite, Obsidian, Aurora, Ember, Forest, Daylight;
 - galaxy sign-in and a 3D loader;
-- Help & Docs page.
+- Help & Docs page;
+- LinkedIn & Naukri hub (`/profiles`) with a daily scheduler (`/api/cron/daily`), a Naukri freshness
+  streak, and run history.
 
-There are 166 backend tests.
+There are 175 backend tests. Set `CRON_SECRET` in the backend Vercel project to enable the daily cron.
 
 **Known manual setup:**
 - Google Cloud → Google Auth Platform → **Audience → Test users**: add every Google account that

@@ -93,6 +93,25 @@ redirect URI. Two one-time steps in Google Cloud Console:
 While the app is in Testing mode, only listed test users can connect Gmail. Publishing an app
 that uses the restricted Gmail scope requires Google's verification.
 
+## 5. Daily scheduler (Phase 6)
+
+`backend/vercel.json` registers a Vercel Cron job that calls `/api/cron/daily` every day at
+02:30 UTC (08:00 IST). It runs, per user and in each user's timezone:
+- the LinkedIn & Naukri optimisation;
+- the Naukri daily freshness micro-edit;
+- the job board sync;
+- the Gmail sync;
+- the follow-up check;
+- the morning report.
+
+1. Generate a secret: `python -c "import secrets;print(secrets.token_urlsafe(32))"`.
+2. In the **backend** Vercel project (`saige-ai-api`), add `CRON_SECRET=<that value>` and redeploy.
+   Vercel sends it automatically as `Authorization: Bearer <secret>`. Without it, the endpoint
+   answers 503.
+3. Optional, for runs more often than daily (Hobby allows one cron a day): create a job on
+   https://cron-job.org that calls `https://saige-ai-api.vercel.app/api/cron/daily` hourly, with the
+   header `Authorization: Bearer <secret>`. Each job still runs at most once per user per day.
+
 ## Production checklist
 
 - `ENVIRONMENT=production`: turns off the `/api/docs` page and enables HSTS.
