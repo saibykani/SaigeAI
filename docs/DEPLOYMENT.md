@@ -10,7 +10,32 @@ Saige AI has three parts, and each runs on its own service:
 
 The frontend cannot work on Vercel until the backend is deployed somewhere and `BACKEND_URL` points at it.
 
-## 1. Backend on Render
+## 1a. Backend on Vercel (simplest if you already use Vercel)
+
+1. Vercel → **Add New… → Project** → import the same GitHub repo again.
+2. Name it `saige-ai-api` and set **Root Directory** to `backend`. Vercel reads
+   `backend/vercel.json` and `backend/index.py`.
+3. Under **Environment Variables**, add:
+
+   | Key | Value |
+   |---|---|
+   | `MONGODB_URI` | your Atlas connection string (from `.env`) |
+   | `JWT_SECRET` | a new random secret, generated with `python -c "import secrets;print(secrets.token_urlsafe(64))"` |
+   | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | from `.env` |
+   | `FRONTEND_URL`, `CORS_ORIGINS` | `https://saige-ai.vercel.app` |
+   | `GOOGLE_REDIRECT_URI` | `https://saige-ai.vercel.app/api/auth/google/callback` |
+   | `ENVIRONMENT` | `production` |
+   | `COOKIE_SECURE` | `true` |
+   | `MAX_UPLOAD_MB` | `4`, because Vercel limits request bodies to 4.5 MB |
+
+4. Click **Deploy**. When it's live, open `https://saige-ai-api.vercel.app/api/health`. It
+   should return `{"status":"ok","database":true}`.
+5. In the **frontend** project, add `BACKEND_URL=https://saige-ai-api.vercel.app` and
+   **Redeploy**. The `/api` proxy address is fixed when the frontend is built, so the redeploy
+   is required.
+6. Atlas → **Network Access**: allow `0.0.0.0/0`, because Vercel has no fixed IP addresses.
+
+## 1b. Backend on Render (alternative)
 
 1. Go to https://render.com, sign in with GitHub, then click **New → Blueprint** and pick this repo.
    `render.yaml` at the repo root creates the `saige-ai-api` web service.

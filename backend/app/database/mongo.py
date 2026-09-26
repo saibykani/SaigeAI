@@ -31,9 +31,13 @@ def is_connected() -> bool:
 
 
 def get_db() -> AsyncIOMotorDatabase:
+    # Connect lazily: serverless runtimes (e.g. Vercel) may not run the ASGI lifespan hook.
     if _db is None:
-        raise RuntimeError("Database not initialised")
-    return _db
+        from app.config import get_settings
+
+        s = get_settings()
+        connect(s.mongodb_uri, s.mongodb_db)
+    return _db  # type: ignore[return-value]
 
 
 def close() -> None:
