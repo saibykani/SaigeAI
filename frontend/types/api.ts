@@ -381,3 +381,88 @@ export type MatchWeights = Record<
   "skills" | "experience" | "role" | "domain" | "location" | "salary" | "notice_period" | "education" | "work_authorization",
   number
 >;
+
+// ---------------- Phase 7: profile sync
+export type SyncPlatform = "linkedin" | "naukri" | "resume";
+export type ApprovalStatus = "AUTO_APPROVED" | "USER_APPROVAL_REQUIRED" | "USER_APPROVED" | "USER_REJECTED" | "FAILED";
+
+export interface SkillTrend {
+  skill: string;
+  pct: number;
+  jobs: number;
+  candidate_has: boolean;
+}
+
+export interface ProfileChange {
+  id: string;
+  platform: SyncPlatform;
+  field: string;
+  before: string | string[] | number | null;
+  after: string | string[] | number | null;
+  reason: string;
+  source_jobs: string[];
+  ai_confidence: number;
+  approval_status: ApprovalStatus;
+  action: string;
+  validation: { status: string; violations: { type: string; value: string; reason: string }[] };
+  applied_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConsistencyCheck {
+  field: string;
+  master: string | number;
+  values: Record<string, string | number>;
+  consistent: boolean;
+  mismatched: string[];
+}
+
+export interface PlatformSummary {
+  completeness: number;
+  missing_fields: string[];
+  keyword_alignment: number;
+  skills_to_add: string[];
+  pending_changes: number;
+}
+
+export interface SyncOverview {
+  jobs_analyzed: number;
+  trends: SkillTrend[];
+  linkedin: PlatformSummary;
+  naukri: PlatformSummary;
+  resume: { pending_changes: number };
+  consistency: { score: number | null; checks: ConsistencyCheck[]; discrepancies: ConsistencyCheck[] };
+  last_run: string | null;
+}
+
+export interface LinkedInSnapshot {
+  profile_url: string | null;
+  headline: string | null;
+  about: string | null;
+  current_title: string | null;
+  skills: string[];
+  experience: { title: string; company: string; description: string | null }[];
+  education: string[];
+  certifications: string[];
+  featured_links: string[];
+  open_to_work: { enabled: boolean; titles: string[]; locations: string[]; job_types: string[] };
+}
+
+export interface NaukriSnapshot {
+  profile_url: string | null;
+  headline: string | null;
+  summary: string | null;
+  key_skills: string[];
+  current_designation: string | null;
+  current_company: string | null;
+  total_experience_years: number | null;
+  employment: { title: string; company: string; description: string | null }[];
+  education: string[];
+  preferred_roles: string[];
+  preferred_locations: string[];
+  expected_salary: number | null;
+  notice_period_days: number | null;
+  resume_updated_on: string | null;
+  profile_updated_on: string | null;
+}

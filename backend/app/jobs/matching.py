@@ -10,7 +10,7 @@ from difflib import SequenceMatcher
 
 from app.schemas.job import JDAnalysis, MatchBreakdown, MatchResult, MatchWeights
 from app.schemas.profile import Profile
-from app.services.skills_vocab import canonical, category_of, normalize_key
+from app.services.skills_vocab import canonical, implied_umbrellas, normalize_key
 from app.utils import utcnow
 
 CITY_ALIASES = {
@@ -48,22 +48,13 @@ def _skill_key(s: str) -> str:
     return normalize_key(canonical(s))
 
 
-# Umbrella skills implied by having a concrete tool in that category (Rest Assured -> API Testing).
-# Used for matching only; the truth guard never grants skills this way.
-UMBRELLA_SKILLS = {"api_testing": "API Testing", "ci_cd": "CI/CD",
-                   "performance_testing": "Performance Testing", "manual_testing": "Manual Testing"}
-
-
 def candidate_skills(profile: Profile) -> set[str]:
     skills = list(profile.skills.all())
     for exp in profile.knowledge.experience:
         skills += exp.technologies
     for proj in profile.knowledge.projects:
         skills += proj.technologies
-    implied = {UMBRELLA_SKILLS[cat] for s in skills if (cat := category_of(s)) in UMBRELLA_SKILLS}
-    for category, umbrella in UMBRELLA_SKILLS.items():
-        if getattr(profile.skills, category):
-            implied.add(umbrella)
+    implied = implied_umbrellas(skills, [cat for cat, vals in profile.skills.model_dump().items() if vals])
     return {_skill_key(s) for s in skills} | {_skill_key(s) for s in implied}
 
 

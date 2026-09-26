@@ -110,3 +110,15 @@ def test_fake_education_blocked(profile):
 def test_common_words_not_mistaken_for_skills(profile):
     text = "Go-live support; helped teams react quickly to production issues."
     assert validate_claims(GeneratedClaims(text=text), profile).status == "PASSED"
+
+
+def test_umbrella_skill_implied_by_concrete_tool(profile):
+    # Rest Assured / Postman are verified -> "API Testing" is truthful; JMeter -> "Performance Testing"
+    r = validate_claims(GeneratedClaims(text="API Testing and Performance Testing", skills=["API Testing"]), profile)
+    assert r.status == "PASSED"
+
+
+def test_umbrella_not_granted_without_a_concrete_tool():
+    bare = Profile.model_validate({"skills": {"primary": ["Java"]}})
+    r = validate_claims(GeneratedClaims(skills=["API Testing"], text="Strong CI/CD background"), bare)
+    assert {v.value for v in r.violations} == {"API Testing", "CI/CD"}

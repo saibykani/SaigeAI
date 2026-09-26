@@ -79,6 +79,18 @@ def canonical(value: str) -> str:
     return _CANON_BY_KEY.get(key, value.strip())
 
 
+# Umbrella skills implied by having a concrete tool in that category (Rest Assured -> API Testing).
+UMBRELLA_SKILLS = {"api_testing": "API Testing", "ci_cd": "CI/CD",
+                   "performance_testing": "Performance Testing", "manual_testing": "Manual Testing"}
+
+
+def implied_umbrellas(skills: list[str], categories_with_values: list[str] = ()) -> set[str]:
+    """Umbrella skills a candidate truthfully has because they list a concrete tool in that area."""
+    implied = {UMBRELLA_SKILLS[cat] for s in skills if (cat := category_of(s)) in UMBRELLA_SKILLS}
+    implied |= {UMBRELLA_SKILLS[c] for c in categories_with_values if c in UMBRELLA_SKILLS}
+    return implied
+
+
 def category_of(skill: str) -> str:
     return SKILL_CATEGORIES.get(canonical(skill), "secondary")
 

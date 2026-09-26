@@ -69,6 +69,10 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[c.JOB_SOURCES].create_index([("user_id", ASCENDING), ("provider", ASCENDING),
                                           ("board", ASCENDING)], unique=True)
     await db[c.AGENT_RUNS].create_index([("user_id", ASCENDING), ("start_time", DESCENDING)])
+    await db[c.LINKEDIN_PROFILES].create_index("user_id", unique=True)
+    await db[c.NAUKRI_PROFILES].create_index("user_id", unique=True)
+    await db[c.PROFILE_CHANGES].create_index([("user_id", ASCENDING), ("platform", ASCENDING),
+                                              ("approval_status", ASCENDING)])
     await db[c.APPLICATIONS].create_index([("user_id", ASCENDING), ("status", ASCENDING)])
     await db[c.SYSTEM_SETTINGS].create_index("user_id", unique=True)
     logger.info("MongoDB indexes ensured")

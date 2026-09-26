@@ -12,7 +12,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.schemas.profile import Profile
-from app.services.skills_vocab import canonical, find_skills, normalize_key
+from app.services.skills_vocab import canonical, find_skills, implied_umbrellas, normalize_key
 
 ViolationType = Literal[
     "skill", "company", "title", "certification", "project", "education", "experience",
@@ -72,6 +72,9 @@ class FactIndex:
             skills += exp.technologies
         for proj in kb.projects:
             skills += proj.technologies
+        # A concrete verified tool truthfully implies its umbrella (Rest Assured -> API Testing).
+        categories = [cat for cat, vals in profile.skills.model_dump().items() if vals]
+        skills += list(implied_umbrellas(skills, categories))
         self.skills = {normalize_key(canonical(s)) for s in skills}
 
         self.companies = {_company_key(e.company) for e in kb.experience}

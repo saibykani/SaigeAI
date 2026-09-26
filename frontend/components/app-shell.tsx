@@ -32,6 +32,7 @@ const NAV: NavItem[] = [
   { href: "/profile", label: "Master Profile", icon: UserRound, slot: 7 },
   { href: "/resumes", label: "Resumes", icon: FileText, slot: 3 },
   { href: "/jobs", label: "Jobs", icon: Briefcase, slot: 2 },
+  { href: "/profile-sync", label: "Profile Sync", icon: Sparkles, slot: 4 },
   { href: "/settings", label: "Automation & Privacy", icon: Settings, slot: 5 },
 ];
 
@@ -39,7 +40,6 @@ const UPCOMING = [
   { label: "Applications", icon: Send, phase: 4 },
   { label: "Gmail", icon: Mail, phase: 5 },
   { label: "Recruiters", icon: Users, phase: 6 },
-  { label: "Profile Sync", icon: Sparkles, phase: 7 },
   { label: "Analytics", icon: BarChart3, phase: 8 },
 ];
 
@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex flex-1 flex-col gap-7 overflow-y-auto px-3 py-2">
           <ul className="flex flex-col gap-1">
             {NAV.map(({ href, label, icon: Icon, slot }) => {
-              const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
               const color = `var(--series-${slot})`;
               return (
                 <li key={href}>
