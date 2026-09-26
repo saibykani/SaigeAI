@@ -61,10 +61,12 @@ backend/app/
   notifications/, privacy/ (export + account delete), services/ (truth_guard, crypto, audit, notify, rate_limit, agent_runs, skills_vocab)
   scheduler/              # daily jobs (service.run_due_jobs), /api/cron/daily (CRON_SECRET), /api/scheduler/*
   recruiters/             # contacts (manual/CSV/inbox), truth-checked outreach drafts, caps (10/day, 3/company/week), follow-ups, reply/bounce detection
+  extension/router.py     # personal access tokens (/auth/tokens) + PAT-only /ext/* (analyze, save, answers)
 backend/tests/            # pytest + mongomock-motor; conftest disables .env and pops GOOGLE_*/ANTHROPIC_*
 frontend/app/(app)/       # authenticated pages (profiles = LinkedIn & Naukri hub); frontend/app/login, /register = galaxy sign-in
 frontend/components/      # app-shell (nav), kpi, galaxy, loader3d, theme, motion, ui/*
 frontend/services/api.ts  # request() wrapper (auto refresh, CSRF header); types in types/api.ts
+extension/                # Chrome MV3 extension (popup + options); `node scripts/build-extension.mjs` rebuilds icons and frontend/public/saige-extension.zip
 docs/                     # ARCHITECTURE.md, DEPLOYMENT.md, NEXT_PHASES_PROMPT.md
 ```
 

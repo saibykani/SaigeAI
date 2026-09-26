@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Saige AI · Settings</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page">
+  <header><span class="wordmark">Saige <b>AI</b> · extension settings</span></header>
+  <p class="hint">Create a token in Saige → Automation &amp; Privacy → Browser extension. It only lets this extension score and save jobs and read your prepared answers, and you can revoke it any time.</p>
+  <div class="fields">
+    <label>Extension token<input id="token" type="password" placeholder="saige_pat_…" autocomplete="off" /></label>
+    <label>API address<input id="api" placeholder="https://saige-ai-api.vercel.app" /></label>
+    <label>Saige web address<input id="web" placeholder="https://saige-ai.vercel.app" /></label>
+  </div>
+  <div class="row"><button id="saveBtn" class="btn primary">Save &amp; test</button></div>
+  <p class="status" id="status" role="status"></p>
+  <script src="options.js"></script>
+</body>
+</html>

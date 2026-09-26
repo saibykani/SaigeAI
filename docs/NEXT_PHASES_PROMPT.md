@@ -1,7 +1,7 @@
 # Saige AI: prompt for the remaining phases
 
-Paste the block below into Antigravity (or any coding agent), **one phase at a time**. Phases 6–8
-are done, so start with "Phase 9". After each phase, check the app locally, then send "Continue with the next phase".
+Paste the block below into Antigravity (or any coding agent), **one phase at a time**. Phases 6–9
+are done, so start with "Phase 10". After each phase, check the app locally, then send "Continue with the next phase".
 
 ---
 
@@ -153,7 +153,7 @@ Frontend:
 
 ---
 
-## Phase 9: Browser extension (Chrome MV3)
+## Phase 9: Browser extension (Chrome MV3) (DONE; kept for reference)
 
 - `extension/` folder. The popup shows the match score for the current tab's job posting (sends
   the page text to `/api/jobs/import`, with the user's session through the site cookie, or a
@@ -182,7 +182,7 @@ Frontend:
 
 ## Current state (September 2026)
 
-Phases 1–8 are shipped:
+Phases 1–9 are shipped:
 - auth and 30-day sessions;
 - master profile filled from the resume;
 - resumes, parsing, tailoring, ATS checks, cover letters and DOCX export;
@@ -200,9 +200,12 @@ Phases 1–8 are shipped:
   caps of 10 per day and 3 per company per week, follow-ups, reply and bounce detection from Gmail;
 - Analytics (`/analytics`): rates by source, role family, resume version and match score, weekly
   activity, time to first response, outreach reply rate; chart colours are validated
-  (`--chart-1..4`); header notification bell with unread count.
+  (`--chart-1..4`); header notification bell with unread count;
+- Chrome extension (`extension/`, downloadable at `/saige-extension.zip`): score, save and
+  suggested answers through `/api/ext/*`, using revocable personal access tokens
+  (Settings → Browser extension). Rebuild the zip with `node scripts/build-extension.mjs`.
 
-There are 189 backend tests. Set `CRON_SECRET` in the backend Vercel project to enable the daily cron.
+There are 193 backend tests. Set `CRON_SECRET` in the backend Vercel project to enable the daily cron.
 
 **Known manual setup:**
 - Google Cloud → Google Auth Platform → **Audience → Test users**: add every Google account that

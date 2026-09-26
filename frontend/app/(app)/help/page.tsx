@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Users, BookOpen, Briefcase, CalendarDays, FileText, LifeBuoy, Mail, Plug, Search, Send, Settings, ShieldCheck, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { BarChart3, Puzzle, Users, BookOpen, Briefcase, CalendarDays, FileText, LifeBuoy, Mail, Plug, Search, Send, Settings, ShieldCheck, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -44,6 +44,11 @@ const GUIDES: Guide[] = [
     "Paste your current headline, About/summary and skills in the LinkedIn & Naukri hub.",
     "Saige schedules truthful daily optimizations from target JDs, plus a daily 2-minute micro-edit to keep your Naukri profile active.",
     "LinkedIn and Naukri have no public edit API, so Saige never logs in for you or stores those passwords. Suggestions are copy-ready.",
+  ] },
+  { title: "Chrome extension", icon: Puzzle, href: "/settings#extension", tone: "teal", steps: [
+    "Download it from Automation & Privacy → Browser extension, unzip, and use “Load unpacked” in chrome://extensions.",
+    "Create a token there and paste it into the extension’s Settings. Revoke it any time.",
+    "On any job page, click the Saige icon to score it, save it, or copy your prepared answers. It never submits forms.",
   ] },
   { title: "Recruiters & referrals", icon: Users, href: "/recruiters", tone: "orange", steps: [
     "Add people you know, import a CSV (LinkedIn’s connections export works), or pull recruiters who emailed you.",

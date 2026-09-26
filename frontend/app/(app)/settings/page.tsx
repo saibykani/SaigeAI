@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { ExtensionTokensCard } from "@/components/extension-tokens";
 import { MatchingWeightsCard } from "@/components/matching-weights";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -195,6 +196,8 @@ export default function SettingsPage() {
             ))}
           </CardContent>
         </Card>
+
+        <ExtensionTokensCard />
 
         <Card id="notifications">
           <CardHeader>

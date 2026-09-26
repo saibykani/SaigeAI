@@ -98,6 +98,12 @@ export default function IntegrationsPage() {
       body: "These sites don't allow automated access. Use “Save to Saige” below on any posting you're viewing, or paste the description in Jobs.",
     },
     {
+      name: "Chrome extension", icon: AppWindow,
+      status: { label: "Recommended", tone: "success" },
+      body: "Score the job you're viewing, save it in one click, and copy your prepared answers. Reads only the tab you click it on.",
+      action: <Link href="/settings#extension" className={buttonVariants({ size: "sm", variant: "outline" })}>Set up</Link>,
+    },
+    {
       name: "Calendar", icon: CalendarDays,
       status: { label: "Export", tone: "default" },
       body: "Add any interview to Google Calendar, Outlook or Apple Calendar with one click from the Interviews page (.ics).",

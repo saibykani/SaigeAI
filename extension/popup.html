@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Saige AI</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <span class="wordmark">Saige <b>AI</b></span>
+    <a id="settings" href="options.html" target="_blank" title="Settings">Settings</a>
+  </header>
+
+  <section id="setup" hidden>
+    <p>Connect the extension to your Saige account.</p>
+    <ol>
+      <li>Open Saige → <b>Automation &amp; Privacy</b> → <b>Browser extension</b>.</li>
+      <li>Create a token and paste it in Settings.</li>
+    </ol>
+    <a class="btn primary" href="options.html" target="_blank">Open Settings</a>
+  </section>
+
+  <main id="app" hidden>
+    <div class="fields">
+      <label>Job title<input id="title" maxlength="200" /></label>
+      <label>Company<input id="company" maxlength="200" /></label>
+    </div>
+    <p class="hint" id="source"></p>
+
+    <div class="row">
+      <button id="score" class="btn primary">Score this job</button>
+      <button id="save" class="btn">Save to Saige</button>
+    </div>
+
+    <div id="result" hidden>
+      <div class="score">
+        <div class="ring" id="ring"><span id="scoreValue">0</span></div>
+        <div>
+          <p class="cls" id="cls"></p>
+          <p class="hint" id="saved"></p>
+        </div>
+      </div>
+      <p class="label">You have</p>
+      <div class="chips" id="matched"></div>
+      <p class="label">Missing (required)</p>
+      <div class="chips muted" id="missing"></div>
+    </div>
+
+    <details id="answersBox">
+      <summary>Suggested answers for this application</summary>
+      <p class="hint">Copy an answer and paste it into the form yourself. Saige never fills or submits forms.</p>
+      <div id="answers"><p class="hint">Save the job and prepare an application in Saige first.</p></div>
+    </details>
+
+    <p class="status" id="status" role="status"></p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
