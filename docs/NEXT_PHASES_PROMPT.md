@@ -1,7 +1,7 @@
 # Saige AI: prompt for the remaining phases
 
-Paste the block below into Antigravity (or any coding agent), **one phase at a time**. Phase 6 is
-done, so start with "Phase 7". After each phase, check the app locally, then send "Continue with the next phase".
+Paste the block below into Antigravity (or any coding agent), **one phase at a time**. Phases 6 and 7
+are done, so start with "Phase 8". After each phase, check the app locally, then send "Continue with the next phase".
 
 ---
 
@@ -104,7 +104,7 @@ Frontend:
 
 ---
 
-## Phase 7: Recruiters and referral outreach (Uplers-style)
+## Phase 7: Recruiters and referral outreach (DONE; kept for reference)
 
 - Collections exist: `recruiters`, `recruiter_contacts`, `outreach`, `followups`.
 - `backend/app/recruiters/`:
@@ -182,7 +182,7 @@ Frontend:
 
 ## Current state (September 2026)
 
-Phases 1–6 are shipped:
+Phases 1–7 are shipped:
 - auth and 30-day sessions;
 - master profile filled from the resume;
 - resumes, parsing, tailoring, ATS checks, cover letters and DOCX export;
@@ -195,9 +195,11 @@ Phases 1–6 are shipped:
 - galaxy sign-in and a 3D loader;
 - Help & Docs page;
 - LinkedIn & Naukri hub (`/profiles`) with a daily scheduler (`/api/cron/daily`), a Naukri freshness
-  streak, and run history.
+  streak, and run history;
+- Recruiters & referrals (`/recruiters`, plus "Get a referral" on each job): contacts, truth-checked drafts,
+  caps of 10 per day and 3 per company per week, follow-ups, reply and bounce detection from Gmail.
 
-There are 175 backend tests. Set `CRON_SECRET` in the backend Vercel project to enable the daily cron.
+There are 185 backend tests. Set `CRON_SECRET` in the backend Vercel project to enable the daily cron.
 
 **Known manual setup:**
 - Google Cloud → Google Auth Platform → **Audience → Test users**: add every Google account that

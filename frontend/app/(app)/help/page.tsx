@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Briefcase, CalendarDays, FileText, LifeBuoy, Mail, Plug, Search, Send, Settings, ShieldCheck, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { Users, BookOpen, Briefcase, CalendarDays, FileText, LifeBuoy, Mail, Plug, Search, Send, Settings, ShieldCheck, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -44,6 +44,11 @@ const GUIDES: Guide[] = [
     "Paste your current headline, About/summary and skills in the LinkedIn & Naukri hub.",
     "Saige schedules truthful daily optimizations from target JDs, plus a daily 2-minute micro-edit to keep your Naukri profile active.",
     "LinkedIn and Naukri have no public edit API, so Saige never logs in for you or stores those passwords. Suggestions are copy-ready.",
+  ] },
+  { title: "Recruiters & referrals", icon: Users, href: "/recruiters", tone: "orange", steps: [
+    "Add people you know, import a CSV (LinkedIn’s connections export works), or pull recruiters who emailed you.",
+    "On any job, “Get a referral” lists your contacts there and drafts a truth-checked request.",
+    "Approve, send it yourself from Gmail or LinkedIn, then click “I sent it”. Max 10 a day and 3 per company a week; follow-ups stop when they reply.",
   ] },
   { title: "Automation & privacy", icon: Settings, href: "/settings", tone: "lime", steps: [
     "Pick a mode (conservative, balanced or aggressive), set daily limits, and pause any agent, or everything, with one switch.",

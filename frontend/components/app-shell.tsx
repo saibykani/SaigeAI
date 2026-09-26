@@ -49,6 +49,7 @@ const NAV: NavItem[] = [
   { href: "/jobs", label: "Jobs", icon: Briefcase, slot: 2 },
   { href: "/applications", label: "Applications", icon: Send, slot: 6 },
   { href: "/interviews", label: "Interviews", icon: CalendarDays, slot: 8 },
+  { href: "/recruiters", label: "Recruiters", icon: Users, slot: 6 },
   { href: "/inbox", label: "Inbox", icon: Mail, slot: 3 },
   { href: "/profile-sync", label: "Profile Sync", icon: Sparkles, slot: 4 },
   { href: "/integrations", label: "Integrations", icon: Plug, slot: 5 },
@@ -57,7 +58,6 @@ const NAV: NavItem[] = [
 ];
 
 const UPCOMING = [
-  { label: "Recruiters", icon: Users, phase: 7 },
   { label: "Analytics", icon: BarChart3, phase: 8 },
 ];
 

@@ -82,6 +82,11 @@ async def ingest(db: AsyncIOMotorDatabase, user_id: str, msg: dict, *, source: s
                                                   "category": category, "confidence": doc["confidence"],
                                                   "signals": signals, "created_at": utcnow()})
     action = await apply_to_application(db, user_id, doc, app) if app else None
+    from app.recruiters.service import on_inbound_email  # local import avoids a cycle
+
+    outreach = await on_inbound_email(db, user_id, extracted.get("sender_email"), msg["body"])
+    if outreach and not action:
+        action = f"outreach_{outreach}"
     if not app and category in {"Recruiter Outreach", "Interview Invitation", "Offer"}:
         await notify(db, user_id=user_id, kind="recruiter_email", title=f"{category}: {msg['subject'][:80]}", link="/inbox")
     if action:

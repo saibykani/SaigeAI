@@ -60,7 +60,7 @@ backend/app/
   automation/             # AutomationSettings (mode, pauses, schedules, limits), is_allowed
   notifications/, privacy/ (export + account delete), services/ (truth_guard, crypto, audit, notify, rate_limit, agent_runs, skills_vocab)
   scheduler/              # daily jobs (service.run_due_jobs), /api/cron/daily (CRON_SECRET), /api/scheduler/*
-  recruiters/             # EMPTY package reserved for Phase 7
+  recruiters/             # contacts (manual/CSV/inbox), truth-checked outreach drafts, caps (10/day, 3/company/week), follow-ups, reply/bounce detection
 backend/tests/            # pytest + mongomock-motor; conftest disables .env and pops GOOGLE_*/ANTHROPIC_*
 frontend/app/(app)/       # authenticated pages (profiles = LinkedIn & Naukri hub); frontend/app/login, /register = galaxy sign-in
 frontend/components/      # app-shell (nav), kpi, galaxy, loader3d, theme, motion, ui/*

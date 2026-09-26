@@ -641,3 +641,57 @@ export interface Integrations {
   ats_boards: { count: number };
   claude: { enabled: boolean; model: string | null };
 }
+
+// ---------------- Recruiters & outreach
+export type ContactRole = "recruiter" | "hiring_manager" | "referral" | "alumni" | "other";
+export type OutreachKind = "referral" | "cold" | "followup" | "thank_you";
+export type OutreachStatus = "draft" | "approved" | "sent" | "replied" | "bounced" | "no_response" | "unsubscribed" | "cancelled";
+
+export interface RecruiterContact {
+  id: string;
+  name: string;
+  company: string;
+  email: string | null;
+  linkedin_url: string | null;
+  title: string | null;
+  role: ContactRole;
+  tags: string[];
+  notes: string | null;
+  source: "manual" | "csv" | "gmail" | "job";
+  unsubscribed: boolean;
+  last_contacted_at: string | null;
+  created_at: string;
+}
+
+export interface Outreach {
+  id: string;
+  contact_id: string;
+  job_id: string | null;
+  parent_id: string | null;
+  kind: OutreachKind;
+  status: OutreachStatus;
+  subject: string;
+  body: string;
+  company: string | null;
+  contact_name: string | null;
+  channel_hint: "email" | "linkedin";
+  validation: { status: string; violations: { type: string; value: string; reason: string }[] } | null;
+  mailto: string | null;
+  gmail_compose: string | null;
+  linkedin_url: string | null;
+  approved_at: string | null;
+  sent_at: string | null;
+  replied_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OutreachStats {
+  sent_today: number;
+  daily_limit: number;
+  remaining_today: number;
+  by_status: Partial<Record<OutreachStatus, number>>;
+  contacts: number;
+  reply_rate: number | null;
+  followups_due: { followup_id: string; outreach_id: string; contact_id: string; contact_name: string | null; company: string | null; subject: string; sequence: number; due_at: string }[];
+}
