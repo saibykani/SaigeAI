@@ -22,6 +22,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { SaigeMark, Wordmark } from "@/components/brand";
+import { ThemeSwitcher } from "@/components/theme";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/utils/cn";
@@ -47,13 +49,9 @@ const UPCOMING = [
 
 export function Logo({ className, onDark = false }: { className?: string; onDark?: boolean }) {
   return (
-    <span className={cn("flex items-center gap-2.5 text-[17px] font-semibold tracking-tight", className)}>
-      <span className={cn("animate-gradient relative grid size-8 place-items-center overflow-hidden rounded-[10px] text-white shadow-sm", onDark ? "bg-white/20 ring-1 ring-white/40" : "bg-[image:var(--brand-gradient)]")}>
-        <Sparkles className="size-4" aria-hidden />
-      </span>
-      <span>
-        Saige <span className={onDark ? "text-white/80" : "text-gradient animate-gradient"}>AI</span>
-      </span>
+    <span className={cn("flex items-center gap-2.5", className)}>
+      <SaigeMark size={34} />
+      <Wordmark className={onDark ? "text-white" : undefined} />
     </span>
   );
 }
@@ -181,9 +179,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu />
           </Button>
           <p className="text-sm text-muted-foreground">AI Career Command Center</p>
+          <div className="ml-auto" />
+          <ThemeSwitcher />
           <Link
             href="/settings#notifications"
-            className="ml-auto grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Notifications"
           >
             <Bell className="size-[18px]" />
