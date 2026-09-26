@@ -345,8 +345,6 @@ body {
   transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
 }
 .lift:hover {
-  /* 3D tilt toward the pointer (--rx / --ry set by components/effects.tsx) */
-  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
   box-shadow: var(--shadow-lift);
 }
 

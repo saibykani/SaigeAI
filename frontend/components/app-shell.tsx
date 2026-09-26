@@ -27,7 +27,6 @@ import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeSwitcher } from "@/components/theme";
 import { AssistantBubble } from "@/components/assistant";
-import { Effects } from "@/components/effects";
 import { Button } from "@/components/ui/button";
 import { useLiveSync } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
@@ -211,7 +210,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         {pathname !== "/assistant" && <AssistantBubble />}
-        <Effects tone={sectionFor(pathname)?.tone ?? "green"} />
       </div>
     </div>
   );

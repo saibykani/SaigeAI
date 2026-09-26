@@ -135,5 +135,5 @@ Never commit env files.
 - While the app is open, `useLiveSync` (hooks/use-api.ts) calls `POST /api/live/tick` every minute (Gmail + portal
   mail when the last sync is ~1 min old, job feed when >5 min old) and fires `saige:refresh` so `useApi` pages reload.
 - The Saige AI assistant is a sidebar page (/assistant) and a floating orb (components/assistant.tsx) on every page.
-  `components/effects.tsx` adds the click ring/sparks and 3D tilt on `.lift` cards.
+  No click or hover animations inside the app (the user asked for none); `.lift` only deepens the shadow on hover.
 - Company contact email: `info.saigeai@gmail.com` (`CONTACT_EMAIL` in `components/legal.tsx`).
