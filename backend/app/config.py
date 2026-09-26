@@ -8,7 +8,10 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
+    # env_ignore_empty: a blank variable (common when pasting .env files into a hosting
+    # dashboard) falls back to the default instead of failing validation.
+    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore",
+                                      env_ignore_empty=True)
 
     environment: str = "development"
 
