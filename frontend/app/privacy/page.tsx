@@ -46,7 +46,9 @@ export default function PrivacyPage() {
           reads your email unless you ask us to for support, or the law requires it.
         </p>
         <p>
-          OAuth tokens are encrypted at rest (AES-GCM). You can disconnect Gmail at any time from Integrations, which
+          If you connect with a Google App Password instead, Saige uses it only to read job-search mail over Gmail&apos;s
+          IMAP service, never marks mail as read, and stores it encrypted. You can revoke it in your Google account at any
+          time. OAuth tokens are encrypted at rest (AES-GCM). You can disconnect Gmail at any time from Integrations, which
           revokes Saige&apos;s access immediately.
         </p>
       </Section>

@@ -13,12 +13,13 @@ from app.auth.deps import db_dep, get_current_user
 from app.automation.service import is_allowed
 from app.config import get_settings
 from app.database import collections as c
-from app.email import gmail
+from app.email import gmail, imap
 from app.email import service as svc
 from app.services import crypto
 from app.services.agent_runs import agent_run
 from app.services.audit import log_action
 from app.services.notify import notify
+from app.services.rate_limit import RateLimiter
 from app.utils import new_id, utcnow
 
 router = APIRouter(tags=["email"])
@@ -79,6 +80,38 @@ async def complete_gmail_link(db: AsyncIOMotorDatabase, code: str, state: str, c
     return resp
 
 
+class AppPasswordIn(BaseModel):
+    email: str = Field(min_length=5, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    app_password: str = Field(min_length=16, max_length=40)
+
+
+connect_limiter = RateLimiter(max_calls=5, window_seconds=300)
+
+
+@router.post("/auth/connect/gmail-app-password")
+async def connect_gmail_app_password(body: AppPasswordIn, user: dict = Depends(get_current_user),
+                                     db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Connect Gmail with a Google App Password (no Google Cloud verification needed)."""
+    if not connect_limiter.hit(f"gmail_app:{user['_id']}"):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many attempts. Wait a few minutes and try again.")
+    address = body.email.strip().lower()
+    try:
+        await imap.verify(address, body.app_password)
+    except gmail.GmailError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    now = utcnow()
+    await db[c.INTEGRATIONS].update_one(
+        {"user_id": user["_id"], "provider": "gmail"},
+        {"$set": {"email": address, "method": "app_password", "scopes": ["imap.readonly"],
+                  "app_password_enc": crypto.encrypt(imap.normalize_password(body.app_password)),
+                  "refresh_token_enc": None, "status": "connected", "error": None, "connected_at": now, "updated_at": now},
+         "$setOnInsert": {"_id": new_id(), "user_id": user["_id"], "last_sync_at": None}},
+        upsert=True)
+    await log_action(db, user_id=user["_id"], action="integration.connected", entity="integration",
+                     details={"provider": "gmail", "method": "app_password", "email": address})
+    return {"connected": True, "email": address}
+
+
 @router.delete("/auth/connect/gmail", status_code=204)
 async def disconnect_gmail(delete_emails: bool = False, user: dict = Depends(get_current_user),
                            db: AsyncIOMotorDatabase = Depends(db_dep)):
@@ -129,9 +162,12 @@ async def sync_emails(user: dict = Depends(get_current_user), db: AsyncIOMotorDa
 async def run_sync(db: AsyncIOMotorDatabase, uid: str, integ: dict) -> dict:
     async with agent_run(db, "gmail_agent", uid, {"provider": "gmail"}) as run:
         try:
-            token = await gmail.access_token(crypto.decrypt(integ["refresh_token_enc"]))
             known = {e["gmail_id"] async for e in db[c.EMAILS].find({"user_id": uid, "gmail_id": {"$ne": None}}, {"gmail_id": 1})}
-            messages = await gmail.fetch_messages(token, skip=known)
+            if integ.get("method") == "app_password":
+                messages = await imap.fetch_messages(integ["email"], crypto.decrypt(integ["app_password_enc"]), skip=known)
+            else:
+                token = await gmail.access_token(crypto.decrypt(integ["refresh_token_enc"]))
+                messages = await gmail.fetch_messages(token, skip=known)
         except gmail.GmailError as exc:
             run.errors.append(str(exc))
             await db[c.INTEGRATIONS].update_one({"_id": integ["_id"]}, {"$set": {"status": "error", "error": str(exc)}})
@@ -171,6 +207,7 @@ async def integrations(user: dict = Depends(get_current_user), db: AsyncIOMotorD
     return {
         "google": {"connected": bool(user.get("google_sub")), "available": s.google_oauth_enabled},
         "gmail": {"connected": bool(g), "available": s.google_oauth_enabled, "email": g.get("email") if g else None,
+                  "method": (g.get("method") or "oauth") if g else None,
                   "status": g.get("status") if g else "not_connected", "error": g.get("error") if g else None,
                   "last_sync_at": g["last_sync_at"].isoformat() if g and g.get("last_sync_at") else None},
         "linkedin": {"snapshot": bool(li), "mode": "copy-ready updates"},

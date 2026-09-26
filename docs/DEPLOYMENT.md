@@ -93,6 +93,13 @@ redirect URI. Two one-time steps in Google Cloud Console:
 While the app is in Testing mode, only listed test users can connect Gmail. Publishing an app
 that uses the restricted Gmail scope requires Google's verification.
 
+### Gmail without Google verification: App Password
+
+Integrations → Connect Gmail → **Option 1** connects over Gmail IMAP with a Google App Password
+(myaccount.google.com/apppasswords, requires 2-Step Verification). It needs no Google Cloud setup or
+review. The password is encrypted at rest, mail is read with `BODY.PEEK` (never marked read), and
+the user can revoke it in their Google account at any time.
+
 ## 5. Daily scheduler (Phase 6)
 
 `backend/vercel.json` registers a Vercel Cron job that calls `/api/cron/daily` every day at

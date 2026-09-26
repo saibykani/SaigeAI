@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { GmailConnectCard } from "@/components/gmail-app-password";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,7 +68,7 @@ export default function IntegrationsPage() {
         : "Detect confirmations, interviews, assessments, rejections and offers; update applications automatically. Read-only.",
       action: data.gmail.connected
         ? <div className="flex gap-2"><Link href="/inbox" className={buttonVariants({ size: "sm" })}>Open inbox</Link><Button size="sm" variant="ghost" onClick={disconnectGmail}><Unplug /> Disconnect</Button></div>
-        : <Button size="sm" disabled={!data.gmail.available} onClick={connectGmail}><Link2 /> Connect</Button>,
+        : <a href="#gmail-connect" className={buttonVariants({ size: "sm" })}><Link2 /> Connect</a>,
     },
     {
       name: "Google sign-in", icon: Globe,
@@ -118,8 +119,17 @@ export default function IntegrationsPage() {
 
   return (
     <>
-      <PageHeader title="Integrations" description="Everything Saige connects to — through official APIs, OAuth or your own clicks. Never passwords, never scraping." />
+      <PageHeader title="Integrations" description="Everything Saige connects to — through official APIs, OAuth, revocable app passwords or your own clicks. Never your account passwords, never scraping." />
       {msg && <div className="mb-4"><Notice tone={msg.tone}>{msg.text}</Notice></div>}
+      {!data.gmail.connected && (
+        <div id="gmail-connect">
+          <GmailConnectCard
+            oauthAvailable={data.gmail.available}
+            onOAuth={connectGmail}
+            onConnected={async () => { setMsg({ tone: "success", text: "Gmail connected. Open Inbox and click Sync to import your job-search mail." }); await reload(); }}
+          />
+        </div>
+      )}
 
       <Card className="animate-rise mb-6 overflow-hidden">
         <CardHeader>

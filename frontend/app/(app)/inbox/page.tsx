@@ -88,13 +88,10 @@ export default function InboxPage() {
               ) : (
                 <>
                   <p className="text-muted-foreground">Connect Gmail to detect confirmations, interviews, assessments, rejections and offers automatically.</p>
-                  <Button disabled={busy || !g?.available} onClick={() => run(async () => {
-                    const r = await request<{ url: string }>("/auth/connect/gmail", { method: "POST" });
-                    window.location.href = r.url;
-                  })}>
+                  <Link href="/integrations#gmail-connect" className={buttonVariants()}>
                     <Link2 /> Connect Gmail
-                  </Button>
-                  {!g?.available && <p className="text-xs text-muted-foreground">Google OAuth isn&apos;t configured on the server.</p>}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">Connect with a Google App Password (works right away) or with Google sign-in.</p>
                 </>
               )}
             </CardContent>

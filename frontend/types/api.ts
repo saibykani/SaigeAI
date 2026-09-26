@@ -636,7 +636,7 @@ export interface InboxEmail {
 
 export interface Integrations {
   google: { connected: boolean; available: boolean };
-  gmail: { connected: boolean; available: boolean; email: string | null; status: string; error: string | null; last_sync_at: string | null };
+  gmail: { connected: boolean; available: boolean; email: string | null; method: "oauth" | "app_password" | null; status: string; error: string | null; last_sync_at: string | null };
   linkedin: { snapshot: boolean; mode: string };
   naukri: { snapshot: boolean; mode: string };
   ats_boards: { count: number };
