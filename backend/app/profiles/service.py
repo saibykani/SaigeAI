@@ -17,7 +17,7 @@ COMPLETENESS_FIELDS: list[tuple[str, str]] = [
     ("personal.total_experience_years", "Total Experience"),
     ("personal.notice_period_days", "Notice Period"),
     ("personal.expected_ctc", "Expected CTC"),
-    ("skills.primary", "Primary Skills"),
+    ("skills", "Skills"),
     ("knowledge.professional_summary", "Professional Summary"),
     ("knowledge.experience", "Experience"),
     ("knowledge.education", "Education"),
@@ -33,8 +33,14 @@ def _get(data: dict, path: str) -> Any:
     return cur
 
 
+def _is_empty(value: Any) -> bool:
+    if isinstance(value, dict):  # e.g. skills: empty when every category is empty
+        return all(_is_empty(v) for v in value.values())
+    return value in (None, "", [])
+
+
 def completeness(data: dict) -> tuple[int, list[str]]:
-    unknown = [label for path, label in COMPLETENESS_FIELDS if _get(data, path) in (None, "", [])]
+    unknown = [label for path, label in COMPLETENESS_FIELDS if _is_empty(_get(data, path))]
     score = round(100 * (len(COMPLETENESS_FIELDS) - len(unknown)) / len(COMPLETENESS_FIELDS))
     return score, unknown
 
@@ -73,13 +79,25 @@ def _diff(before: dict, after: dict, prefix: str = "") -> list[dict]:
     return changes
 
 
+def _deep_merge(base: dict, patch: dict) -> dict:
+    """Merge nested dicts; lists and scalars (including explicit nulls) replace."""
+    out = dict(base)
+    for key, value in patch.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = _deep_merge(out[key], value)
+        else:
+            out[key] = value
+    return out
+
+
 async def update_profile(
     db: AsyncIOMotorDatabase, user_id: str, update: ProfileUpdate, *, source: str = "user"
 ) -> dict:
     existing = await get_profile_doc(db, user_id)
     before = to_profile(existing).model_dump(mode="json")
-    patch = update.model_dump(mode="json", exclude_unset=True, exclude_none=True)
-    after = {**before, **patch}
+    # Only fields the caller actually sent are applied; an explicit null clears a field.
+    patch = update.model_dump(mode="json", exclude_unset=True)
+    after = _deep_merge(before, {k: v for k, v in patch.items() if v is not None})
     # Validate the merged result as a whole.
     after = Profile.model_validate(after).model_dump(mode="json")
     changes = _diff(before, after)

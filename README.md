@@ -84,6 +84,9 @@ npm install
 npm run dev                       # http://localhost:3000 (proxies /api/* to BACKEND_URL)
 ```
 
+If port 3000 is already taken (for example by Grafana), run `npm run dev -- -p 3100`. Then set
+`FRONTEND_URL`, `CORS_ORIGINS` and `GOOGLE_REDIRECT_URI` in `.env` to the new port.
+
 ### Or with Docker
 
 ```bash

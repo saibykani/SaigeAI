@@ -138,3 +138,28 @@ async def test_import_fills_empty_fields_but_never_overwrites(client, auth):
     assert not any(a.startswith("knowledge.experience") for a in again["applied"])
     profile2 = (await client.get("/api/profile", headers=auth)).json()
     assert len(profile2["knowledge"]["experience"]) == 2
+
+
+async def test_windows_ansi_text_resume_is_accepted(client, auth):
+    r = await upload(client, auth, content=SAMPLE_RESUME.encode("cp1252"))
+    assert r.status_code == 201, r.text
+    exp = r.json()["current_version"]["parsed"]["experience"]
+    assert exp[1]["end_date"] == "Dec 2021"  # en-dash range decoded correctly
+
+
+async def test_binary_disguised_as_text_rejected(client, auth):
+    r = await upload(client, auth, content=b"\x00\x01\x02binary", filename="x.txt")
+    assert r.status_code == 415
+
+
+async def test_import_into_brand_new_profile_persists_everything(client, auth):
+    rid = (await upload(client, auth)).json()["id"]
+    result = (await client.post(f"/api/resumes/{rid}/import-to-profile", headers=auth)).json()
+    profile = (await client.get("/api/profile", headers=auth)).json()
+    kb = profile["knowledge"]
+    assert len(kb["experience"]) == 2
+    assert len(kb["education"]) == 1
+    assert kb["certifications"][0]["name"] == "ISTQB Certified Tester Foundation Level"
+    assert "Java" in profile["skills"]["programming_languages"]
+    assert "Skills" not in profile["unknown_fields"]
+    assert result["completeness"] == profile["completeness"]

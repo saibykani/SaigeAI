@@ -66,3 +66,18 @@ async def test_validate_claims_endpoint(client, auth):
     assert r.status_code == 200
     assert r.json()["status"] == "VALIDATION FAILED"
     assert [v["value"] for v in r.json()["violations"]] == ["Kubernetes"]
+
+
+async def test_partial_field_update_keeps_sibling_fields(client, auth):
+    await client.put("/api/profile", headers=auth,
+                     json={"personal": {"name": "Asha Rao", "phone": "+91 90000 00000"}})
+    r = await client.put("/api/profile", headers=auth, json={"personal": {"phone": "+91 91111 11111"}})
+    assert r.json()["personal"]["name"] == "Asha Rao"
+    assert r.json()["personal"]["phone"] == "+91 91111 11111"
+
+
+async def test_explicit_null_clears_a_field(client, auth):
+    await client.put("/api/profile", headers=auth, json={"personal": {"name": "Asha", "phone": "123"}})
+    r = await client.put("/api/profile", headers=auth, json={"personal": {"phone": None}})
+    assert r.json()["personal"]["phone"] is None
+    assert r.json()["personal"]["name"] == "Asha"

@@ -28,12 +28,17 @@ def detect_type(filename: str, content_type: str | None, data: bytes) -> str:
         raise UnsupportedFile("File is not a valid PDF")
     if ext == "docx" and not data.startswith(b"PK"):
         raise UnsupportedFile("File is not a valid DOCX")
-    if ext == "txt":
-        try:
-            data.decode("utf-8")
-        except UnicodeDecodeError as exc:
-            raise UnsupportedFile("Text resume must be UTF-8") from exc
+    if ext == "txt" and b"\x00" in data[:4096]:
+        raise UnsupportedFile("File is not a plain-text resume")
     return ext
+
+
+def _decode_text(data: bytes) -> str:
+    # UTF-8 first; fall back to Windows-1252, the default "ANSI" encoding of Notepad on Windows.
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return data.decode("cp1252", errors="replace")
 
 
 def extract_text(kind: str, data: bytes) -> str:
@@ -48,6 +53,6 @@ def extract_text(kind: str, data: bytes) -> str:
                 for row in table.rows:
                     parts.append(" | ".join(cell.text for cell in row.cells))
             return "\n".join(parts)
-        return data.decode("utf-8")
+        return _decode_text(data)
     except (PdfReadError, KeyError, ValueError) as exc:
         raise UnsupportedFile("Could not read the file; it may be corrupted") from exc

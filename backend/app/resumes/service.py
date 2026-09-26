@@ -213,8 +213,11 @@ async def import_to_profile(db: AsyncIOMotorDatabase, user_id: str, parsed: Pars
                                        technologies=p.technologies))
             applied.append(f"knowledge.projects: {p.name}")
 
-    out = await profiles.update_profile(
-        db, user_id, ProfileUpdate(personal=personal, skills=skills, knowledge=kb),
-        source="resume_import",
-    )
+    # Build from full dumps: in-place list appends aren't tracked as "set" fields by Pydantic.
+    update = ProfileUpdate.model_validate({
+        "personal": personal.model_dump(mode="json"),
+        "skills": skills.model_dump(mode="json"),
+        "knowledge": kb.model_dump(mode="json"),
+    })
+    out = await profiles.update_profile(db, user_id, update, source="resume_import")
     return {"applied": applied, "skipped": skipped, "completeness": out["completeness"]}
