@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { JobDiscover } from "@/components/job-discover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -241,6 +242,7 @@ export default function JobsPage() {
           </Button>
         }
       />
+      <JobDiscover onSaved={reload} />
       <div className="mb-6 grid gap-6 xl:grid-cols-2">
         <ImportCard onImported={reload} />
         <SourcesCard onSynced={reload} />

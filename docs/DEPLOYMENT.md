@@ -100,6 +100,17 @@ Integrations → Connect Gmail → **Option 1** connects over Gmail IMAP with a 
 review. The password is encrypted at rest, mail is read with `BODY.PEEK` (never marked read), and
 the user can revoke it in their Google account at any time.
 
+### Job discovery (Adzuna, optional)
+
+Jobs → **Discover jobs for your role** searches Remotive and Arbeitnow out of the box. For India-wide
+results, create a free app at https://developer.adzuna.com and set these in the backend Vercel project:
+`ADZUNA_APP_ID`, `ADZUNA_APP_KEY`, and optionally `ADZUNA_COUNTRY` (default `in`).
+
+### WhatsApp alerts
+
+These are set up entirely in the app (Integrations → WhatsApp notifications) using the user's own
+CallMeBot key. No server configuration is needed.
+
 ## 5. Daily scheduler (Phase 6)
 
 `backend/vercel.json` registers a Vercel Cron job that calls `/api/cron/daily` every day at

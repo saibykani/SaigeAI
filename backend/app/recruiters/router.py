@@ -15,11 +15,13 @@ router = APIRouter(tags=["recruiters"])
 # ------------------------------------------------------------------ contacts
 
 @router.get("/recruiters")
-async def list_contacts(q: str | None = Query(None, max_length=100), company: str | None = None,
+async def list_contacts(q: str | None = Query(None, max_length=100), company: str | None = None, source: str | None = None,
                         user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     query: dict = {"user_id": user["_id"]}
     if company:
         query["company_key"] = svc.company_key(company)
+    if source:
+        query["source"] = source
     docs = await db[c.RECRUITER_CONTACTS].find(query).sort("updated_at", DESCENDING).to_list(1000)
     if q:
         needle = q.lower()
@@ -59,6 +61,12 @@ async def import_csv(body: CsvImport, user: dict = Depends(get_current_user), db
 @router.post("/recruiters/import-inbox")
 async def import_inbox(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     return await svc.import_from_inbox(db, user["_id"])
+
+
+@router.post("/recruiters/sync")
+async def sync_contacts(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Recruiters from your inbox plus contacts published in your saved job postings."""
+    return await svc.sync_contacts(db, user["_id"])
 
 
 @router.get("/recruiters/companies")
@@ -124,6 +132,13 @@ async def edit(outreach_id: str, body: OutreachEdit, user: dict = Depends(get_cu
 @router.post("/outreach/{outreach_id}/approve")
 async def approve(outreach_id: str, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     return await svc.approve(db, user["_id"], outreach_id)
+
+
+@router.post("/outreach/{outreach_id}/send")
+async def send(outreach_id: str, approve: bool = False, user: dict = Depends(get_current_user),
+               db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Send from the user's Gmail. With approve=true a draft is approved and sent in one click."""
+    return await svc.send_now(db, user["_id"], outreach_id, approve_first=approve)
 
 
 @router.post("/outreach/{outreach_id}/mark-sent")

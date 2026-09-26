@@ -208,6 +208,34 @@ async def import_from_inbox(db: AsyncIOMotorDatabase, user_id: str) -> dict:
     return result
 
 
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+NON_PERSONAL = re.compile(r"^(no-?reply|donotreply|notifications?|privacy|support|help|info|legal|security|abuse)@", re.I)
+
+
+async def import_from_jobs(db: AsyncIOMotorDatabase, user_id: str) -> dict:
+    """Contacts that job postings publish for applicants (e.g. "send your CV to hr@acme.com")."""
+    result = {"created": 0, "duplicates": 0}
+    async for j in db[c.JOBS].find({"user_id": user_id, "description": {"$regex": "@"}}, {"company": 1, "description": 1}):
+        for addr in dict.fromkeys(EMAIL_RE.findall(j.get("description") or "")):
+            addr = addr.lower().rstrip(".")
+            if NON_PERSONAL.match(addr) or addr.endswith((".png", ".jpg")):
+                continue
+            local = addr.split("@")[0]
+            generic = bool(re.match(r"^(hr|careers?|jobs?|recruit(ing|ment)?|talent|hiring|resumes?|cv)(?![a-z])", local))
+            name = f"{j['company']} {'Hiring team' if generic else local.replace('.', ' ').title()}"[:120]
+            _, created = await create_contact(db, user_id, ContactIn(name=name, company=j["company"], email=addr,
+                                                                     source="job", role="recruiter"))
+            result["created" if created else "duplicates"] += 1
+    return result
+
+
+async def sync_contacts(db: AsyncIOMotorDatabase, user_id: str) -> dict:
+    inbox = await import_from_inbox(db, user_id)
+    jobs = await import_from_jobs(db, user_id)
+    return {"created": inbox["created"] + jobs["created"], "from_inbox": inbox["created"], "from_jobs": jobs["created"],
+            "duplicates": inbox["duplicates"] + jobs["duplicates"]}
+
+
 # ------------------------------------------------------------------ drafts
 
 def _first_name(name: str) -> str:
@@ -335,6 +363,7 @@ def outreach_out(d: dict, contact: dict | None = None) -> dict:
         "linkedin_url": (contact or {}).get("linkedin_url"),
         "approved_at": d["approved_at"].isoformat() if d.get("approved_at") else None,
         "sent_at": d["sent_at"].isoformat() if d.get("sent_at") else None,
+        "sent_via": d.get("sent_via"),
         "replied_at": d["replied_at"].isoformat() if d.get("replied_at") else None,
         "created_at": d["created_at"].isoformat(), "updated_at": d["updated_at"].isoformat(),
     }
@@ -424,8 +453,8 @@ async def sent_today(db: AsyncIOMotorDatabase, user_id: str, now: datetime | Non
     return await db[c.OUTREACH].count_documents({"user_id": user_id, "sent_at": {"$gte": start}})
 
 
-async def mark_sent(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str) -> dict:
-    doc = await get_outreach(db, user_id, outreach_id)
+async def _preflight(db: AsyncIOMotorDatabase, user_id: str, doc: dict, now) -> dict:
+    """Every rule a message must pass before it is sent (by Saige or by the user). Returns the contact."""
     if doc["status"] != "approved":
         raise HTTPException(status.HTTP_409_CONFLICT, "Approve the message before sending it")
     if not await is_allowed(db, user_id, "recruiter_outreach"):
@@ -433,7 +462,6 @@ async def mark_sent(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str) ->
     contact = await get_contact(db, user_id, doc["contact_id"])
     if contact.get("unsubscribed"):
         raise HTTPException(status.HTTP_409_CONFLICT, "This contact asked not to be contacted")
-    now = utcnow()
     limit = await daily_limit(db, user_id)
     if await sent_today(db, user_id, now) >= limit:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
@@ -443,7 +471,14 @@ async def mark_sent(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str) ->
     ) >= PER_COMPANY_WEEKLY_CAP:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
                             f"You've already contacted {PER_COMPANY_WEEKLY_CAP} people at {doc['company']} this week.")
-    await db[c.OUTREACH].update_one({"_id": outreach_id}, {"$set": {"status": "sent", "sent_at": now, "updated_at": now}})
+    return contact
+
+
+async def _record_sent(db: AsyncIOMotorDatabase, user_id: str, doc: dict, contact: dict, now, *,
+                       via: str, message_id: str | None = None) -> None:
+    outreach_id = doc["_id"]
+    await db[c.OUTREACH].update_one({"_id": outreach_id}, {"$set": {
+        "status": "sent", "sent_at": now, "sent_via": via, "message_id": message_id, "updated_at": now}})
     await db[c.RECRUITER_CONTACTS].update_one({"_id": contact["_id"]}, {"$set": {"last_contacted_at": now}})
     if doc["kind"] in FOLLOWUP_KINDS:
         for i, days in enumerate(FOLLOWUP_DAYS, start=1):
@@ -456,7 +491,48 @@ async def mark_sent(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str) ->
             {"user_id": user_id, "job_id": doc["job_id"], "status": {"$in": ["APPLIED", "SHORTLISTED", "READY_TO_APPLY"]}},
             {"$set": {"recruiter_id": contact["_id"], "last_contact_at": now}})
     await log_action(db, user_id=user_id, action="outreach.sent", entity="outreach", entity_id=outreach_id,
-                     details={"company": doc["company"], "kind": doc["kind"]})
+                     details={"company": doc["company"], "kind": doc["kind"], "via": via})
+
+
+async def mark_sent(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str) -> dict:
+    """The user sent the message themselves (Gmail, mail app or LinkedIn)."""
+    doc = await get_outreach(db, user_id, outreach_id)
+    now = utcnow()
+    contact = await _preflight(db, user_id, doc, now)
+    await _record_sent(db, user_id, doc, contact, now, via="manual")
+    return await out_with_contact(db, user_id, outreach_id)
+
+
+async def send_now(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str, *, approve_first: bool = False) -> dict:
+    """Send an approved message from the user's Gmail (App Password connection) and record it."""
+    from app.email import smtp
+    from app.email.gmail import GmailError
+    from app.services import crypto
+
+    doc = await get_outreach(db, user_id, outreach_id)
+    if approve_first and doc["status"] == "draft":
+        await approve(db, user_id, outreach_id)
+        doc = await get_outreach(db, user_id, outreach_id)
+    if doc["kind"] == "linkedin_note":
+        raise HTTPException(status.HTTP_409_CONFLICT, "LinkedIn notes can't be emailed. Copy it into LinkedIn, then mark it sent.")
+    now = utcnow()
+    contact = await _preflight(db, user_id, doc, now)
+    if not contact.get("email"):
+        raise HTTPException(status.HTTP_409_CONFLICT, "This contact has no email address. Add one, or send on LinkedIn.")
+    integ = await db[c.INTEGRATIONS].find_one({"user_id": user_id, "provider": "gmail", "method": "app_password"})
+    if not integ:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Connect Gmail with an App Password (Integrations) so Saige can "
+                                                      "send for you, or open it in Gmail and send it yourself.")
+    user = await db[c.USERS].find_one({"_id": user_id}, {"name": 1})
+    try:
+        message_id = await smtp.send(integ["email"], crypto.decrypt(integ["app_password_enc"]), (user or {}).get("name") or "",
+                                     contact["email"], doc["subject"], doc["body"])
+    except GmailError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+    await _record_sent(db, user_id, doc, contact, now, via="gmail", message_id=message_id)
+    await notify(db, user_id=user_id, kind="outreach_sent", title=f"Email sent to {contact['name']}",
+                 body=f"{doc['subject']} · {contact['company']}. Follow-ups are scheduled and stop if they reply.",
+                 link="/recruiters")
     return await out_with_contact(db, user_id, outreach_id)
 
 
@@ -533,7 +609,13 @@ async def stats(db: AsyncIOMotorDatabase, user_id: str) -> dict:
             due.append({"followup_id": f["_id"], "outreach_id": o["_id"], "contact_id": o["contact_id"],
                         "contact_name": o.get("contact_name"), "company": o.get("company"), "subject": o["subject"],
                         "sequence": f["sequence"], "due_at": as_utc(f["due_at"]).isoformat()})
+    can_send = bool(await db[c.INTEGRATIONS].find_one({"user_id": user_id, "provider": "gmail", "method": "app_password"}))
+    by_source: dict[str, int] = {}
+    async for row in db[c.RECRUITER_CONTACTS].aggregate([{"$match": {"user_id": user_id}},
+                                                         {"$group": {"_id": "$source", "n": {"$sum": 1}}}]):
+        by_source[row["_id"] or "manual"] = row["n"]
     return {
+        "can_send_from_saige": can_send, "contacts_by_source": by_source,
         "sent_today": today, "daily_limit": limit, "remaining_today": max(0, limit - today),
         "by_status": by_status, "contacts": await db[c.RECRUITER_CONTACTS].count_documents({"user_id": user_id}),
         "reply_rate": round(100 * by_status.get("replied", 0) / delivered) if delivered else None,
@@ -543,3 +625,4 @@ async def stats(db: AsyncIOMotorDatabase, user_id: str) -> dict:
 
 async def complete_followup(db: AsyncIOMotorDatabase, user_id: str, followup_id: str) -> None:
     await db[c.FOLLOWUPS].update_one({"_id": followup_id, "user_id": user_id}, {"$set": {"status": "done"}})
+

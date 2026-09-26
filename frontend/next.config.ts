@@ -5,6 +5,7 @@ const backend =
   process.env.BACKEND_URL || (process.env.VERCEL ? "https://saige-ai-api.vercel.app" : "http://localhost:8000");
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   output: "standalone",
   // Lets a verification build run without clobbering a running dev server's .next folder.
   distDir: process.env.NEXT_DIST_DIR || ".next",

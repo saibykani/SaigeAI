@@ -48,13 +48,14 @@ function errText(e: unknown): string {
 }
 
 /** One message through its life: edit → approve → send yourself → mark sent → outcome. */
-export function OutreachCard({ item, onChange, delay = 0 }: { item: Outreach; onChange: () => void; delay?: number }) {
+export function OutreachCard({ item, onChange, delay = 0, canSend = false }: { item: Outreach; onChange: () => void; delay?: number; canSend?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [subject, setSubject] = useState(item.subject);
   const [body, setBody] = useState(item.body);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const verified = item.validation?.status === "PASSED";
+  const emailable = canSend && item.channel_hint === "email" && item.kind !== "linkedin_note";
 
   async function act(path: string, method: "POST" | "PUT" = "POST", payload?: unknown) {
     setErr(null);
@@ -82,7 +83,7 @@ export function OutreachCard({ item, onChange, delay = 0 }: { item: Outreach; on
           {verified && <Badge variant="success" title="Checked against your verified profile"><ShieldCheck className="size-3" /> Verified</Badge>}
           <span className="ml-auto text-xs text-muted-foreground">
             {item.contact_name} · {item.company}
-            {item.sent_at ? ` · sent ${formatDateTime(item.sent_at)}` : ""}
+            {item.sent_at ? ` · sent ${formatDateTime(item.sent_at)}${item.sent_via === "gmail" ? " by Saige" : ""}` : ""}
           </span>
         </div>
         {!editing && <CardTitle className="text-base">{item.subject}</CardTitle>}
@@ -111,12 +112,14 @@ export function OutreachCard({ item, onChange, delay = 0 }: { item: Outreach; on
             <>
               {item.status === "draft" && (
                 <>
-                  <Button size="sm" onClick={() => act("/approve")} disabled={!verified}><Check /> Approve</Button>
+                  {emailable && <Button size="sm" onClick={() => act("/send?approve=true")} disabled={!verified}><Send /> Approve &amp; send</Button>}
+                  <Button size="sm" variant={emailable ? "outline" : "default"} onClick={() => act("/approve")} disabled={!verified}><Check /> Approve</Button>
                   <Button size="sm" variant="ghost" onClick={() => setEditing(true)}><Pencil /> Edit</Button>
                 </>
               )}
               {item.status === "approved" && (
                 <>
+                  {emailable && <Button size="sm" onClick={() => act("/send")}><Send /> Send from Gmail</Button>}
                   {item.gmail_compose && (
                     <a href={item.gmail_compose} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-medium text-primary-foreground">
                       <Mail className="size-3.5" /> Open in Gmail

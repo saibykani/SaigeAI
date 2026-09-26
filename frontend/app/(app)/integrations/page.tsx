@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
 import { GmailConnectCard } from "@/components/gmail-app-password";
+import { WhatsAppCard } from "@/components/whatsapp-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,7 +123,7 @@ export default function IntegrationsPage() {
       <PageHeader title="Integrations" description="Everything Saige connects to — through official APIs, OAuth, revocable app passwords or your own clicks. Never your account passwords, never scraping." />
       {msg && <div className="mb-4"><Notice tone={msg.tone}>{msg.text}</Notice></div>}
       {!data.gmail.connected && (
-        <div id="gmail-connect">
+        <div id="gmail-connect" className="scroll-mt-24">
           <GmailConnectCard
             oauthAvailable={data.gmail.available}
             onOAuth={connectGmail}
@@ -130,6 +131,8 @@ export default function IntegrationsPage() {
           />
         </div>
       )}
+
+      <WhatsAppCard info={data.whatsapp} onChange={reload} />
 
       <Card className="animate-rise mb-6 overflow-hidden">
         <CardHeader>

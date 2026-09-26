@@ -24,6 +24,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Wordmark } from "@/components/brand";
+import { useT } from "@/components/i18n";
 import { Loader3D } from "@/components/loader3d";
 import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
@@ -44,7 +45,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone };
 
 const NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green" },
-  { href: "/profile", label: "Master Profile", icon: UserRound, tone: "mint" },
+  { href: "/profile", label: "Profile", icon: UserRound, tone: "mint" },
   { href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "teal" },
   { href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
   { href: "/jobs", label: "Jobs", icon: Briefcase, tone: "orange" },
@@ -72,6 +73,7 @@ export function Logo({ className, onDark = false }: { className?: string; onDark
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const { t } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -135,7 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     >
                       <Icon className="size-4" aria-hidden />
                     </span>
-                    {label}
+                    {t(label)}
                   </Link>
                 </li>
               );
@@ -165,7 +167,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
             <Menu />
           </Button>
-          <p className="hidden text-sm text-muted-foreground sm:block">Saige AI · your AI job search partner</p>
+          <p className="hidden text-sm text-muted-foreground sm:block">{t("Saige AI · your AI job search partner")}</p>
           <div className="ml-auto" />
           <ThemeSwitcher />
           <NotificationBell />

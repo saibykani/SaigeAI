@@ -95,6 +95,7 @@ export default function RecruitersPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [csv, setCsv] = useState("");
   const [q, setQ] = useState("");
+  const [source, setSource] = useState<string>("all");
   const [draftFor, setDraftFor] = useState<{ contact: RecruiterContact; kind: OutreachKind; context: string } | null>(null);
 
   const reload = () => { void contacts.reload(); void outreach.reload(); void stats.reload(); };
@@ -113,8 +114,9 @@ export default function RecruitersPage() {
   const sent = useMemo(() => (outreach.data ?? []).filter((o) => !["draft", "approved", "cancelled"].includes(o.status)), [outreach.data]);
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return (contacts.data ?? []).filter((c) => !needle || `${c.name} ${c.company} ${c.title ?? ""} ${c.email ?? ""}`.toLowerCase().includes(needle));
-  }, [contacts.data, q]);
+    return (contacts.data ?? []).filter((c) => (source === "all" || c.source === source)
+      && (!needle || `${c.name} ${c.company} ${c.title ?? ""} ${c.email ?? ""}`.toLowerCase().includes(needle)));
+  }, [contacts.data, q, source]);
 
   const s = stats.data;
   const TABS: { id: Tab; label: string; count?: number }[] = [
@@ -133,9 +135,9 @@ export default function RecruitersPage() {
           <>
             <Button onClick={() => { setTab("contacts"); setShowAdd(true); }}><UserPlus /> Add contact</Button>
             <Button variant="outline" onClick={() => run(async () => {
-              const r = await request<{ created: number; duplicates: number }>("/recruiters/import-inbox", { method: "POST" });
-              setMsg({ tone: "success", text: `Imported ${r.created} recruiter(s) from your inbox (${r.duplicates} already saved).` });
-            })}><Inbox /> From inbox</Button>
+              const r = await request<{ created: number; from_inbox: number; from_jobs: number; duplicates: number }>("/recruiters/sync", { method: "POST" });
+              setMsg({ tone: "success", text: `Synced: ${r.from_inbox} new from your inbox, ${r.from_jobs} from job postings (${r.duplicates} already saved).` });
+            })}><Inbox /> Sync recruiters</Button>
           </>
         }
       />
@@ -148,6 +150,10 @@ export default function RecruitersPage() {
           <CountKpi label="Contacts" value={s.contacts} hint={`${(contacts.data ?? []).filter((c) => c.role === "referral" || c.role === "alumni").length} referral · alumni`} icon={Users} tone="purple" delay={80} />
           <CountKpi label="Follow-ups due" value={s.followups_due.length} hint="Day 3 · 7 · 14 after sending" icon={MailCheck} tone="orange" delay={120} />
         </div>
+      )}
+
+      {s && !s.can_send_from_saige && (
+        <Notice>Want Saige to send approved emails for you? <a className="font-medium underline" href="/integrations#gmail-connect">Connect Gmail with an App Password</a>. Until then, open each message in Gmail and send it yourself.</Notice>
       )}
 
       {s && s.followups_due.length > 0 && (
@@ -188,7 +194,7 @@ export default function RecruitersPage() {
               <Send className="size-7 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">No messages waiting. Draft one from a contact, or use “Get a referral” on any job.</p>
             </Card>
-          ) : queue.map((o, i) => <OutreachCard key={o.id + o.updated_at} item={o} onChange={reload} delay={i * 40} />)}
+          ) : queue.map((o, i) => <OutreachCard key={o.id + o.updated_at} item={o} onChange={reload} delay={i * 40} canSend={!!s?.can_send_from_saige} />)}
         </div>
       )}
 
@@ -222,6 +228,16 @@ export default function RecruitersPage() {
       {tab === "contacts" && (
         <div className="grid gap-6 xl:grid-cols-3">
           <div className="flex flex-col gap-4 xl:col-span-2">
+            <div className="flex flex-wrap gap-1.5">
+              {[["all", "All", "green"], ["gmail", "From inbox", "red"], ["job", "From job postings", "orange"], ["manual", "Added by you", "purple"], ["csv", "CSV / LinkedIn export", "teal"]].map(([id, label, tone]) => {
+                const n = id === "all" ? (contacts.data?.length ?? 0) : (contacts.data ?? []).filter((c) => c.source === id).length;
+                return (
+                  <button key={id} onClick={() => setSource(id)} className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors", source === id ? "text-[#0b0b0c]" : "text-muted-foreground hover:text-foreground")} style={source === id ? { background: `var(--tone-${tone})`, borderColor: "transparent" } : undefined}>
+                    {label} <span className="opacity-70">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
             <Input placeholder="Search name, company, title, email…" value={q} onChange={(e) => setQ(e.target.value)} className="h-11 rounded-full" />
             {draftFor && (
               <Card className="animate-rise">

@@ -149,7 +149,7 @@ export default function ProfilePage() {
   return (
     <>
       <PageHeader
-        title="Master Profile"
+        title="Profile"
         description="Your verified source of truth. Saige will never generate anything that isn't backed by this profile."
         actions={
           <Button onClick={save} disabled={saving}>

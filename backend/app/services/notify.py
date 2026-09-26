@@ -17,4 +17,7 @@ async def notify(
         "link": link, "details": (details or [])[:10], "read": False, "created_at": utcnow(),
     }
     await db[c.NOTIFICATIONS].insert_one(doc)
+    from app.services.whatsapp import mirror  # local import keeps this helper dependency-light
+
+    await mirror(db, user_id, title, body, doc["details"], link)
     return doc["_id"]

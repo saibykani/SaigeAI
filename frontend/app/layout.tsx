@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Google_Sans, Google_Sans_Code } from "next/font/google";
 
 import { DEFAULT_THEME, themeBootScript } from "@/components/theme-config";
+import { LanguageProvider } from "@/components/i18n";
 import { AuthProvider } from "@/hooks/use-auth";
 
 import "./globals.css";
@@ -22,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body className="app-backdrop font-sans antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <LanguageProvider><AuthProvider>{children}</AuthProvider></LanguageProvider>
       </body>
     </html>
   );

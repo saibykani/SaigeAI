@@ -53,6 +53,21 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
+      <Section title="WhatsApp alerts (optional)">
+        <p>
+          If you turn on WhatsApp alerts, the text of each Saige notification (for example “Email sent to Priya · PayCo”)
+          is sent to your own WhatsApp number through CallMeBot, a third-party relay. Your CallMeBot key is stored
+          encrypted. Turn alerts off or remove them in Integrations at any time.
+        </p>
+      </Section>
+
+      <Section title="Sending email on your behalf">
+        <p>
+          If you connect Gmail with an App Password, Saige can send a recruiter email from your address, but only one you
+          approved, and never more than 10 a day. Every sent email is listed in Recruiters.
+        </p>
+      </Section>
+
       <Section title="AI processing">
         <p>
           Some features can use Anthropic&apos;s Claude API to improve wording. When enabled, the relevant text (for example a

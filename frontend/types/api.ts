@@ -637,6 +637,7 @@ export interface InboxEmail {
 export interface Integrations {
   google: { connected: boolean; available: boolean };
   gmail: { connected: boolean; available: boolean; email: string | null; method: "oauth" | "app_password" | null; status: string; error: string | null; last_sync_at: string | null };
+  whatsapp: { connected: boolean; enabled: boolean; phone: string | null; error: string | null };
   linkedin: { snapshot: boolean; mode: string };
   naukri: { snapshot: boolean; mode: string };
   ats_boards: { count: number };
@@ -682,12 +683,15 @@ export interface Outreach {
   linkedin_url: string | null;
   approved_at: string | null;
   sent_at: string | null;
+  sent_via?: "gmail" | "manual" | null;
   replied_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface OutreachStats {
+  can_send_from_saige: boolean;
+  contacts_by_source: Record<string, number>;
   sent_today: number;
   daily_limit: number;
   remaining_today: number;
@@ -728,4 +732,31 @@ export interface OutreachTemplate {
   description: string;
   subject: string;
   body: string;
+}
+
+export interface DiscoverResult {
+  source: string;
+  source_job_id: string | null;
+  title: string;
+  company: string;
+  location: string | null;
+  remote: boolean | null;
+  url: string | null;
+  posted: string | null;
+  description: string;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  score: number;
+  classification: string;
+  matched_skills: string[];
+  missing_skills: string[];
+  saved_job_id: string | null;
+}
+
+export interface DiscoverResponse {
+  query: string;
+  location: string | null;
+  providers: string[];
+  errors: Record<string, string>;
+  results: DiscoverResult[];
 }

@@ -2,6 +2,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel, Field
 from pymongo import DESCENDING
 
 from app.auth.deps import db_dep, get_current_user
@@ -133,6 +134,88 @@ async def run_board_sync(db: AsyncIOMotorDatabase, uid: str, src: dict, trigger:
     await db[c.JOB_SOURCES].update_one({"_id": source_id}, {"$set": {
         "last_synced_at": utcnow().isoformat(), "last_result": result}})
     return result
+
+
+# ------------------------------------------------------------ discover (search official job APIs, then choose)
+
+class DiscoverIn(BaseModel):
+    query: str | None = Field(default=None, max_length=120)
+    location: str | None = Field(default=None, max_length=120)
+
+
+class DiscoverItem(BaseModel):
+    source: str = Field(max_length=40)
+    source_job_id: str | None = Field(default=None, max_length=200)
+    title: str = Field(min_length=2, max_length=200)
+    company: str = Field(default="", max_length=200)
+    location: str | None = Field(default=None, max_length=200)
+    remote: bool | None = None
+    url: str | None = Field(default=None, max_length=2000)
+    description: str = Field(default="", max_length=60000)
+    salary_min: float | None = None
+    salary_max: float | None = None
+
+
+class DiscoverSaveIn(BaseModel):
+    items: list[DiscoverItem] = Field(min_length=1, max_length=60)
+    prepare_applications: bool = False
+
+
+@router.post("/discover", dependencies=[Depends(sync_limiter.dependency("job_discover"))])
+async def discover_jobs(body: DiscoverIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    from app.jobs import discover
+
+    uid = user["_id"]
+    if not await is_allowed(db, uid, "job_discovery"):
+        raise HTTPException(status.HTTP_423_LOCKED, "Job discovery is paused. Resume it in Automation settings.")
+    profile = await get_profile(db, uid)
+    query = (body.query or "").strip() or ", ".join(profile.preferences.target_roles[:1]) or profile.personal.current_designation
+    if not query:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Add a target role in your profile, or type what to search for.")
+    location = (body.location or "").strip() or (profile.preferences.preferred_locations[0] if profile.preferences.preferred_locations else None)
+    result = await discover.search(query, location, profile, await service.get_weights(db, uid))
+    # Mark results already in your jobs list.
+    urls = [r["url"] for r in result["results"] if r.get("url")]
+    known = {}
+    if urls:
+        from app.jobs.dedupe import canonical_url
+        keys = {canonical_url(u): u for u in urls}
+        async for j in db[c.JOBS].find({"user_id": uid, "sources.url_key": {"$in": list(keys)}}, {"sources": 1}):
+            for s_ in j.get("sources", []):
+                if s_.get("url_key") in keys:
+                    known[keys[s_["url_key"]]] = j["_id"]
+    for r in result["results"]:
+        r["saved_job_id"] = known.get(r.get("url"))
+    return result
+
+
+@router.post("/discover/save", status_code=201)
+async def discover_save(body: DiscoverSaveIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Save the jobs the user picked; optionally prepare an application (resume + answers) for each."""
+    from app.applications import service as apps
+    from app.jobs import discover
+
+    uid = user["_id"]
+    profile = await get_profile(db, uid)
+    weights = await service.get_weights(db, uid)
+    saved, prepared, skipped = [], 0, 0
+    for item in body.items:
+        try:
+            job_in = discover.to_job_in(item.model_dump())
+        except ValueError:
+            skipped += 1
+            continue
+        job, _ = await service.ingest(db, uid, job_in, profile=profile, weights=weights)
+        saved.append(job["_id"])
+        if body.prepare_applications:
+            try:
+                await apps.create(db, uid, job["_id"], None, None)
+                prepared += 1
+            except HTTPException:  # already has an application
+                pass
+    await log_action(db, user_id=uid, action="jobs.discover_saved", entity="job",
+                     details={"saved": len(saved), "prepared": prepared})
+    return {"saved": len(saved), "job_ids": saved, "applications_prepared": prepared, "skipped": skipped}
 
 
 # ------------------------------------------------------------ matching config

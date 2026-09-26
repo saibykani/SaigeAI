@@ -38,6 +38,11 @@ class Settings(BaseSettings):
 
     max_upload_mb: int = 5
 
+    # Optional Adzuna job-search API (free key at developer.adzuna.com) for job discovery.
+    adzuna_app_id: str | None = None
+    adzuna_app_key: str | None = None
+    adzuna_country: str = "in"
+
     # Shared secret for /api/cron/daily (Vercel Cron sends it as a Bearer token).
     cron_secret: str | None = None
 

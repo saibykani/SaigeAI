@@ -4,6 +4,7 @@ import { Bell, CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useT } from "@/components/i18n";
 import { request } from "@/services/api";
 import type { AppNotification } from "@/types/api";
 import { cn } from "@/utils/cn";
@@ -19,6 +20,7 @@ function ago(iso: string): string {
 /** Header bell: unread badge (polled every minute), dropdown with the latest notifications. */
 export function NotificationBell() {
   const router = useRouter();
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<AppNotification[] | null>(null);
@@ -81,14 +83,14 @@ export function NotificationBell() {
       {open && (
         <div className="animate-pop absolute right-0 top-12 z-50 bg-card-solid w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border shadow-[var(--shadow-lift)]">
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <p className="text-sm font-semibold">Notifications</p>
+            <p className="text-sm font-semibold">{t("Notifications")}</p>
             <button onClick={readAll} disabled={!unread} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40">
-              <CheckCheck className="size-3.5" /> Mark all read
+              <CheckCheck className="size-3.5" /> {t("Mark all read")}
             </button>
           </div>
           <ul className="max-h-[26rem] overflow-y-auto">
             {items === null && <li className="p-4"><div className="skeleton h-10 rounded-xl" /></li>}
-            {items?.length === 0 && <li className="p-6 text-center text-sm text-muted-foreground">You&apos;re all caught up.</li>}
+            {items?.length === 0 && <li className="p-6 text-center text-sm text-muted-foreground">{t("You're all caught up.")}</li>}
             {items?.map((n) => (
               <li key={n.id}>
                 <button onClick={() => openItem(n)} className={cn("flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60", !n.read && "bg-accent/40")}>

@@ -53,11 +53,12 @@ backend/app/
   auth/                   # register/login/refresh/logout, Google OAuth (+ Gmail link branch in callback)
   profiles/               # master profile (service._deep_merge), optimizer, LinkedIn/Naukri sync
   resumes/                # parser, import-to-profile, tailor/ATS/cover letter, DOCX export
-  jobs/                   # jd_parser, 9-dimension matching, dedupe, ATS board sources
+  jobs/                   # jd_parser, 9-dimension matching, dedupe, ATS board sources, discover.py (Adzuna/Remotive/Arbeitnow search)
   applications/           # applications, answers (confidence), interviews + .ics
-  email/                  # Gmail OAuth, classifier/extractor, ingest -> application status
+  email/                  # Gmail OAuth or App Password (imap.py read, smtp.py send approved outreach), classifier, ingest -> status
   analytics/              # /analytics/dashboard aggregate + service.breakdowns (source/role/resume/match, weekly, time-to-response)
   automation/             # AutomationSettings (mode, pauses, schedules, limits), is_allowed
+  services/whatsapp.py    # mirrors every notify() to the user's WhatsApp via CallMeBot (best effort)
   notifications/, privacy/ (export + account delete), services/ (truth_guard, crypto, audit, notify, rate_limit, agent_runs, skills_vocab)
   scheduler/              # daily jobs (service.run_due_jobs), /api/cron/daily (CRON_SECRET), /api/scheduler/*
   recruiters/             # contacts (manual/CSV/inbox), truth-checked outreach drafts, caps (10/day, 3/company/week), follow-ups, reply/bounce detection
@@ -114,6 +115,9 @@ Never commit env files.
   slowly, reacts to hover and click, and shows the "Saige AI" wordmark only, with no logo mark.
 - Charts use the validated series tokens `--chart-1..4` (orange, violet, green, amber; no blue or pink).
   Keep one axis, neutral label text, a legend, and a table-view toggle.
+- The Help & Docs manual lives in `frontend/app/(app)/help/manual.ts`, with screenshots in `frontend/public/help/*.jpg`.
+  Update both when a screen changes.
+- App shell strings are translatable via `components/i18n.tsx` (en, hi, te); wrap new nav and menu labels in `t()`.
 - The 3D loader is `components/loader3d.tsx`. Use it for full-page and route loading.
 - Every page uses `PageHeader` and `Notice` from `components/app-shell.tsx`. Update the `NAV` and
   `UPCOMING` arrays there when a phase lands.

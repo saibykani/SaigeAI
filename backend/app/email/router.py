@@ -182,6 +182,10 @@ async def run_sync(db: AsyncIOMotorDatabase, uid: str, integ: dict) -> dict:
                 run.action(f"{doc['category']} -> {doc['action']}")
         run.output = {"fetched": len(messages), "by_category": counts, "status_updates": actions}
     await db[c.INTEGRATIONS].update_one({"_id": integ["_id"]}, {"$set": {"last_sync_at": utcnow(), "status": "connected", "error": None}})
+    # Recruiters who wrote to you become contacts automatically (duplicates are skipped).
+    from app.recruiters.service import import_from_inbox
+
+    run.output["recruiters_added"] = (await import_from_inbox(db, uid))["created"]
     if actions:
         await notify(db, user_id=uid, kind="gmail_sync", title=f"Gmail: {actions} application update(s) detected", link="/inbox")
     return run.output
@@ -191,6 +195,52 @@ async def run_sync(db: AsyncIOMotorDatabase, uid: str, integ: dict) -> dict:
 async def delete_emails(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     await db[c.EMAILS].delete_many({"user_id": user["_id"]})
     await db[c.EMAIL_CLASSIFICATIONS].delete_many({"user_id": user["_id"]})
+    return Response(status_code=204)
+
+
+# ------------------------------------------------------------------ WhatsApp notifications
+
+class WhatsAppIn(BaseModel):
+    phone: str = Field(min_length=8, max_length=20, pattern=r"^\+?[\d\s()-]{8,20}$")
+    apikey: str = Field(min_length=4, max_length=40)
+    enabled: bool = True
+
+
+@router.put("/integrations/whatsapp")
+async def save_whatsapp(body: WhatsAppIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    from app.services import whatsapp
+
+    phone = whatsapp.normalize_phone(body.phone)
+    try:
+        await whatsapp.send(phone, body.apikey.strip(), whatsapp.format_message(
+            "WhatsApp connected", "You'll get a message here for applications, emails, replies and scheduler updates."))
+    except Exception as exc:  # noqa: BLE001 - surface CallMeBot's answer to the user
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            f"CallMeBot didn't accept this phone and API key ({str(exc)[:120]}). "
+                            "Check the number includes the country code and the key from CallMeBot's reply.") from exc
+    now = utcnow()
+    await db[c.INTEGRATIONS].update_one(
+        {"user_id": user["_id"], "provider": "whatsapp"},
+        {"$set": {"phone": phone, "apikey_enc": crypto.encrypt(body.apikey.strip()), "enabled": body.enabled,
+                  "error": None, "updated_at": now},
+         "$setOnInsert": {"_id": new_id(), "user_id": user["_id"], "connected_at": now}},
+        upsert=True)
+    await log_action(db, user_id=user["_id"], action="integration.connected", entity="integration",
+                     details={"provider": "whatsapp"})
+    return {"connected": True, "phone": phone, "enabled": body.enabled}
+
+
+@router.post("/integrations/whatsapp/toggle")
+async def toggle_whatsapp(enabled: bool, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    res = await db[c.INTEGRATIONS].update_one({"user_id": user["_id"], "provider": "whatsapp"}, {"$set": {"enabled": enabled}})
+    if not res.matched_count:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "WhatsApp isn't set up yet")
+    return {"enabled": enabled}
+
+
+@router.delete("/integrations/whatsapp", status_code=204)
+async def remove_whatsapp(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    await db[c.INTEGRATIONS].delete_one({"user_id": user["_id"], "provider": "whatsapp"})
     return Response(status_code=204)
 
 
@@ -204,12 +254,15 @@ async def integrations(user: dict = Depends(get_current_user), db: AsyncIOMotorD
     boards = await db[c.JOB_SOURCES].count_documents({"user_id": uid})
     li = await db[c.LINKEDIN_PROFILES].find_one({"user_id": uid})
     nk = await db[c.NAUKRI_PROFILES].find_one({"user_id": uid})
+    wa = await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "whatsapp"})
     return {
         "google": {"connected": bool(user.get("google_sub")), "available": s.google_oauth_enabled},
         "gmail": {"connected": bool(g), "available": s.google_oauth_enabled, "email": g.get("email") if g else None,
                   "method": (g.get("method") or "oauth") if g else None,
                   "status": g.get("status") if g else "not_connected", "error": g.get("error") if g else None,
                   "last_sync_at": g["last_sync_at"].isoformat() if g and g.get("last_sync_at") else None},
+        "whatsapp": {"connected": bool(wa), "enabled": bool(wa and wa.get("enabled")),
+                     "phone": (wa["phone"][:-4] + "••••" if wa else None), "error": wa.get("error") if wa else None},
         "linkedin": {"snapshot": bool(li), "mode": "copy-ready updates"},
         "naukri": {"snapshot": bool(nk), "mode": "copy-ready updates"},
         "ats_boards": {"count": boards},

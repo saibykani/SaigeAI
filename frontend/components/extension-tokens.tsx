@@ -39,7 +39,7 @@ export function ExtensionTokensCard() {
   }
 
   return (
-    <Card id="extension" className="lg:col-span-2" style={{ borderColor: "color-mix(in srgb, var(--tone-teal) 28%, transparent)" }}>
+    <Card id="extension" className="scroll-mt-24 lg:col-span-2" style={{ borderColor: "color-mix(in srgb, var(--tone-teal) 28%, transparent)" }}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Puzzle className="size-4" style={{ color: "var(--tone-teal)" }} /> Browser extension</CardTitle>
         <CardDescription>
