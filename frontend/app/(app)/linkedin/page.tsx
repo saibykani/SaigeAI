@@ -29,26 +29,29 @@ const STATUS: Record<Post["status"], { label: string; tone: string }> = {
 };
 
 function Media({ post }: { post: Post }) {
-  const [url, setUrl] = useState<string | null>(null);
+  const [media, setMedia] = useState<{ url: string; kind: "image" | "pdf" } | null>(null);
   useEffect(() => {
-    if (post.format !== "image") return;
+    if (post.format === "text") return;
     let u: string | null = null;
-    void request<Response>(`/linkedin/posts/${post.id}/media`, { raw: true }).then(async (r) => { u = URL.createObjectURL(await r.blob()); setUrl(u); });
+    void request<Response>(`/linkedin/posts/${post.id}/media`, { raw: true }).then(async (r) => {
+      const blob = await r.blob();
+      u = URL.createObjectURL(blob);
+      setMedia({ url: u, kind: blob.type.startsWith("image/") ? "image" : "pdf" });
+    });
     return () => { if (u) URL.revokeObjectURL(u); };
   }, [post.id, post.format]);
-  if (post.format === "image") return url ? <img src={url} alt={post.title} className="w-full rounded-2xl border" /> : <div className="skeleton aspect-square rounded-2xl" />;
-  if (post.format === "carousel") {
-    return (
-      <button type="button" className="grid aspect-[4/5] w-full place-items-center rounded-2xl border bg-muted/40 text-sm" onClick={async () => {
-        const r = await request<Response>(`/linkedin/posts/${post.id}/media`, { raw: true });
-        const u = URL.createObjectURL(await r.blob());
-        window.open(u, "_blank");
-      }}>
-        <span className="flex flex-col items-center gap-2"><Download className="size-6" /> Carousel PDF · open</span>
-      </button>
-    );
-  }
-  return null;
+  if (post.format === "text") return null;
+  if (!media) return <div className="skeleton aspect-[4/5] rounded-2xl" />;
+  // eslint-disable-next-line @next/next/no-img-element -- generated post image
+  if (media.kind === "image") return <img src={media.url} alt={post.title} className="w-full rounded-2xl border" />;
+  return (
+    <div className="flex flex-col gap-2">
+      <iframe src={`${media.url}#toolbar=0&view=FitH`} title={post.title} className="aspect-[4/5] w-full rounded-2xl border bg-black" />
+      <a href={media.url} download={`saige-${post.date}.pdf`} className="inline-flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+        <Download className="size-3.5" /> {post.format === "carousel" ? "Carousel" : "Slide"} PDF
+      </a>
+    </div>
+  );
 }
 
 function PostCard({ post, onChange }: { post: Post; onChange: () => void }) {

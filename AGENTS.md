@@ -108,6 +108,10 @@ Never commit env files.
 
 ## Git and deploy rules
 
+- `backend/index.py` must keep a plain top-level `from app.main import app`: Vercel's Python builder looks for it
+  (wrapping it in try/except fails every build). Don't add Pillow or other native imaging wheels: they broke the
+  Vercel function at start-up. Post media use the dependency-free `linkedin_posts/pdf.py`.
+
 - Commit author **must** be `saibykani07@gmail.com`, because Vercel Hobby blocks other authors.
 - Run `pytest` and the frontend lint and type-check, then push to `main`. Vercel deploys both projects
   automatically.
