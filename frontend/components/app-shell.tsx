@@ -26,7 +26,6 @@ import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
 import { AssistantBubble, Orb } from "@/components/assistant";
 import { Celebrate } from "@/components/celebrate";
-import { LiveTicker } from "@/components/live-ticker";
 import { Button } from "@/components/ui/button";
 import { useLiveSync } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
@@ -200,7 +199,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
             <Menu />
           </Button>
-          <LiveTicker />
           <div className="ml-auto" />
           <Link href="/assistant" className="saige-cta group flex items-center gap-2 rounded-full border py-1 pl-1 pr-3.5 text-sm font-medium transition-colors hover:bg-muted"
             style={{ borderColor: "color-mix(in srgb, #ffc98a 40%, transparent)" }}>

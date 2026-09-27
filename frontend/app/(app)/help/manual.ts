@@ -63,6 +63,7 @@ export const MANUAL: ManualSection[] = [
       "Use “Refresh now” or “Freshness now” to run immediately.",
       "Each run ends with a notification (and a WhatsApp message, if on) listing every field it changed: old value → new value.",
     ],
+    tips: ["Runs prepare edits; they don't change LinkedIn or Naukri by themselves (no app is allowed to). Run History shows “N edit(s) waiting for you” until you paste each one on the site and click “Mark as updated”."],
   },
   {
     id: "resumes", title: "Resumes", href: "/resumes", tone: "purple", image: "/help/resumes.jpg",

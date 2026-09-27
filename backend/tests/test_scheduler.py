@@ -146,13 +146,16 @@ async def test_completion_notifications_list_field_changes(client, auth, db):
     changes = res["profile_refresh"]["result"]["changes"]
     assert changes and {"platform", "field", "before", "after"} <= set(changes[0])
     n = await db[c.NOTIFICATIONS].find_one({"user_id": uid, "kind": "profile_optimization"})
-    assert "refresh done" in n["title"] and n["details"] and n["details"][0]["field"]
+    assert "ready to paste" in n["title"] and "Not changed on the site yet" in n["body"] and n["details"][0]["field"]
     fresh = await db[c.NOTIFICATIONS].find_one({"user_id": uid, "kind": "naukri_freshness"})
     assert fresh is None or fresh["details"][0]["platform"] == "Naukri"
     # Nothing new on a re-run: still a completion notice.
     await sched.run_for_user(db, uid, AFTER, only="profile_refresh", trigger="manual")
     latest = await db[c.NOTIFICATIONS].find({"user_id": uid, "kind": "profile_optimization"}).sort("created_at", -1).to_list(1)
-    assert "refresh done" in latest[0]["title"]
+    assert "ready to paste" in latest[0]["title"] or "refresh done" in latest[0]["title"]
+    hist = (await client.get("/api/scheduler/history", headers=auth)).json()
+    run = next(h for h in hist if h["job"] == "profile_refresh" and h["result"].get("changes"))
+    assert run["waiting"] >= 1 and all(ch["state"] in ("waiting", "applied", "skipped") for ch in run["result"]["changes"])
     # Marking a change applied notifies with the new value.
     ch = (await client.get("/api/profile-changes", headers=auth, params={"platform": "linkedin"})).json()[0]
     await client.post(f"/api/profile-changes/{ch['id']}/applied", headers=auth)

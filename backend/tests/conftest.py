@@ -23,6 +23,26 @@ from app.services.rate_limit import auth_limiter, upload_limiter, write_limiter 
 CSRF = {"X-Requested-With": "saige"}
 
 
+class _Offline:
+    """Tests never reach real job sites: every outbound job-API call fails fast unless a test patches it."""
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    async def get(self, *a, **k):
+        raise httpx.ConnectError("offline in tests")
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch):
+    from app.jobs import discover
+
+    monkeypatch.setattr(discover, "http_client", lambda: _Offline())
+
+
 @pytest.fixture
 async def db():
     database = AsyncMongoMockClient(tz_aware=True)["saige_test"]

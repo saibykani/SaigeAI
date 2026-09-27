@@ -69,7 +69,23 @@ def change_detail(d: dict) -> dict:
     """A notification row: which field on which platform, and its value before and after."""
     return {"platform": PLATFORM_NAME.get(d["platform"], d["platform"]),
             "field": FIELD_NAME.get(d["field"], d["field"]),
-            "before": _short(d.get("before")) or "(empty)", "after": _short(d.get("after"))}
+            "before": _short(d.get("before")) or "(empty)", "after": _short(d.get("after")),
+            "platform_key": d["platform"], "field_key": d["field"]}
+
+
+async def change_states(db, user_id: str, changes: list[dict]) -> list[dict]:
+    """Whether each suggested edit has actually been applied on the site yet (the user marks it)."""
+    rev_p = {v: k for k, v in PLATFORM_NAME.items()}
+    rev_f = {v: k for k, v in FIELD_NAME.items()}
+    out = []
+    for ch in changes:
+        pk = ch.get("platform_key") or rev_p.get(ch.get("platform", ""), ch.get("platform"))
+        fk = ch.get("field_key") or rev_f.get(ch.get("field", ""), ch.get("field"))
+        doc = await db[c.PROFILE_CHANGES].find_one({"user_id": user_id, "platform": pk, "field": fk}, sort=[("updated_at", -1)])
+        st = (doc or {}).get("approval_status")
+        state = "applied" if st == "USER_APPROVED" else "skipped" if st == "USER_REJECTED" else "waiting"
+        out.append({**ch, "state": state})
+    return out
 
 def validate_change(platform: str, field: str, after: Any, profile: Profile) -> dict:
     """Truth-guard every proposed value. Text is scanned for unverified skills, metrics and

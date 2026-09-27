@@ -44,8 +44,10 @@ function describeResult(r: Record<string, unknown>): string {
   if (r.error) return `Error: ${String(r.error)}`;
   if (r.summary) return String(r.summary);
   const parts: string[] = [];
-  const changes = Array.isArray(r.changes) ? (r.changes as { platform: string; field: string }[]) : [];
-  if (changes.length) parts.push(`Changed: ${changes.map((c) => `${c.platform} ${c.field}`).join(", ")}`);
+  const changes = Array.isArray(r.changes) ? (r.changes as { platform: string; field: string; state?: string }[]) : [];
+  if (changes.length) {
+    parts.push(`Prepared: ${changes.map((c) => `${c.platform} ${c.field}${c.state === "applied" ? " ✓ updated on site" : c.state === "skipped" ? " (skipped)" : ""}`).join(", ")}`);
+  }
   if (typeof r.changes_created === "number") parts.push(`${r.changes_created} suggestion(s)`);
   if (typeof r.jobs_analyzed === "number") parts.push(`${r.jobs_analyzed} JD(s) analysed`);
   if (typeof r.created === "number") parts.push(r.created ? `micro-edit ready (${FIELD_LABEL[String(r.field)] ?? r.field})` : String(r.note ?? "nothing new today"));
@@ -638,7 +640,9 @@ function ProfilesHub() {
                 <Card key={j.job} className="lift p-4">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium">{j.label}</p>
-                    {j.last_run && <Badge variant={j.last_run.status === "succeeded" ? "success" : j.last_run.status === "failed" ? "destructive" : "muted"}>{j.last_run.status}</Badge>}
+                    {j.last_run && <Badge variant={j.last_run.status === "succeeded" ? "success" : j.last_run.status === "failed" ? "destructive" : "muted"}>
+                      {j.last_run.status === "succeeded" ? (j.job === "profile_refresh" || j.job === "naukri_freshness" ? "edits prepared" : "ran") : j.last_run.status}
+                    </Badge>}
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">Next: {j.next_run ? formatDateTime(j.next_run) : "not scheduled"}</p>
                   <p className="text-xs text-muted-foreground">Last: {j.last_run?.started_at ? formatDateTime(j.last_run.started_at) : "never"}</p>
@@ -655,7 +659,10 @@ function ProfilesHub() {
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <History className="size-4" /> Run History
                   </CardTitle>
-                  <CardDescription>Recent scheduler runs and results.</CardDescription>
+                  <CardDescription>
+                    Naukri and LinkedIn don&apos;t let any app edit your profile, so each run <b>prepares</b> the edits. They change on the site only when you
+                    paste them there and click “Mark as updated”; this list shows exactly which ones are done.
+                  </CardDescription>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => void history.reload()}>
                   <RefreshCw className="size-3.5" />
@@ -670,13 +677,22 @@ function ProfilesHub() {
               ) : (
                 <div className="divide-y text-sm">
                   {history.data.map((h) => {
-                    const statusTone = h.status === "succeeded" ? "success" : h.status === "skipped" ? "muted" : "destructive";
+                    const isProfile = h.job === "profile_refresh" || h.job === "naukri_freshness";
+                    const waiting = h.waiting ?? 0, applied = h.applied ?? 0;
+                    const label = h.status !== "succeeded" ? h.status
+                      : isProfile && waiting > 0 ? `${waiting} edit(s) waiting for you`
+                      : isProfile && applied > 0 ? "Updated on site"
+                      : isProfile ? "Checked · nothing to change" : "Done";
+                    const statusTone = h.status !== "succeeded" ? (h.status === "skipped" ? "muted" : "destructive") : isProfile && waiting > 0 ? "warning" : "success";
                     return (
                       <div key={h.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-foreground">{h.label}</span>
-                            <Badge variant={statusTone as "success" | "muted" | "destructive"}>{h.status}</Badge>
+                            <Badge variant={statusTone as "success" | "muted" | "destructive" | "warning"}>{label}</Badge>
+                            {isProfile && waiting > 0 && (
+                              <a href="/profiles?tab=naukri" className="text-xs font-medium underline">Paste them now</a>
+                            )}
                             <Badge variant="outline" className="text-[10px] uppercase">
                               {h.trigger}
                             </Badge>

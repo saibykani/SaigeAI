@@ -286,6 +286,8 @@ export interface SchedulerJobRun {
   trigger: "cron" | "manual";
   status: "running" | "succeeded" | "failed" | "skipped";
   result: Record<string, unknown>;
+  applied?: number;
+  waiting?: number;
   started_at: string | null;
   finished_at: string | null;
 }

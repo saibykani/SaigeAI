@@ -82,8 +82,21 @@ async def scheduler_status(user: dict = Depends(get_current_user), db: AsyncIOMo
 @router.get("/scheduler/history")
 async def scheduler_history(limit: int = Query(30, ge=1, le=100), user: dict = Depends(get_current_user),
                             db: AsyncIOMotorDatabase = Depends(db_dep)):
+    from app.profiles.sync_service import change_states
+
     docs = await db[c.SCHEDULER_JOBS].find({"user_id": user["_id"]}).sort("started_at", DESCENDING).to_list(limit)
-    return [service.run_out(d) for d in docs]
+    out = []
+    for d in docs:
+        row = service.run_out(d)
+        changes = (row["result"] or {}).get("changes")
+        if row["job"] in ("profile_refresh", "naukri_freshness") and changes:
+            # Saige can't edit LinkedIn / Naukri itself: show whether each edit is really on the site yet.
+            states = await change_states(db, user["_id"], changes)
+            row["result"] = {**row["result"], "changes": states}
+            row["applied"] = sum(x["state"] == "applied" for x in states)
+            row["waiting"] = sum(x["state"] == "waiting" for x in states)
+        out.append(row)
+    return out
 
 
 @router.post("/scheduler/run-now/{job}")

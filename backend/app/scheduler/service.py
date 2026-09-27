@@ -147,8 +147,9 @@ async def _profile_refresh(db: AsyncIOMotorDatabase, uid: str, s: AutomationSett
     names = " & ".join(sync_service.PLATFORM_NAME[p] for p in platforms)
     if details:
         await notify(db, user_id=uid, kind="profile_optimization",
-                     title=f"{names} refresh done · {len(details)} change(s) to apply",
-                     body="; ".join(f"{d['platform']} {d['field']}" for d in details[:4]),
+                     title=f"{names}: {len(details)} edit(s) ready to paste",
+                     body="Not changed on the site yet. Open LinkedIn & Naukri, copy each edit, update it there and click "
+                          "“Mark as updated”. " + "; ".join(f"{d['platform']} {d['field']}" for d in details[:4]),
                      link="/profiles", details=details)
     else:
         await notify(db, user_id=uid, kind="profile_optimization", title=f"{names} refresh done",
@@ -175,8 +176,9 @@ async def _naukri_freshness(db: AsyncIOMotorDatabase, uid: str, today: date) -> 
     created = await sync_service.upsert_changes(db, uid, "naukri", [edit], profile, [j["_id"] for j in jobs])
     row = sync_service.change_detail({"platform": "naukri", **edit})
     if created:
-        await notify(db, user_id=uid, kind="naukri_freshness", title=f"Naukri refresh ready · {row['field']}",
-                     body=f"Change it to: {row['after']}", link="/profiles?tab=naukri", details=[row])
+        await notify(db, user_id=uid, kind="naukri_freshness", title=f"Naukri edit ready to paste · {row['field']}",
+                     body=f"Update it on Naukri to: {row['after']} — then click “Mark as updated” in Saige.",
+                     link="/profiles?tab=naukri", details=[row])
     return {"created": created, "field": edit["field"], "changes": [row] if created else []}
 
 
