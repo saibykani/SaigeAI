@@ -1,5 +1,6 @@
 // Saige AI popup. Reads ONLY the active tab, ONLY when the popup is opened (activeTab), and talks
-// only to the Saige API with the user's revocable extension token. It never submits forms.
+// only to the Saige API with the user's revocable extension token. When the user clicks "Fill", it
+// types verified details into the form on the page; it never clicks Save / Submit.
 
 const DEFAULTS = { api: "https://saige-ai-api.vercel.app", web: "https://saige-ai.vercel.app", token: "" };
 const $ = (id) => document.getElementById(id);
@@ -138,4 +139,118 @@ $("save").onclick = async () => {
   }
 };
 
-void init();
+async function activeTabId() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab.id;
+}
+
+// ---- Fill an application form (Greenhouse, Lever, Ashby, Workday, company career sites)
+$("fill").onclick = async () => {
+  setStatus("Filling the form with your verified details…");
+  try {
+    const data = await call(`/ext/autofill?url=${encodeURIComponent(page.url)}`);
+    let resume = null;
+    if (data.resume) {
+      const r = await fetch(`${cfg.api}/api/ext/resume.docx?url=${encodeURIComponent(page.url)}`, { headers: { Authorization: `Bearer ${cfg.token}` } });
+      if (r.ok) resume = { name: data.resume, bytes: Array.from(new Uint8Array(await r.arrayBuffer())) };
+    }
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId: await activeTabId() },
+      args: [data.fields, data.answers, resume],
+      func: (fields, answers, resume) => {
+        const RULES = [
+          ["first_name", /first.?name|given.?name|fname/i], ["last_name", /last.?name|surname|family.?name|lname/i],
+          ["full_name", /full.?name|your name|candidate name|legal name|^name$/i], ["email", /e-?mail/i],
+          ["phone", /phone|mobile|contact number/i], ["linkedin", /linkedin/i], ["github", /github/i],
+          ["portfolio", /portfolio|website|personal site/i], ["current_company", /current (company|employer)|company name|employer/i],
+          ["current_title", /current (title|role|designation)|job title|designation/i],
+          ["years_experience", /years of experience|total experience|experience \(years\)/i],
+          ["notice_period", /notice period/i], ["expected_ctc", /expected (ctc|salary|compensation)/i],
+          ["current_ctc", /current (ctc|salary|compensation)/i], ["location", /location|city|where are you based/i], ["country", /country/i],
+        ];
+        const labelOf = (el) => {
+          const byFor = el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
+          return [byFor?.innerText, el.closest("label")?.innerText, el.getAttribute("aria-label"), el.placeholder, el.name,
+                  el.getAttribute("autocomplete")].filter(Boolean).join(" ").slice(0, 200);
+        };
+        const setValue = (el, value) => {
+          const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+          Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          el.style.outline = "2px solid #30d158";
+          el.style.outlineOffset = "2px";
+        };
+        let filled = 0, attached = false;
+        const inputs = [...document.querySelectorAll("input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]):not([type=submit]), textarea")]
+          .filter((el) => !el.disabled && !el.readOnly && el.offsetParent !== null && !el.value);
+        for (const el of inputs) {
+          const label = labelOf(el);
+          const rule = RULES.find(([key, re]) => fields[key] && re.test(label));
+          if (rule) { setValue(el, fields[rule[0]]); filled++; continue; }
+          const ans = answers.find((a) => a.question && label.toLowerCase().includes(a.question.toLowerCase().slice(0, 40)));
+          if (ans) { setValue(el, ans.answer); filled++; }
+        }
+        if (resume) {
+          const files = [...document.querySelectorAll("input[type=file]")];
+          const file = files.find((el) => /resume|cv/i.test(labelOf(el))) || files[0];
+          if (file && !file.files?.length) {
+            const dt = new DataTransfer();
+            dt.items.add(new File([new Uint8Array(resume.bytes)], resume.name, { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
+            file.files = dt.files;
+            file.dispatchEvent(new Event("change", { bubbles: true }));
+            attached = true;
+          }
+        }
+        return { filled, attached };
+      },
+    });
+    setStatus(result.filled || result.attached
+      ? `Filled ${result.filled} field(s)${result.attached ? " and attached your resume" : ""}. Check them (green outline), then submit on the site.`
+      : "No empty form fields found. Open the application form first.", result.filled || result.attached ? "ok" : "");
+  } catch (e) {
+    setStatus(e.message, "error");
+  }
+};
+
+// ---- LinkedIn / Naukri profile edits: fill the field the user clicked on the page
+async function loadEdits() {
+  const host = new URL(page.url).hostname;
+  const platform = /naukri\.com$/.test(host) ? "naukri" : /linkedin\.com$/.test(host) ? "linkedin" : null;
+  if (!platform) return;
+  const edits = await call(`/ext/profile-edits?platform=${platform}`).catch(() => []);
+  if (!edits.length) return;
+  $("editsBox").hidden = false;
+  $("editsTitle").textContent = `${edits[0].platform_name} edits ready · ${edits.length}`;
+  $("edits").replaceChildren(...edits.map((ed) => {
+    const div = document.createElement("div");
+    div.className = "answer";
+    div.append(Object.assign(document.createElement("q"), { textContent: ed.field_name }),
+               Object.assign(document.createElement("p"), { textContent: ed.text }));
+    const fill = Object.assign(document.createElement("button"), { className: "btn small primary", textContent: "Fill" });
+    fill.onclick = async () => {
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId: await activeTabId() }, args: [ed.text],
+        func: (text) => {
+          const el = document.activeElement;
+          if (!el || !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable)) return false;
+          if (el.isContentEditable) { el.focus(); document.execCommand("selectAll"); document.execCommand("insertText", false, text); return true; }
+          const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+          Object.getOwnPropertyDescriptor(proto, "value").set.call(el, text);
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          return true;
+        },
+      });
+      setStatus(result ? `${ed.field_name} filled. Click Save on the page, then Mark updated.` : "Click inside the field on the page first, then press Fill.", result ? "ok" : "error");
+    };
+    const copy = Object.assign(document.createElement("button"), { className: "btn small", textContent: "Copy" });
+    copy.onclick = async () => { await navigator.clipboard.writeText(ed.text); copy.textContent = "Copied"; };
+    const done = Object.assign(document.createElement("button"), { className: "btn small", textContent: "Mark updated" });
+    done.onclick = async () => { await call(`/ext/profile-edits/${ed.id}/applied`, { method: "POST" }); div.remove(); setStatus("Marked as updated in Saige.", "ok"); };
+    div.append(fill, copy, done);
+    return div;
+  }));
+}
+
+void init().then(() => page && loadEdits());

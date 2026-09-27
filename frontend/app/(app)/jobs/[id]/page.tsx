@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { InterviewPrep } from "@/components/interview-prep";
 import { JobDocuments } from "@/components/job-documents";
 import { ReferralFinder } from "@/components/outreach";
 import { Badge } from "@/components/ui/badge";
@@ -198,6 +199,7 @@ export default function JobDetailPage() {
         <div className="flex flex-col gap-6">
           <JobDocuments jobId={id} />
           <ReferralFinder jobId={id} />
+          <InterviewPrep jobId={id} />
           {m && m.issues.length > 0 && (
             <Card>
               <CardHeader><CardTitle>Things to note</CardTitle></CardHeader>

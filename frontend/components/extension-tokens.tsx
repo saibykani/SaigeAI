@@ -43,14 +43,15 @@ export function ExtensionTokensCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Puzzle className="size-4" style={{ color: "var(--tone-teal)" }} /> Browser extension</CardTitle>
         <CardDescription>
-          Score any job you&apos;re viewing, save it in one click, and copy your prepared answers. It reads only the tab you click it on and never fills or submits forms.
+          Score and save any job you&apos;re viewing, fill application forms on company career sites with your verified details and resume, and put prepared
+          LinkedIn / Naukri edits into the right field with one click. It only acts on the tab you click it on, and never presses Submit or Save for you.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 md:grid-cols-2">
         <div className="flex flex-col gap-3 text-sm">
           <p className="font-medium">Install (Chrome, Edge, Brave)</p>
           <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
-            <li>Download and unzip the extension.</li>
+            <li>Download and unzip the extension (v1.1; if you had v1.0, remove it and load this one).</li>
             <li>Open <code className="rounded bg-muted px-1">chrome://extensions</code> and turn on <b>Developer mode</b>.</li>
             <li>Click <b>Load unpacked</b> and choose the unzipped folder.</li>
             <li>Create a token here, then paste it in the extension&apos;s Settings.</li>

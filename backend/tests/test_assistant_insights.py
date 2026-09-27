@@ -97,3 +97,16 @@ async def test_ats_optimize_creates_better_version(client, auth):
     assert "Kubernetes" not in " ".join(body["after"]["missing_required"]) or body["gaps"] is not None
     listed = (await client.get("/api/resumes", headers=auth)).json()
     assert any(x["id"] == body["resume_id"] for x in listed)
+
+
+async def test_interview_prep(client, auth):
+    from tests.job_fixtures import SDET_JD
+
+    await client.put("/api/profile", headers=auth, json=PROFILE)
+    body = {"title": "Senior SDET", "company": "PayCo", "description": SDET_JD}
+    job = (await client.post("/api/jobs/import", headers=auth, json=body)).json()["job"]
+    r = (await client.get(f"/api/jobs/{job['id']}/interview-prep", headers=auth)).json()
+    skills = {t["skill"]: t for t in r["technical"]}
+    assert skills["Selenium"]["you_have_it"] and skills["Selenium"]["questions"]
+    assert len(r["behavioural"]) == 5 and r["ask_them"] and "Asha Rao" in r["pitch"]
+    assert all("Kubernetes" != s for s in r["pitch"].split(", "))

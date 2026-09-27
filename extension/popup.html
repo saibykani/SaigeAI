@@ -47,9 +47,21 @@
       <div class="chips muted" id="missing"></div>
     </div>
 
+    <section class="block" id="fillBox">
+      <p class="label">Application form on this page</p>
+      <button id="fill" class="btn primary">Fill this application</button>
+      <p class="hint">Types your verified details and prepared answers, and attaches your resume. Review everything, then press Submit on the site yourself.</p>
+    </section>
+
+    <section class="block" id="editsBox" hidden>
+      <p class="label" id="editsTitle">Profile edits to apply</p>
+      <p class="hint">Click inside the field on the page (e.g. Headline), then press Fill. Save on the site, then Mark updated.</p>
+      <div id="edits"></div>
+    </section>
+
     <details id="answersBox">
       <summary>Suggested answers for this application</summary>
-      <p class="hint">Copy an answer and paste it into the form yourself. Saige never fills or submits forms.</p>
+      <p class="hint">Copy an answer, or use Fill this application. Saige never submits forms.</p>
       <div id="answers"><p class="hint">Save the job and prepare an application in Saige first.</p></div>
     </details>
 

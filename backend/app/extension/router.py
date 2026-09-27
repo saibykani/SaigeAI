@@ -159,3 +159,86 @@ async def ext_answers(url: HttpUrl, user: dict = Depends(token_user), db: AsyncI
             "answers": [{"question": a["question"], "answer": a.get("answer"), "confidence": a.get("confidence"),
                          "needs_review": a.get("sensitive", False) or a.get("status") == "REVIEW_REQUIRED"} for a in answers
                         if a.get("answer")]}
+
+
+# ------------------------------------------------------------------ fill helpers (user-triggered, never submit)
+
+def _text_value(v) -> str:
+    return ", ".join(map(str, v)) if isinstance(v, list) else ("" if v is None else str(v))
+
+
+@router.get("/ext/autofill")
+async def ext_autofill(url: HttpUrl | None = None, user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Everything the extension may type into an application form when the user clicks "Fill": verified
+    profile fields, prepared answers for this job, and which resume to attach. The user reviews and submits."""
+    uid = user["_id"]
+    p = await get_profile(db, uid)
+    per = p.personal
+    parts = (per.name or "").split()
+    fields = {
+        "full_name": per.name, "first_name": parts[0] if parts else None, "last_name": " ".join(parts[1:]) or None,
+        "email": per.email or user["email"], "phone": per.phone, "location": per.current_location, "country": per.country,
+        "linkedin": str(per.linkedin_url) if per.linkedin_url else None, "github": str(per.github_url) if per.github_url else None,
+        "portfolio": str(per.portfolio_url) if per.portfolio_url else None, "current_company": per.current_company,
+        "current_title": per.current_designation,
+        "years_experience": f"{per.total_experience_years:g}" if per.total_experience_years else None,
+        "notice_period": f"{per.notice_period_days}" if per.notice_period_days is not None else None,
+        "expected_ctc": f"{per.expected_ctc:g}" if per.expected_ctc else None,
+        "current_ctc": f"{per.current_ctc:g}" if per.current_ctc else None,
+    }
+    job = await _existing(db, uid, url) if url else None
+    answers: list[dict] = []
+    resume_name = None
+    if job:
+        app = await db[c.APPLICATIONS].find_one({"user_id": uid, "job_id": job["_id"]})
+        if app:
+            answers = [{"question": a["question"], "answer": a.get("answer")} async for a in
+                       db[c.APPLICATION_ANSWERS].find({"application_id": app["_id"], "status": {"$ne": "REVIEW_REQUIRED"}})
+                       if a.get("answer")]
+    from app.profiles.sync_service import master_resume
+
+    r = await master_resume(db, uid)
+    if r:
+        resume_name = f"{(per.name or 'Resume').replace(' ', '_')}_Resume.docx"
+    return {"fields": {k: v for k, v in fields.items() if v}, "answers": answers, "resume": resume_name,
+            "job_id": job["_id"] if job else None}
+
+
+@router.get("/ext/resume.docx")
+async def ext_resume(url: HttpUrl | None = None, user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """The resume to attach: the tailored one for this job if it exists, else the master resume (DOCX)."""
+    from app.profiles.sync_service import master_resume
+    from app.resumes.docx_export import resume_docx
+    from app.schemas.resume import ParsedResume
+
+    uid = user["_id"]
+    job = await _existing(db, uid, url) if url else None
+    r = (await db[c.RESUMES].find_one({"user_id": uid, "job_id": job["_id"], "status": "active"}, sort=[("created_at", DESCENDING)])
+         if job else None) or await master_resume(db, uid)
+    v = r and await db[c.RESUME_VERSIONS].find_one({"_id": r.get("current_version_id")})
+    if not v:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No resume in Saige yet")
+    return Response(content=resume_docx(ParsedResume.model_validate(v["parsed"])),
+                    media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/ext/profile-edits")
+async def ext_profile_edits(platform: str | None = None, user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Prepared LinkedIn / Naukri edits waiting to be put on the site."""
+    from app.profiles.sync_service import FIELD_NAME, PENDING, PLATFORM_NAME
+
+    q: dict = {"user_id": user["_id"], "approval_status": PENDING}
+    if platform in ("linkedin", "naukri"):
+        q["platform"] = platform
+    docs = await db[c.PROFILE_CHANGES].find(q).sort("updated_at", DESCENDING).to_list(40)
+    return [{"id": d["_id"], "platform": d["platform"], "platform_name": PLATFORM_NAME.get(d["platform"], d["platform"]),
+             "field": d["field"], "field_name": FIELD_NAME.get(d["field"], d["field"]), "text": _text_value(d.get("after"))}
+            for d in docs]
+
+
+@router.post("/ext/profile-edits/{change_id}/applied")
+async def ext_edit_applied(change_id: str, user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    from app.profiles.sync_service import mark_applied
+
+    await mark_applied(db, user["_id"], change_id)
+    return {"ok": True}

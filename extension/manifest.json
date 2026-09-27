@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Saige AI: job match & capture",
   "short_name": "Saige AI",
-  "version": "1.0.0",
-  "description": "Score the job you're viewing against your verified Saige profile, save it in one click, and reuse your prepared answers.",
+  "version": "1.1.0",
+  "description": "Score and save jobs, fill application forms with your verified details and resume, and apply prepared LinkedIn / Naukri profile edits.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Saige AI",

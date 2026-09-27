@@ -75,7 +75,9 @@ backend/tests/            # pytest + mongomock-motor; conftest disables .env and
 frontend/app/(app)/       # authenticated pages (profiles = LinkedIn & Naukri hub); frontend/app/login, /register = galaxy sign-in
 frontend/components/      # app-shell (nav), kpi, galaxy, loader3d, theme, motion, ui/*
 frontend/services/api.ts  # request() wrapper (auto refresh, CSRF header); types in types/api.ts
-extension/                # Chrome MV3 extension (popup + options); `node scripts/build-extension.mjs` rebuilds icons and frontend/public/saige-extension.zip
+extension/                # Chrome MV3 extension v1.1 (popup + options): score/save, "Fill this application" (types verified fields,
+                          # answers, attaches resume DOCX) and "Fill" for prepared LinkedIn/Naukri edits into the focused field.
+                          # It never presses Submit/Save. `PLAYWRIGHT_DIR=... node scripts/build-extension.mjs` rebuilds the zip
 docs/                     # ARCHITECTURE.md, DEPLOYMENT.md, NEXT_PHASES_PROMPT.md
 ```
 

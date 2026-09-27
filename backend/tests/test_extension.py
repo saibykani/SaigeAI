@@ -72,3 +72,29 @@ async def test_tokens_are_deleted_with_account(client, auth, db):
     r = await client.request("DELETE", "/api/privacy/account", headers={**auth, "X-Requested-With": "saige"})
     assert r.status_code == 204
     assert await db[c.API_TOKENS].count_documents({}) == 0
+
+
+async def test_autofill_resume_and_profile_edits(client, auth, db):
+    from app.database import collections as c
+    from app.utils import new_id, utcnow
+    from tests.job_fixtures import PROFILE
+    from tests.test_resumes import upload
+
+    await client.put("/api/profile", headers=auth, json=PROFILE)
+    await upload(client, auth)
+    pat = {"Authorization": f"Bearer {await _token(client, auth)}"}
+    af = (await client.get("/api/ext/autofill", headers=pat)).json()
+    assert af["fields"]["first_name"] == "Asha" and af["fields"]["last_name"] == "Rao" and af["fields"]["notice_period"] == "30"
+    assert af["resume"].endswith(".docx")
+    doc = await client.get("/api/ext/resume.docx", headers=pat)
+    assert doc.status_code == 200 and doc.content[:2] == b"PK"
+    uid = (await db[c.USERS].find_one())["_id"]
+    await db[c.PROFILE_CHANGES].insert_one({"_id": "ch1", "user_id": uid, "platform": "naukri", "field": "headline",
+                                            "before": "QA", "after": "Senior QA Engineer | Selenium · Java",
+                                            "approval_status": "USER_APPROVAL_REQUIRED", "created_at": utcnow(),
+                                            "updated_at": utcnow(), "applied_at": None, "id2": new_id()})
+    edits = (await client.get("/api/ext/profile-edits", headers=pat, params={"platform": "naukri"})).json()
+    assert edits[0]["field_name"] == "Headline" and edits[0]["text"].startswith("Senior QA")
+    assert (await client.post("/api/ext/profile-edits/ch1/applied", headers=pat)).status_code == 200
+    assert (await db[c.PROFILE_CHANGES].find_one({"_id": "ch1"}))["approval_status"] == "USER_APPROVED"
+    assert (await client.get("/api/ext/profile-edits", headers=pat)).json() == []

@@ -51,6 +51,7 @@ export const MANUAL: ManualSection[] = [
       "Open the LinkedIn or Naukri tab and paste what's currently on your profile into the snapshot form, then save.",
       "Click “Run profile refresh”. Saige compares your profile with recent target job descriptions.",
       "For each suggestion: Copy, open the site with the “Open … edit page” button, paste, save there, then click “Mark as updated”.",
+      "Faster with the Saige browser extension: on Naukri / LinkedIn, click the field (e.g. Headline), open the extension and press Fill next to that edit, click Save on the site, then Mark updated.",
       "On the Naukri tab, “Run 2-min freshness” creates one small daily edit; apply it to keep your streak going.",
     ],
     tips: ["LinkedIn and Naukri don't allow apps to edit profiles, so you paste the text. It takes about a minute and keeps your account safe."],
@@ -119,7 +120,7 @@ export const MANUAL: ManualSection[] = [
       "Click “Run now” to try it straight away.",
       "Open Applications → “Ready to approve” → Select all → “Approve & apply”.",
     ],
-    tips: ["Applications on company websites still need your final click there: those sites use logins and CAPTCHAs that no tool may bypass. Saige opens each page for you."],
+    tips: ["On company career sites (Greenhouse, Lever, Ashby, Workday…), open the application form and press “Fill this application” in the Saige browser extension: your details, prepared answers and resume go in, and you press Submit. Saige never submits for you."],
   },
   {
     id: "job-detail", title: "Job details", href: "/jobs", tone: "orange", image: "/help/job-detail.jpg",
@@ -211,6 +212,26 @@ export const MANUAL: ManualSection[] = [
     ],
   },
   {
+    id: "extension", title: "Browser extension: fill forms & profile edits", href: "/settings#extension", tone: "teal", image: "/help/settings.jpg",
+    purpose: "Score and save any job page, fill application forms on company career sites with your verified details and resume, and put prepared LinkedIn / Naukri edits into the right field.",
+    steps: [
+      "Settings → Automation & privacy → Browser extension: download (v1.1), unzip, open chrome://extensions, turn on Developer mode, Load unpacked.",
+      "Create a token on the same card and paste it in the extension's Settings.",
+      "On an application form: open the extension → “Fill this application”. Filled fields get a green outline and your resume is attached. Review, then press Submit on the site.",
+      "On Naukri / LinkedIn: click the field to edit, open the extension, press Fill next to the edit, Save on the site, then Mark updated.",
+    ],
+    tips: ["The extension only acts on the tab you click it on, and never presses Submit or Save for you."],
+  },
+  {
+    id: "interview-prep", title: "Interview prep", href: "/jobs", tone: "red", image: "/help/job-detail.jpg",
+    purpose: "For any saved job: a 30-second intro, likely technical questions from the JD's skills, behavioural questions paired with your own achievements (STAR), questions to ask, and company research links.",
+    steps: [
+      "Open a job → Interview prep → Prepare me.",
+      "Technical: green ticks are skills you have; orange ones are asked in the JD but missing from your profile, so brush up first.",
+      "Behavioural: each question shows a real achievement from your profile to tell as a STAR story.",
+    ],
+  },
+  {
     id: "find-people", title: "Find people (HR, QA managers)", href: "/recruiters?tab=find", tone: "lime", image: "/help/find-people.jpg",
     purpose: "For every company you've applied to or saved: one-click LinkedIn searches for HR, talent acquisition, technical recruiters, QA managers, test leads and engineering managers.",
     steps: [
@@ -287,7 +308,8 @@ export const FAQ = [
   { q: "Can Saige auto-apply to jobs on Naukri, LinkedIn or Indeed?", a: "Those sites don't allow third-party auto-apply. The auto-applier prepares applications in bulk every day. After you approve, email applications are sent from your Gmail, and the rest open on the employer's page for your final click." },
   { q: "Where do LinkedIn and Naukri jobs come from?", a: "From the job-alert emails those sites send you. Turn on alerts for your role and city (Settings → Integrations → Hiring portals), connect Gmail, and they appear under Jobs → Job alerts." },
   { q: "Why don't I see jobs in my country?", a: "Set your country (or current city) and target roles in Profile. Jobs for you uses them to fetch and sort jobs." },
-  { q: "Where is the theme switcher?", a: "Click your avatar (top right) → Theme." },
+  { q: "Where is the theme switcher?", a: "Click your avatar (top right) → Theme. Creative themes (Retro Terminal, Paper & Ink, Neon Grid, Desert Sunset, Liquid Glass) change fonts, shapes, backgrounds and colours across the whole app." },
+  { q: "Can Saige change my Naukri / LinkedIn profile by itself?", a: "No app is allowed to log into Naukri or LinkedIn and edit your profile; accounts doing that get blocked. The closest safe way: the Saige extension fills each prepared edit into the field you click on the site, and you press Save." },
   { q: "Where did Interviews, Analytics and Integrations go?", a: "Similar pages are grouped with tabs: Interviews is in Applications, Analytics in Dashboard, Resume sync in LinkedIn & Naukri, and Settings holds Alerts & templates, Integrations, Agent, and Automation & privacy. Profile is the last item in the sidebar." },
   { q: "Can Saige fetch LinkedIn / Naukri jobs every second, and apply there?", a: "Not from their websites: both forbid automated access and auto-applying, and accounts that do it get banned. While Saige is open it syncs Gmail every minute, so LinkedIn / Naukri job alerts, invites and messages appear within a minute; job sites and career pages refresh every 5 minutes. For LinkedIn / Naukri postings, open the job and apply there (Easy Apply / Apply on Naukri), then mark it applied." },
   { q: "Can Saige get recruiters' phone numbers from LinkedIn?", a: "Saige never scrapes LinkedIn. It saves phone numbers and emails that recruiters share with you: in Naukri / LinkedIn invite emails, recruiter emails, and job postings. Import your LinkedIn connections CSV for your network." },

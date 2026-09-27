@@ -349,6 +349,15 @@ async def get_job(job_id: str, user: dict = Depends(get_current_user),
             "recommended_resume": await service.recommend_resume(db, user["_id"], job)}
 
 
+@router.get("/{job_id}/interview-prep")
+async def interview_prep(job_id: str, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Likely questions for this job, your own stories to answer them with, and what to ask."""
+    from app.jobs import interview_prep as prep
+
+    job = await service.get_owned(db, user["_id"], job_id)
+    return prep.build(await get_profile(db, user["_id"]), job)
+
+
 @router.post("/{job_id}/match")
 async def match_job(job_id: str, user: dict = Depends(get_current_user),
                     db: AsyncIOMotorDatabase = Depends(db_dep)):

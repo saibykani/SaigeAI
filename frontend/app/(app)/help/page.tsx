@@ -2,7 +2,8 @@
 
 import { ArrowRight, LifeBuoy, Rocket, Search, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -53,6 +54,12 @@ function Section({ s, onZoom }: { s: ManualSection; onZoom: (src: string) => voi
 export default function HelpPage() {
   const [q, setQ] = useState("");
   const [zoom, setZoom] = useState<string | null>(null);
+  useEffect(() => {
+    if (!zoom) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setZoom(null); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [zoom]);
   const needle = q.trim().toLowerCase();
   const sections = useMemo(() => MANUAL.filter((s) => !needle || `${s.title} ${s.purpose} ${s.steps.join(" ")} ${(s.tips ?? []).join(" ")}`.toLowerCase().includes(needle)), [needle]);
   const faq = useMemo(() => FAQ.filter((f) => !needle || `${f.q} ${f.a}`.toLowerCase().includes(needle)), [needle]);
@@ -116,12 +123,14 @@ export default function HelpPage() {
         </div>
       </div>
 
-      {zoom && (
-        <div role="dialog" aria-modal="true" aria-label="Screenshot" className="fixed inset-0 z-[70] grid place-items-center bg-black/85 p-4 backdrop-blur-sm" onClick={() => setZoom(null)}>
-          <button className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white" aria-label="Close"><X /></button>
+      {/* Portalled to <body>: the page container is animated (transform), which would trap a fixed overlay. */}
+      {zoom && typeof document !== "undefined" && createPortal(
+        <div role="dialog" aria-modal="true" aria-label="Screenshot" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 md:p-10" onClick={() => setZoom(null)}>
+          <button className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/15 text-white hover:bg-white/25" aria-label="Close"><X /></button>
           {/* eslint-disable-next-line @next/next/no-img-element -- static screenshot */}
-          <img src={zoom} alt="Enlarged screenshot" className="max-h-full max-w-full rounded-xl shadow-2xl" />
-        </div>
+          <img src={zoom} alt="Enlarged screenshot" className="animate-pop max-h-[92vh] max-w-[96vw] rounded-xl object-contain shadow-2xl" onClick={(e) => e.stopPropagation()} />
+        </div>,
+        document.body,
       )}
     </>
   );
