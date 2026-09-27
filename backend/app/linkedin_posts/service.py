@@ -49,7 +49,8 @@ async def create(db: AsyncIOMotorDatabase, uid: str, s, *, local_date: str) -> d
 
 def media(doc: dict, name: str, role: str) -> tuple[bytes | None, bytes | None]:
     if doc.get("format") == "image":
-        return render.card(doc, name, role), None
+        png = render.card(doc, name, role)
+        return (png, None) if png else (None, render.carousel(doc, name, role, single=True))
     if doc.get("format") == "carousel":
         return None, render.carousel(doc, name, role)
     return None, None

@@ -1,5 +1,6 @@
 """Images for LinkedIn posts: a square card (PNG) or a swipeable carousel (multi-page PDF).
-Drawn with Pillow's bundled scalable font, so it renders the same on any server."""
+Uses Pillow when it's installed; otherwise the dependency-free PDF writer (pdf.py) renders carousels
+and single-slide documents, which LinkedIn displays just as well."""
 
 import io
 import textwrap
@@ -34,8 +35,18 @@ def _base(w: int, h: int, accent: tuple[int, int, int]):
     return img, d
 
 
-def card(post: dict, name: str, role: str) -> bytes:
-    """1080x1080 PNG: series label, title, up to three points, author footer."""
+def has_pillow() -> bool:
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def card(post: dict, name: str, role: str) -> bytes | None:
+    """1080x1080 PNG: series label, title, up to three points, author footer. None without Pillow."""
+    if not has_pillow():
+        return None
     accent = THEME_COLOURS.get(post.get("theme", ""), (48, 209, 88))
     img, d = _base(1080, 1080, accent)
     d.text((80, 80), post.get("series", "").upper(), font=_font(34), fill=accent)
@@ -57,9 +68,15 @@ def card(post: dict, name: str, role: str) -> bytes:
     return out.getvalue()
 
 
-def carousel(post: dict, name: str, role: str) -> bytes:
-    """Portrait slides (1080x1350) saved as one PDF: LinkedIn shows it as a swipeable document post."""
+def carousel(post: dict, name: str, role: str, *, single: bool = False) -> bytes:
+    """Portrait slides saved as one PDF: LinkedIn shows it as a swipeable document post."""
     accent = THEME_COLOURS.get(post.get("theme", ""), (48, 209, 88))
+    if single or not has_pillow():
+        from app.linkedin_posts.pdf import slides_pdf
+
+        slides = [(post.get("title", ""), post.get("points", [])[:3])] if single else (
+            post.get("slides") or [(post.get("title", ""), post.get("points", []))])
+        return slides_pdf([(h, list(ls)) for h, ls in slides], post.get("series", ""), f"{name}  ·  {role}", accent)
     pages = []
     slides = post.get("slides") or [(post.get("title", ""), post.get("points", []))]
     for i, (head, lines) in enumerate(slides):
