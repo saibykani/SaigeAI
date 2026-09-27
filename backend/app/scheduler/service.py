@@ -26,9 +26,10 @@ from app.utils import utcnow
 
 logger = logging.getLogger("saige.scheduler")
 
-Job = Literal["profile_refresh", "naukri_freshness", "job_discovery", "gmail_sync", "followups", "morning_report"]
+Job = Literal["profile_refresh", "naukri_freshness", "job_discovery", "gmail_sync", "followups", "morning_report",
+              "linkedin_post", "outreach_auto"]
 JOBS: tuple[str, ...] = ("profile_refresh", "naukri_freshness", "job_discovery", "gmail_sync", "followups",
-                         "morning_report")
+                         "morning_report", "linkedin_post", "outreach_auto")
 LABELS = {
     "profile_refresh": "LinkedIn & Naukri optimisation",
     "naukri_freshness": "Naukri daily freshness",
@@ -36,6 +37,8 @@ LABELS = {
     "gmail_sync": "Gmail sync",
     "followups": "Follow-up check",
     "morning_report": "Morning report",
+    "linkedin_post": "LinkedIn daily post",
+    "outreach_auto": "Auto outreach (replies, follow-ups)",
 }
 
 
@@ -61,6 +64,10 @@ def job_time(job: str, s: AutomationSettings) -> time:
         return _hhmm(s.schedules.job_discovery_time, "07:00")
     if job == "followups":
         return _hhmm(s.schedules.followup_time, "09:00")
+    if job == "linkedin_post":
+        return _hhmm(s.linkedin_posts.time, "10:00")
+    if job == "outreach_auto":
+        return _hhmm(s.schedules.followup_time, "09:00")
     return time(0, 0)  # gmail_sync: any time of day
 
 
@@ -73,6 +80,10 @@ def is_due(job: str, s: AutomationSettings, local: datetime) -> bool:
     if job == "profile_refresh" and not (ps.linkedin_enabled or ps.naukri_enabled):
         return False
     if job == "naukri_freshness" and not (ps.naukri_enabled and ps.naukri_daily_freshness):
+        return False
+    if job == "linkedin_post" and not (s.linkedin_posts.enabled and local.weekday() in s.linkedin_posts.days):
+        return False
+    if job == "outreach_auto" and s.outreach.mode != "auto":
         return False
     return local.time() >= job_time(job, s)
 
@@ -281,6 +292,14 @@ async def run_job(db: AsyncIOMotorDatabase, uid: str, job: str, s: AutomationSet
         return await _followups(db, uid, now)
     if job == "morning_report":
         return await _morning_report(db, uid, today)
+    if job == "linkedin_post":
+        from app.linkedin_posts import service as li
+
+        return await li.run_daily(db, uid, s, today.isoformat())
+    if job == "outreach_auto":
+        from app.recruiters.auto_outreach import run as auto_outreach
+
+        return await auto_outreach(db, uid, s, now)
     raise ValueError(f"unknown job {job}")
 
 

@@ -49,7 +49,7 @@ const NAV: NavItem[] = [
   { group: "Workspace", href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
   { group: "Network", href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
   { group: "Network", href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
-  { group: "Network", href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [{ href: "/profiles", label: "LinkedIn & Naukri" }, { href: "/profile-sync", label: "Resume sync" }] },
+  { group: "Network", href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [{ href: "/profiles", label: "LinkedIn & Naukri" }, { href: "/linkedin", label: "Daily posts" }, { href: "/profile-sync", label: "Resume sync" }] },
   { group: "Account", href: "/profile", label: "Profile", icon: UserRound, tone: "mint" },
   { group: "Account", href: "/alerts", label: "Settings", icon: Settings, tone: "red", tabs: [
     { href: "/alerts", label: "Alerts & templates" }, { href: "/integrations", label: "Integrations" },

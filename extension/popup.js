@@ -253,4 +253,56 @@ async function loadEdits() {
   }));
 }
 
-void init().then(() => page && loadEdits());
+
+// ---- Replies to comments on your own LinkedIn post
+function fillFocused(text) {
+  const el = document.activeElement;
+  if (!el || !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable)) return false;
+  if (el.isContentEditable) { el.focus(); document.execCommand("selectAll"); document.execCommand("insertText", false, text); return true; }
+  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, "value").set.call(el, text);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
+}
+
+$("drafts").onclick = async () => {
+  setStatus("Reading comments on this page…");
+  try {
+    const [{ result: comments }] = await chrome.scripting.executeScript({
+      target: { tabId: await activeTabId() },
+      func: () => [...document.querySelectorAll("article[class*='comments-comment'], [class*='comments-comment-entity']")]
+        .slice(0, 30)
+        .map((el) => ({
+          author: (el.querySelector("[class*='comment-meta__description-title'], [class*='__name'], a[href*='/in/'] span[dir]")?.innerText || "").trim().split("\n")[0],
+          text: (el.querySelector("[class*='comment-item__main-content'], [class*='__main-content'], [class*='comment-content']")?.innerText || "").trim(),
+        }))
+        .filter((c) => c.text),
+    });
+    if (!comments.length) { setStatus("No comments found. Open your post (its own page) and expand the comments first."); return; }
+    const r = await call("/ext/comment-replies", { method: "POST", body: JSON.stringify({ comments }) });
+    $("replies").replaceChildren(...r.replies.map((x) => {
+      const div = document.createElement("div");
+      div.className = "answer";
+      div.append(Object.assign(document.createElement("q"), { textContent: `${x.author}: ${x.comment.slice(0, 120)}` }),
+                 Object.assign(document.createElement("p"), { textContent: x.reply }));
+      const fill = Object.assign(document.createElement("button"), { className: "btn small primary", textContent: "Fill" });
+      fill.onclick = async () => {
+        const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: await activeTabId() }, args: [x.reply], func: fillFocused });
+        setStatus(result ? "Reply filled. Press Reply on the page." : "Click the comment's reply box first, then press Fill.", result ? "ok" : "error");
+      };
+      const copy = Object.assign(document.createElement("button"), { className: "btn small", textContent: "Copy" });
+      copy.onclick = async () => { await navigator.clipboard.writeText(x.reply); copy.textContent = "Copied"; };
+      div.append(fill, copy);
+      return div;
+    }));
+    setStatus(`${r.replies.length} repl${r.replies.length === 1 ? "y" : "ies"} drafted.`, "ok");
+  } catch (e) {
+    setStatus(e.message, "error");
+  }
+};
+
+void init().then(() => {
+  if (!page) return;
+  void loadEdits();
+  if (/linkedin\.com\/(feed\/update|posts)\//.test(page.url)) $("commentsBox").hidden = false;
+});

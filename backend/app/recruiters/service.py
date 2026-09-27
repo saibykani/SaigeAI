@@ -421,6 +421,19 @@ def _profile_values(profile: Profile) -> list[str]:
     return [v for v in vals if v]
 
 
+TEMPLATE_VARS = ("firstName", "fullName", "companyName", "jobTitle", "jobLink", "myName", "myRole", "myPhone")
+
+
+def fill_template(tpl: str, profile: Profile, contact: dict, job: dict | None) -> str:
+    """Replace {{variables}} in a user-written template. Unknown variables are left visible so they get noticed."""
+    values = {"firstName": _first_name(contact.get("name") or ""), "fullName": contact.get("name") or "",
+              "companyName": (job or {}).get("company") or contact.get("company") or "",
+              "jobTitle": (job or {}).get("title") or "the role", "jobLink": (job or {}).get("application_url") or "",
+              "myName": profile.personal.name or "", "myRole": profile.personal.current_designation or "",
+              "myPhone": profile.personal.phone or ""}
+    return re.sub(r"\{\{\s*(\w+)\s*\}\}", lambda m: values.get(m.group(1), m.group(0)), tpl)[:5000]
+
+
 def check_truth(profile: Profile, body: str) -> dict:
     titles = [profile.personal.current_designation] if profile.personal.current_designation else []
     for v in _profile_values(profile):  # the user's own verified numbers are not invented metrics
@@ -462,6 +475,9 @@ async def create_draft(db: AsyncIOMotorDatabase, user_id: str, body: DraftIn) ->
     parent = await get_outreach(db, user_id, body.parent_id) if body.parent_id else None
     profile = await get_profile(db, user_id)
     subject, text = build_draft(body.kind, profile, contact, job, parent, body.context)
+    custom = (await get_settings_doc(db, user_id)).outreach.templates.get(body.kind)
+    if custom and custom.strip():  # the user's own template, with variables filled in
+        text = fill_template(custom, profile, contact, job)
     validation = check_truth(profile, text)
     now = utcnow()
     doc = {"_id": new_id(), "user_id": user_id, "contact_id": contact["_id"], "contact_name": contact["name"],

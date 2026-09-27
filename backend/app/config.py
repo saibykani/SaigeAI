@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     # Shared secret for /api/cron/daily (Vercel Cron sends it as a Bearer token).
     cron_secret: str | None = None
 
+    # Optional LinkedIn app ("Share on LinkedIn") for the daily posting agent.
+    linkedin_client_id: str | None = None
+    linkedin_client_secret: str | None = None
+    linkedin_api_version: str = "202509"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, v: object) -> object:

@@ -232,6 +232,18 @@ export const MANUAL: ManualSection[] = [
     ],
   },
   {
+    id: "linkedin-posts", title: "LinkedIn daily posts", href: "/linkedin", tone: "teal", image: "/help/linkedin-posts.jpg",
+    purpose: "A LinkedIn post every day from your role and verified skills: a rotating series (tips, common mistakes, checklists, interview questions, tool spotlights, learning notes, career notes) with a designed image or PDF carousel, hashtags and your disclaimer, published automatically and tracked day by day.",
+    steps: [
+      "LinkedIn & Naukri → Daily posts. Tick “Post every day”, choose the time, days, series, format, tone, hashtags and a disclaimer (e.g. “Views are my own.”).",
+      "Click “Connect LinkedIn” once (LinkedIn's official sign-in). From then on posts publish automatically at your time.",
+      "Not connected yet? Each post is still prepared with its image; press “Post manually” to open LinkedIn with the text ready.",
+      "Track your streak and every post (date, series, format, link). Add reactions / comments / impressions from LinkedIn to see what works.",
+      "Replying to comments: open your post on LinkedIn, open the Saige extension → “Draft replies”, click a reply box and press Fill.",
+    ],
+    tips: ["Posts share general know-how about skills you really have and never claim results or numbers you haven't verified."],
+  },
+  {
     id: "find-people", title: "Find people (HR, QA managers)", href: "/recruiters?tab=find", tone: "lime", image: "/help/find-people.jpg",
     purpose: "For every company you've applied to or saved: one-click LinkedIn searches for HR, talent acquisition, technical recruiters, QA managers, test leads and engineering managers.",
     steps: [
@@ -273,8 +285,10 @@ export const MANUAL: ManualSection[] = [
   },
   {
     id: "agent", title: "Settings → Agent", href: "/agent", tone: "teal", image: "/help/agent.jpg",
-    purpose: "How your agent works: auto-reply to recruiters, follow-up days, the auto-applier and blocked companies.",
+    purpose: "How your agent works: outreach mode (Auto or Manual), your own message templates, auto-reply to recruiters, follow-ups, the auto-applier and blocked companies.",
     steps: [
+      "Outreach mode: Auto mode sends replies, follow-ups and (optionally) emails to HR contacts in jobs you applied to, from your Gmail, within the limits. Manual mode waits for your approval on each message.",
+      "Your message templates: write your own cold email, referral request, follow-up or thank-you with {{firstName}}, {{jobTitle}}, {{companyName}}, {{jobLink}}, {{myName}} and more.",
       "Auto-reply: when a recruiter emails, Saige drafts the answer to what they asked (CTC, notice, location, experience, resume, availability, job ID) from your verified profile, attaching your resume if asked. Approve it in Recruiters → Queue and it's sent from your Gmail.",
       "Follow-ups: choose the days after sending (e.g. 3, 7, 14). They stop when someone replies.",
       "Auto-applier: minimum match, how many a day, where, and email applications.",

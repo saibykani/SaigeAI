@@ -10,6 +10,7 @@ export const THEMES = [
   { id: "paper", name: "Paper & Ink", note: "Cream paper · serif · editorial", swatch: ["#f6f0e4", "#1d1a16", "#8a3b12", "#c9b99a"] },
   { id: "neon", name: "Neon Grid", note: "Synthwave night · lime neon · grid", swatch: ["#07030f", "#c6ff3d", "#8b5cf6", "#2a1a4a"] },
   { id: "sunset", name: "Desert Sunset", note: "Warm sand · terracotta · soft", swatch: ["#fbeee2", "#c2410c", "#7c2d12", "#f4c8a8"] },
+  { id: "crystal", name: "Crystal Glass", note: "Apple-style clear glass · light · floating panels", swatch: ["#e9edf2", "#ffffff", "#8e8e93", "#c7ccd4"] },
   { id: "glass", name: "Liquid Glass", note: "Frosted glass · violet aurora · floating", swatch: ["#0b0718", "#b794ff", "#6d28d9", "#1e1238"] },
 ] as const;
 

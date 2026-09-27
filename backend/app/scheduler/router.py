@@ -64,6 +64,12 @@ async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorData
             out["gmail"] = {"fetched": r.get("fetched", 0), "alert_jobs": r.get("alert_jobs", 0)}
         except Exception as exc:  # noqa: BLE001 - a failed background sync is reported, not raised
             out["gmail"] = {"error": str(exc)[:200]}
+    # Scheduled jobs that became due (LinkedIn post at your time, auto outreach...) run now instead of waiting for the daily cron.
+    try:
+        ran = await service.run_for_user(db, uid, now)
+        out["scheduled"] = [r["job"] for r in ran]
+    except Exception as exc:  # noqa: BLE001
+        out["scheduled"] = {"error": str(exc)[:200]}
     doc = await db[c.JOB_FEED].find_one({"_id": uid}, {"built_at": 1})
     if await is_allowed(db, uid, "job_discovery") and (not doc or now - as_utc(doc["built_at"]) > feed.FEED_TTL):
         try:

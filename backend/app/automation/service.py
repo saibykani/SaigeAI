@@ -87,6 +87,31 @@ class FollowUps(BaseModel):
         return sorted({d for d in v if 1 <= d <= 60})[:5] or [3, 7, 14]
 
 
+class LinkedInPosts(BaseModel):
+    """Daily LinkedIn posting agent."""
+    enabled: bool = False
+    auto_publish: bool = True          # publish automatically when LinkedIn is connected
+    time: str = Field(default="10:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    days: list[int] = Field(default=[0, 1, 2, 3, 4])   # Monday = 0
+    series: list[str] = ["tip", "mistake", "checklist", "interview", "tool", "learned", "career"]
+    topics: list[str] = Field(default=[], max_length=30)  # empty: rotate through your verified skills
+    format: Literal["auto", "text", "image", "carousel"] = "auto"
+    tone: str = Field(default="friendly and professional", max_length=60)
+    hashtags: int = Field(default=5, ge=0, le=10)
+    emojis: bool = True
+    disclaimer: str = Field(default="", max_length=200)
+
+
+class OutreachAuto(BaseModel):
+    """Outreach mode. manual: every message waits for approval. auto: the user gives standing approval,
+    so truth-checked messages within the caps are sent from Gmail automatically."""
+    mode: Literal["manual", "auto"] = "manual"
+    send_replies: bool = True       # auto-replies to recruiter emails
+    send_followups: bool = True     # follow-ups when there's no reply
+    cold_email_jobs: bool = False   # email HR contacts published in postings you applied to
+    templates: dict[str, str] = {}  # kind -> body with {{firstName}} {{jobTitle}} {{companyName}} {{jobLink}}
+
+
 class AutomationSettings(BaseModel):
     mode: AutomationMode = "conservative"
     paused_all: bool = False
@@ -98,6 +123,8 @@ class AutomationSettings(BaseModel):
     auto_reply: AutoReply = AutoReply()
     followups: FollowUps = FollowUps()
     blocked_companies: list[str] = Field(default=[], max_length=200)
+    linkedin_posts: LinkedInPosts = LinkedInPosts()
+    outreach: OutreachAuto = OutreachAuto()
 
 
 class AutomationSettingsUpdate(BaseModel):
@@ -110,6 +137,8 @@ class AutomationSettingsUpdate(BaseModel):
     auto_reply: AutoReply | None = None
     followups: FollowUps | None = None
     blocked_companies: list[str] | None = Field(default=None, max_length=200)
+    linkedin_posts: LinkedInPosts | None = None
+    outreach: OutreachAuto | None = None
 
 
 async def get_settings_doc(db: AsyncIOMotorDatabase, user_id: str) -> AutomationSettings:

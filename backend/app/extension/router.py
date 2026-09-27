@@ -242,3 +242,17 @@ async def ext_edit_applied(change_id: str, user: dict = Depends(token_user), db:
 
     await mark_applied(db, user["_id"], change_id)
     return {"ok": True}
+
+
+class ExtComments(BaseModel):
+    comments: list[dict] = Field(min_length=1, max_length=30)
+
+
+@router.post("/ext/comment-replies")
+async def ext_comment_replies(body: ExtComments, user: dict = Depends(token_user)):
+    """Draft replies to the comments visible on the user's own LinkedIn post (the user posts each one)."""
+    from app.linkedin_posts.router import reply_to
+
+    first = (user.get("name") or "").split(" ")[0]
+    return {"replies": [{"author": str(x.get("author", ""))[:80], "comment": str(x.get("text", ""))[:500],
+                         "reply": reply_to(str(x.get("author", "")), str(x.get("text", "")), first)} for x in body.comments]}

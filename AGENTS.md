@@ -24,7 +24,9 @@ LinkedIn/Naukri profile optimisation, recruiter and referral outreach, a daily s
    and Naukri offer no public profile-edit API, so profile updates are **copy-ready changes the user
    applies**, and then marks as applied.
 3. **A human approves outward actions.** Applying, sending email and messaging recruiters wait
-   for user approval (`USER_APPROVAL_REQUIRED` / `HUMAN_APPROVAL_REQUIRED`). Respect
+   for user approval (`USER_APPROVAL_REQUIRED` / `HUMAN_APPROVAL_REQUIRED`), unless the user opted in to a
+   standing approval: Outreach **Auto mode** (`settings.outreach.mode == "auto"`, recruiters/auto_outreach.py) or
+   LinkedIn Posts **auto-publish**. Those still pass the truth guard, pauses, blocked companies and caps. Respect
    `automation.service.is_allowed()` (global pause plus per-capability pauses) and the daily limits.
    Recruiter outreach is capped at **10 per day**.
 4. **Record every agent action.** Record agent runs with `services/agent_runs.py` and audit
@@ -61,6 +63,8 @@ backend/app/
   email/                  # Gmail OAuth or App Password (imap.py read from All Mail with a SINCE fallback, smtp.py send approved mail),
                           # classifier, ingest -> status; portal.py (LinkedIn/Naukri/Indeed mail: categories, recruiter + phone extraction,
                           # never moves application status); auto_reply.py (reply drafts to recruiter mail from verified profile facts)
+  linkedin_posts/          # daily LinkedIn posting agent: content.py (series from verified skills), render.py (Pillow card / PDF
+                          # carousel), client.py (official OAuth + Posts API, w_member_social), service.py, router.py (/api/linkedin/*)
   activity/router.py      # /activity timeline (audit log) + /activity/referrals (outreach grouped per job); page kept at /activity (not in the sidebar)
   assistant/router.py     # Saige AI chat: Claude (llm.chat) grounded in a summary of the user's records, or a built-in answerer without a key
   analytics/router.py     # also /analytics/insights (market + pipeline numbers useful before any application is sent)

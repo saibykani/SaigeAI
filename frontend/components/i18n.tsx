@@ -43,6 +43,7 @@ const STRINGS: Record<string, Partial<Record<Lang, string>>> = {
   Activity: { hi: "गतिविधि", te: "కార్యకలాపం" },
   "Saige AI": { hi: "Saige AI", te: "Saige AI" },
   "Ask Saige AI": { hi: "Saige AI से पूछें", te: "Saige AI ని అడగండి" },
+  "Daily posts": { hi: "रोज़ के पोस्ट", te: "రోజువారీ పోస్ట్‌లు" },
   Workspace: { hi: "कार्यक्षेत्र", te: "వర్క్‌స్పేస్" },
   Network: { hi: "नेटवर्क", te: "నెట్‌వర్క్" },
   Account: { hi: "खाता", te: "ఖాతా" },

@@ -328,6 +328,7 @@ export interface AutomationSettings {
   auto_reply: { enabled: boolean; talent_details: boolean; resume: boolean; next_step: boolean; job_details: boolean };
   followups: { enabled: boolean; days: number[] };
   blocked_companies: string[];
+  outreach: { mode: "manual" | "auto"; send_replies: boolean; send_followups: boolean; cold_email_jobs: boolean; templates: Record<string, string> };
 }
 
 export interface AutoApplySettings {

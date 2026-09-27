@@ -151,7 +151,8 @@ async def test_live_tick_refreshes_feed_and_activity(client, auth, monkeypatch):
 
     monkeypatch.setattr(feed, "build", fake_build)
     r = (await client.post("/api/live/tick", headers=auth)).json()
-    assert r == {"gmail": None, "feed": {"jobs": 0}}
+    assert r["gmail"] is None and isinstance(r["scheduled"], list)
+    assert r["feed"] == {"jobs": 0} or "job_discovery" in r["scheduled"]  # the daily job may have built it already
     assert (await client.post("/api/live/tick", headers=auth)).json()["feed"] is None  # fresh: not rebuilt
     await client.put("/api/profile", headers=auth, json=PROFILE)
     act = (await client.get("/api/activity", headers=auth)).json()

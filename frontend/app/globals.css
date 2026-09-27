@@ -627,3 +627,37 @@ body {
 [data-theme="glass"] :is(.bg-card-solid, .glass) { background: rgba(255, 255, 255, 0.07) !important; backdrop-filter: blur(22px) saturate(1.4); }
 [data-theme="glass"] :is(.rounded-3xl) { border-radius: 28px; }
 @media (prefers-reduced-motion: reduce) { [data-theme="glass"] body::before { animation: none; } }
+
+
+/* Crystal Glass: Apple-style clear glass on a soft light backdrop. Panels float, blur what's behind them,
+   and catch light on their top edge. Neutral (no tinted gradients). */
+[data-theme="crystal"] {
+  color-scheme: light;
+  --background: #e9edf2; --foreground: #1c1c1e; --card: rgba(255, 255, 255, 0.42); --card-solid: rgba(255, 255, 255, 0.55);
+  --card-foreground: #1c1c1e; --muted: rgba(255, 255, 255, 0.45); --muted-foreground: #5f6168; --border: rgba(255, 255, 255, 0.7);
+  --input: rgba(255, 255, 255, 0.6); --primary: #1c1c1e; --primary-foreground: #ffffff; --secondary: rgba(255, 255, 255, 0.55);
+  --secondary-foreground: #1c1c1e; --accent: rgba(255, 255, 255, 0.7); --accent-foreground: #1c1c1e; --ring: #8e8e93;
+  --brand-1: #1c1c1e; --brand-2: #636366; --brand-3: #aeaeb2;
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(0, 0, 0, 0.04), 0 18px 40px -18px rgba(30, 40, 60, 0.28);
+  --shadow-lift: inset 0 1px 0 rgba(255, 255, 255, 1), 0 26px 60px -22px rgba(30, 40, 60, 0.38);
+  --hero-gradient: linear-gradient(135deg, rgba(28, 28, 30, 0.82), rgba(58, 58, 60, 0.78));
+  --tone-green: #248a3d; --tone-orange: #c93400; --tone-yellow: #a05a00; --tone-purple: #8944ab;
+  --tone-red: #d70015; --tone-mint: #0c817b; --tone-teal: #0071a4; --tone-lime: #4d7c0f;
+  --grid: rgba(0, 0, 0, 0.06);
+}
+[data-theme="crystal"] body {
+  background:
+    radial-gradient(45% 40% at 15% 10%, rgba(255, 255, 255, 0.95), transparent 70%),
+    radial-gradient(40% 40% at 85% 25%, rgba(214, 220, 228, 0.9), transparent 70%),
+    radial-gradient(50% 45% at 60% 90%, rgba(236, 239, 243, 1), transparent 70%),
+    #e3e7ec;
+  background-attachment: fixed;
+}
+[data-theme="crystal"] :is(.bg-card-solid, .glass, [class*="bg-card"]) {
+  background: rgba(255, 255, 255, 0.46) !important;
+  backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+}
+[data-theme="crystal"] :is(.border) { border-color: rgba(255, 255, 255, 0.75); }
+[data-theme="crystal"] :is(.rounded-3xl) { border-radius: 30px; }
+[data-theme="crystal"] :is(.rounded-2xl) { border-radius: 22px; }

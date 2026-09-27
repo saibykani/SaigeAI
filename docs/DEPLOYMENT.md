@@ -113,6 +113,24 @@ when the request carries `Authorization: Bearer <CRON_SECRET>`, which Vercel add
 
 More frequent updates come from the app itself: while it is open, `POST /api/live/tick` runs every 3 minutes.
 
+### LinkedIn Posts (daily posting agent)
+
+Posts are always written, designed (image card or PDF carousel) and tracked. To publish them
+automatically through LinkedIn's official API:
+
+1. https://www.linkedin.com/developers/apps → **Create app** (any company page you manage; a personal
+   one is fine).
+2. **Products** tab → add **Sign In with LinkedIn using OpenID Connect** and **Share on LinkedIn**
+   (both self-serve, approved instantly).
+3. **Auth** tab → Authorized redirect URL: `https://saige-ai.vercel.app/api/linkedin/callback`
+   (and `http://localhost:3100/api/linkedin/callback` for local).
+4. Copy the Client ID and Client Secret into the `saige-ai-api` project as `LINKEDIN_CLIENT_ID` and
+   `LINKEDIN_CLIENT_SECRET`, then redeploy. Optional: `LINKEDIN_API_VERSION` (default `202509`).
+5. In Saige: LinkedIn & Naukri → Daily posts → **Connect LinkedIn**.
+
+LinkedIn tokens last 60 days; Saige asks you to reconnect when one expires. Reading comments and post
+analytics needs LinkedIn partner access, so comment replies are drafted by the browser extension.
+
 ### Jobs for you (no keys needed)
 
 Jobs → **Jobs for you** (`GET /api/jobs/feed`, `backend/app/jobs/feed.py`) fetches every job for the
