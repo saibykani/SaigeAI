@@ -4,25 +4,27 @@ Drawn with Pillow's bundled scalable font, so it renders the same on any server.
 import io
 import textwrap
 
-from PIL import Image, ImageDraw, ImageFont
-
 THEME_COLOURS = {  # one accent per series (single hue on a dark card)
     "tip": (48, 209, 88), "mistake": (255, 159, 10), "checklist": (100, 210, 255), "interview": (191, 90, 242),
     "tool": (255, 214, 10), "learned": (99, 230, 190), "career": (255, 69, 58),
 }
 
 
-def _font(size: int) -> ImageFont.FreeTypeFont:
+def _font(size: int):
+    from PIL import ImageFont  # imported lazily: the API starts even if imaging is unavailable
+
     return ImageFont.load_default(size=size)
 
 
-def _wrap(draw: ImageDraw.ImageDraw, text: str, size: int, width_px: int) -> list[str]:
+def _wrap(draw, text: str, size: int, width_px: int) -> list[str]:
     f = _font(size)
     avg = max(1, int(draw.textlength("abcdefghijklmnopqrstuvwxyz", font=f) / 26))
     return textwrap.wrap(text, width=max(8, width_px // avg))
 
 
-def _base(w: int, h: int, accent: tuple[int, int, int]) -> tuple[Image.Image, ImageDraw.ImageDraw]:
+def _base(w: int, h: int, accent: tuple[int, int, int]):
+    from PIL import Image, ImageDraw
+
     img = Image.new("RGB", (w, h), (10, 10, 12))
     d = ImageDraw.Draw(img)
     for i in range(0, 380, 4):  # soft single-hue glow in the top-right corner
