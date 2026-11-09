@@ -115,7 +115,8 @@ async def _bulk_upsert(db: AsyncIOMotorDatabase, ops: list[UpdateOne]) -> None:
                 await coll.update_one(op._filter, op._doc, upsert=True)
 
 
-async def scan(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual", only: list[str] | None = None) -> dict:
+async def scan(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual", only: list[str] | None = None,
+               budget: float | None = None) -> dict:
     """Fetch every selected career portal, score each matching opening and store it."""
     profile = await get_profile(db, uid)
     weights = await get_weights(db, uid)
@@ -142,7 +143,7 @@ async def scan(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual", o
             # Hard budget so a scan always finishes inside one serverless call; late companies count as timed out.
             tasks = [asyncio.ensure_future(one(co)) for co in pool]
             if tasks:
-                await asyncio.wait(tasks, timeout=SCAN_BUDGET)
+                await asyncio.wait(tasks, timeout=budget or SCAN_BUDGET)
             results = []
             for t in tasks:
                 if not t.done():

@@ -44,6 +44,15 @@ async def cron_daily(authorization: str | None = Header(default=None), cursor: s
     return {"users": users, "jobs_run": jobs, "next_cursor": cursor}
 
 
+@router.get("/cron/careers")
+async def cron_careers(authorization: str | None = Header(default=None), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Career-portal live watch. Point an external pinger at it every 30 s (Bearer $CRON_SECRET)."""
+    _check_cron_auth(authorization)
+    from app.careers import watch
+
+    return {"users": await watch.tick_all(db)}
+
+
 @router.post("/live/tick")
 async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     """Called every minute while Saige is open: syncs Gmail (portal alerts, invites, recruiter mail) when the
@@ -70,6 +79,12 @@ async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorData
         out["scheduled"] = [r["job"] for r in ran]
     except Exception as exc:  # noqa: BLE001
         out["scheduled"] = {"error": str(exc)[:200]}
+    try:
+        from app.careers import watch
+
+        out["careers"] = await watch.tick(db, uid)
+    except Exception as exc:  # noqa: BLE001
+        out["careers"] = {"error": str(exc)[:200]}
     doc = await db[c.JOB_FEED].find_one({"_id": uid}, {"built_at": 1})
     if await is_allowed(db, uid, "job_discovery") and (not doc or now - as_utc(doc["built_at"]) > feed.FEED_TTL):
         try:

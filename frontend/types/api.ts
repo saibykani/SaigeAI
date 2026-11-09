@@ -933,6 +933,8 @@ export interface CareerSettings {
   tiers: string[];
   companies: string[];
   locations: string[];
+  watch: boolean;
+  watch_seconds: number;
 }
 
 export interface CareerPortal {

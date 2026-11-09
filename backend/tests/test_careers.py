@@ -229,3 +229,22 @@ async def test_smartrecruiters_successfactors_and_oracle_fetchers():
     assert sf[0]["url"] == "https://careers.wipro.com/job/Hyderabad-QA/123/" and sf[0]["posted"] == "2026-11-09"
     assert orc[0]["url"].endswith("/sites/CX_1001/job/210") and "Selenium" in orc[0]["description"]
     assert {"infosys", "tcs", "cognizant", "cgi", "hcltech", "wipro", "capgemini", "accenture"} <= set(catalog.BY_ID)
+
+
+async def test_live_watch_rotates_slices_and_respects_interval(client, auth, db, careers, monkeypatch):
+    from app.careers import watch
+
+    monkeypatch.setattr(watch, "BATCH", 2)
+    await _setup(client, auth)
+    me = await db[c.USERS].find_one({"email": "asha@example.com"})
+    assert (await watch.tick(db, me["_id"]))["skipped"] == "live watch off"
+    r = await client.put("/api/careers/settings", headers=auth, json={"watch": True, "watch_seconds": 30})
+    assert r.status_code == 200, r.text
+    first = await watch.tick(db, me["_id"])
+    assert first["scanned"] == 2 and "email" in first
+    assert (await watch.tick(db, me["_id"]))["skipped"] == "not due"
+    second = await watch.tick(db, me["_id"], force=True)
+    assert second["scanned"] == 2
+    seen = {d["company_id"] for d in await db[c.CAREER_JOBS].find({"user_id": me["_id"]}).to_list(None)}
+    assert len(seen) >= 3
+    assert (await client.get("/api/cron/careers")).status_code in (401, 503)
