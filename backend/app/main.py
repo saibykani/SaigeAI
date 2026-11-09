@@ -14,6 +14,7 @@ from app.applications.router import router as applications_router
 from app.assistant.router import router as assistant_router
 from app.auth.router import router as auth_router
 from app.automation.router import router as automation_router
+from app.careers.router import router as careers_router
 from app.config import get_settings
 from app.database import mongo
 from app.email.router import router as email_router
@@ -124,7 +125,7 @@ def create_app() -> FastAPI:
             db_ok = False
         return {"status": "ok" if db_ok else "degraded", "database": db_ok}
 
-    for r in (auth_router, profile_sync_router, profile_router, resume_ai_router, resumes_router, jobs_router,
+    for r in (auth_router, profile_sync_router, profile_router, resume_ai_router, resumes_router, jobs_router, careers_router,
               applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router, linkedin_posts_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
               recruiters_router, extension_router):

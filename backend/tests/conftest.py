@@ -35,12 +35,17 @@ class _Offline:
     async def get(self, *a, **k):
         raise httpx.ConnectError("offline in tests")
 
+    async def post(self, *a, **k):
+        raise httpx.ConnectError("offline in tests")
+
 
 @pytest.fixture(autouse=True)
 def _no_network(monkeypatch):
+    from app.careers import providers
     from app.jobs import discover
 
     monkeypatch.setattr(discover, "http_client", lambda: _Offline())
+    monkeypatch.setattr(providers, "http_client", lambda: _Offline())
 
 
 @pytest.fixture

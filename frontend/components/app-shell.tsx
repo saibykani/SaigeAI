@@ -44,7 +44,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone; grou
 // Pages that show the same kind of data share one sidebar entry and switch with tabs at the top.
 const NAV: NavItem[] = [
   { group: "Workspace", href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green", tabs: [{ href: "/", label: "Overview" }, { href: "/analytics", label: "Analytics" }] },
-  { group: "Workspace", href: "/jobs", label: "Jobs", icon: Briefcase, tone: "orange" },
+  { group: "Workspace", href: "/jobs", label: "Jobs", icon: Briefcase, tone: "orange", tabs: [{ href: "/jobs", label: "Jobs" }, { href: "/careers", label: "Career portals" }] },
   { group: "Workspace", href: "/applications", label: "Applications", icon: Send, tone: "yellow", tabs: [{ href: "/applications", label: "Applications" }, { href: "/interviews", label: "Interviews" }] },
   { group: "Workspace", href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
   { group: "Network", href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },

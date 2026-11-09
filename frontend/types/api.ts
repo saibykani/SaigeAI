@@ -838,3 +838,120 @@ export interface DiscoverResponse {
   errors: Record<string, string>;
   results: DiscoverResult[];
 }
+
+// ---------------------------------------------------------------- Career portals
+export type CareerFit = "strong" | "good" | "stretch" | "low";
+
+export interface CareerJob {
+  id: string;
+  item_id: string;
+  company_id: string;
+  company: string;
+  tiers: string[];
+  provider: string;
+  title: string;
+  location: string | null;
+  city: string | null;
+  country: string | null;
+  remote: boolean | null;
+  scope: JobScope;
+  url: string | null;
+  careers_url: string;
+  posted: string | null;
+  employment_type: string | null;
+  score: number;
+  fit: CareerFit;
+  fit_label: string;
+  matched_skills: string[];
+  missing_skills: string[];
+  exp_min: number | null;
+  exp_max: number | null;
+  snippet: string;
+  has_description: boolean;
+  active: boolean;
+  first_seen: string;
+  last_seen: string;
+  emailed_at: string | null;
+  saved_job_id: string | null;
+}
+
+export interface CareerChange {
+  kind: "add" | "gap" | "nice" | "experience" | "title" | "info" | "ok";
+  title: string;
+  text: string;
+  items?: string[];
+}
+
+export interface CareerJobDetail extends CareerJob {
+  description: string;
+  breakdown: Record<string, number | null>;
+  issues: string[];
+  required_skills: string[];
+  preferred_skills: string[];
+  resume: { id: string; name: string; overlap: number; of: number } | null;
+  resume_changes: CareerChange[];
+}
+
+export interface CareerFacet {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface CareerScan {
+  roles: string[];
+  country: string | null;
+  status: "running" | "ok" | "partial" | "failed" | "needs_profile";
+  error?: string;
+  started_at: string;
+  finished_at?: string;
+  found: number;
+  new: number;
+  closed: number;
+  strong_new: number;
+  errors?: number;
+  duration_ms?: number;
+  companies?: { id: string; name: string; status: "ok" | "error"; found: number; error?: string }[];
+}
+
+export interface CareerJobsPage {
+  items: CareerJob[];
+  total: number;
+  page: number;
+  page_size: number;
+  facets: { companies: CareerFacet[]; countries: CareerFacet[]; fits: CareerFacet[]; scopes: CareerFacet[] };
+  scan: CareerScan | null;
+}
+
+export interface CareerSettings {
+  enabled: boolean;
+  email_digest: boolean;
+  digest_to: string;
+  time: string;
+  min_score: number;
+  roles: string[];
+  tiers: string[];
+  companies: string[];
+  locations: string[];
+}
+
+export interface CareerPortal {
+  id: string;
+  name: string;
+  provider: string;
+  tiers: string[];
+  api: boolean;
+  careers_url: string;
+  search_url: string;
+  selected: boolean;
+  open_jobs: number;
+  role_links: { role: string; url: string }[];
+}
+
+export interface CareerPortals {
+  tiers: Record<string, string>;
+  companies: CareerPortal[];
+  roles: string[];
+  location: string;
+  settings: CareerSettings;
+}

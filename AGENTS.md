@@ -58,6 +58,9 @@ backend/app/
   jobs/                   # jd_parser, 9-dimension matching, dedupe, ATS board sources, discover.py (job APIs + role-family title filter),
                           # feed.py (Jobs for you: country/remote scope, walk-ins, HR emails; cached in job_feed), alerts.py (portal job-alert emails),
                           # auto_apply.py (daily prepare + approve_many: email applications via SMTP with resume attached)
+  careers/                # Career portals (/api/careers): catalog.py (65+ companies: Greenhouse/Lever/Ashby/Workday/Amazon APIs,
+                          # deep links for Google/Meta/Apple/Microsoft/Netflix), providers.py, service.py (scan with 40 s budget -> career_jobs,
+                          # filters + facets, fit + truthful resume changes), digest.py (daily email to self); scheduler job career_scan
   portals/router.py       # hiring-portal catalogue (/integrations/portals): "api" portals vs "alerts" portals + user profile links
   applications/           # applications, answers (confidence), interviews + .ics
   email/                  # Gmail OAuth or App Password (imap.py read from All Mail with a SINCE fallback, smtp.py send approved mail),

@@ -27,9 +27,9 @@ from app.utils import utcnow
 logger = logging.getLogger("saige.scheduler")
 
 Job = Literal["profile_refresh", "naukri_freshness", "job_discovery", "gmail_sync", "followups", "morning_report",
-              "linkedin_post", "outreach_auto"]
+              "linkedin_post", "outreach_auto", "career_scan"]
 JOBS: tuple[str, ...] = ("profile_refresh", "naukri_freshness", "job_discovery", "gmail_sync", "followups",
-                         "morning_report", "linkedin_post", "outreach_auto")
+                         "morning_report", "linkedin_post", "outreach_auto", "career_scan")
 LABELS = {
     "profile_refresh": "LinkedIn & Naukri optimisation",
     "naukri_freshness": "Naukri daily freshness",
@@ -39,6 +39,7 @@ LABELS = {
     "morning_report": "Morning report",
     "linkedin_post": "LinkedIn daily post",
     "outreach_auto": "Auto outreach (replies, follow-ups)",
+    "career_scan": "Career portal jobs + email digest",
 }
 
 
@@ -68,6 +69,8 @@ def job_time(job: str, s: AutomationSettings) -> time:
         return _hhmm(s.linkedin_posts.time, "10:00")
     if job == "outreach_auto":
         return _hhmm(s.schedules.followup_time, "09:00")
+    if job == "career_scan":
+        return _hhmm(s.careers.time, "08:30")
     return time(0, 0)  # gmail_sync: any time of day
 
 
@@ -84,6 +87,8 @@ def is_due(job: str, s: AutomationSettings, local: datetime) -> bool:
     if job == "linkedin_post" and not (s.linkedin_posts.enabled and local.weekday() in s.linkedin_posts.days):
         return False
     if job == "outreach_auto" and s.outreach.mode != "auto":
+        return False
+    if job == "career_scan" and not s.careers.enabled:
         return False
     return local.time() >= job_time(job, s)
 
@@ -227,6 +232,20 @@ async def _job_discovery(db: AsyncIOMotorDatabase, uid: str, trigger: str) -> di
     return totals
 
 
+async def _career_scan(db: AsyncIOMotorDatabase, uid: str, trigger: str) -> dict:
+    from app.careers import digest
+    from app.careers import service as careers
+
+    if not await is_allowed(db, uid, "job_discovery"):
+        return {"skipped": "job discovery paused"}
+    report = await careers.scan(db, uid, trigger=trigger)
+    if report.get("status") == "needs_profile":
+        return {"skipped": report["error"]}
+    out = {k: report.get(k) for k in ("found", "new", "closed", "strong_new", "errors")}
+    out["digest"] = await digest.send(db, uid, trigger=trigger)
+    return out
+
+
 async def _gmail_sync(db: AsyncIOMotorDatabase, uid: str) -> dict:
     from fastapi import HTTPException
 
@@ -300,6 +319,8 @@ async def run_job(db: AsyncIOMotorDatabase, uid: str, job: str, s: AutomationSet
         from app.recruiters.auto_outreach import run as auto_outreach
 
         return await auto_outreach(db, uid, s, now)
+    if job == "career_scan":
+        return await _career_scan(db, uid, trigger)
     raise ValueError(f"unknown job {job}")
 
 

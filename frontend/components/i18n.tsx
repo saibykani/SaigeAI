@@ -17,6 +17,7 @@ const STRINGS: Record<string, Partial<Record<Lang, string>>> = {
   "LinkedIn & Naukri": { hi: "LinkedIn और Naukri", te: "LinkedIn & Naukri" },
   Resumes: { hi: "रिज़्यूमे", te: "రెజ్యూమేలు" },
   Jobs: { hi: "नौकरियाँ", te: "ఉద్యోగాలు" },
+  "Career portals": { hi: "करियर पोर्टल", te: "కెరీర్ పోర్టల్స్" },
   Applications: { hi: "आवेदन", te: "దరఖాస్తులు" },
   Interviews: { hi: "इंटरव्यू", te: "ఇంటర్వ్యూలు" },
   Recruiters: { hi: "रिक्रूटर", te: "రిక్రూటర్లు" },

@@ -112,6 +112,19 @@ class OutreachAuto(BaseModel):
     templates: dict[str, str] = {}  # kind -> body with {{firstName}} {{jobTitle}} {{companyName}} {{jobLink}}
 
 
+class CareerPortals(BaseModel):
+    """Career jobs: daily scan of company career portals for the user's roles, plus an email digest to themselves."""
+    enabled: bool = True
+    email_digest: bool = True
+    digest_to: str = Field(default="", max_length=200)   # empty: the account email
+    time: str = Field(default="08:30", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    min_score: int = Field(default=60, ge=0, le=100)     # digest threshold
+    roles: list[str] = Field(default=[], max_length=5)   # empty: profile target roles
+    tiers: list[str] = Field(default=[], max_length=20)  # empty: every tier
+    companies: list[str] = Field(default=[], max_length=200)  # catalogue ids added on top of the tiers
+    locations: list[str] = Field(default=[], max_length=20)   # digest filter; empty: your country + remote
+
+
 class AutomationSettings(BaseModel):
     mode: AutomationMode = "conservative"
     paused_all: bool = False
@@ -125,6 +138,7 @@ class AutomationSettings(BaseModel):
     blocked_companies: list[str] = Field(default=[], max_length=200)
     linkedin_posts: LinkedInPosts = LinkedInPosts()
     outreach: OutreachAuto = OutreachAuto()
+    careers: CareerPortals = CareerPortals()
 
 
 class AutomationSettingsUpdate(BaseModel):
@@ -139,6 +153,7 @@ class AutomationSettingsUpdate(BaseModel):
     blocked_companies: list[str] | None = Field(default=None, max_length=200)
     linkedin_posts: LinkedInPosts | None = None
     outreach: OutreachAuto | None = None
+    careers: CareerPortals | None = None
 
 
 async def get_settings_doc(db: AsyncIOMotorDatabase, user_id: str) -> AutomationSettings:
