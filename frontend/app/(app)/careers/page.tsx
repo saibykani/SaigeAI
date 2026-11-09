@@ -336,9 +336,9 @@ function CompaniesView() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Google, Meta, Apple, Microsoft, Netflix</CardTitle>
+          <CardTitle>Companies without a public jobs feed</CardTitle>
           <CardDescription>
-            These companies don&apos;t publish a public jobs API, and Saige never scrapes them. Each link opens their own careers search already
+            Google, Meta, Apple, Microsoft, Netflix, Infosys, TCS, Cognizant, CGI and a few others don&apos;t publish a public jobs feed, and Saige never scrapes them. Each link opens their own careers search already
             filtered to your role{data.location ? ` and ${data.location}` : ""}.
           </CardDescription>
         </CardHeader>
@@ -453,7 +453,7 @@ export default function CareersPage() {
     <div>
       <PageHeader
         title="Career portals"
-        description="Openings for your roles, read straight from company career pages: FAANG, big tech, AI labs, fintech, SaaS and Indian product companies. Each job shows how well you fit and what to change in your resume."
+        description="Openings for your roles, read straight from 120+ company career pages: FAANG, big tech, IT services (HCLTech, Wipro, Capgemini, Accenture, PwC, EY), banks, AI labs, fintech, SaaS, pharma and Indian product companies. Each job shows how well you fit and what to change in your resume."
       />
       <div className="mb-6 inline-flex rounded-full border bg-muted/50 p-1 text-sm" role="tablist">
         {([["jobs", "Jobs"], ["companies", "Companies"], ["settings", "Daily email"]] as [View, string][]).map(([k, label]) => (

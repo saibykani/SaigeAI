@@ -10,6 +10,7 @@ and fast even across a hundred companies.
 import asyncio
 import re
 from datetime import UTC, datetime, timedelta
+from urllib.parse import quote
 
 import httpx
 
@@ -18,9 +19,9 @@ from app.jobs import discover
 from app.jobs.jd_parser import html_to_text
 
 USER_AGENT = "SaigeAI/0.1 (personal job search assistant)"
-DETAIL_LIMIT = 8
-WORKDAY_PAGE = 20
-WORKDAY_PAGES = 2
+DETAIL_LIMIT = 6
+WORKDAY_PAGE = 20  # Workday's max page size; results are relevance-ranked by searchText
+WORKDAY_PAGES = 1
 _ID = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")
 _PATH = re.compile(r"^/job/[A-Za-z0-9_./%()-]{1,300}$")
 
@@ -28,7 +29,7 @@ _PATH = re.compile(r"^/job/[A-Za-z0-9_./%()-]{1,300}$")
 def http_client() -> httpx.AsyncClient:
     """Factory (patched in tests)."""
     return httpx.AsyncClient(timeout=15, headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
-                             follow_redirects=False, limits=httpx.Limits(max_connections=24))
+                             follow_redirects=False, limits=httpx.Limits(max_connections=40))
 
 
 def wanted(title: str, roles: list[str]) -> bool:
@@ -176,10 +177,126 @@ async def amazon(client: httpx.AsyncClient, co: Company, roles: list[str], count
     return out
 
 
-FETCHERS = {"greenhouse": greenhouse, "lever": lever, "ashby": ashby, "workday": workday, "amazon": amazon}
+# ------------------------------------------------------------------ SmartRecruiters (official public Posting API)
+
+ISO2 = {"india": "in", "united states": "us", "usa": "us", "united kingdom": "gb", "uk": "gb", "canada": "ca", "germany": "de",
+        "singapore": "sg", "united arab emirates": "ae", "uae": "ae", "australia": "au", "ireland": "ie", "netherlands": "nl"}
+
+
+async def smartrecruiters(client: httpx.AsyncClient, co: Company, roles: list[str], country: str | None = None) -> list[dict]:
+    if not _ID.match(co.board):
+        raise ValueError("invalid SmartRecruiters company id")
+    api = f"https://api.smartrecruiters.com/v1/companies/{co.board}/postings"
+    code = ISO2.get((country or "").strip().lower())
+    seen: dict[str, dict] = {}
+    for role in roles:
+        params: dict = {"q": role, "limit": 100}
+        if code:
+            params["country"] = code
+        for p in (await _json(client.get(api, params=params))).get("content") or []:
+            if p.get("id") and p["id"] not in seen and wanted(p.get("name", ""), roles):
+                seen[p["id"]] = p
+    ids = list(seen)
+    details = await asyncio.gather(*(_json(client.get(f"{api}/{i}")) for i in ids[:DETAIL_LIMIT]), return_exceptions=True)
+    text = {}
+    for i, d in zip(ids, details, strict=False):
+        if isinstance(d, dict):
+            secs = ((d.get("jobAd") or {}).get("sections") or {})
+            keys = ("jobDescription", "qualifications", "additionalInformation")
+            text[i] = "\n\n".join(html_to_text((secs.get(k) or {}).get("text") or "") for k in keys)
+    out = []
+    for i, p in seen.items():
+        loc = p.get("location") or {}
+        fallback = ", ".join(x for x in (loc.get("city"), (loc.get("country") or "").upper()) if x)
+        place = re.sub(r"(,\s*)+,", ",", loc.get("fullLocation") or "").strip(", ") or fallback
+        out.append(_item(co, source="smartrecruiters", source_job_id=i, title=p.get("name", ""), location=place or None,
+                         remote=True if loc.get("remote") else None, url=f"https://jobs.smartrecruiters.com/{co.board}/{i}",
+                         posted=(p.get("releasedDate") or "")[:10] or None,
+                         employment_type=(p.get("typeOfEmployment") or {}).get("label"), description=text.get(i, "").strip()))
+    return out
+
+
+# ------------------------------------------------------------------ SAP SuccessFactors career sites (public job RSS feed)
+
+_RSS_ITEM = re.compile(r"<item>(.*?)</item>", re.S)
+
+
+def _rss_tag(block: str, tag: str) -> str:
+    m = re.search(rf"<{tag}>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</{tag}>", block, re.S)
+    return (m.group(1) if m else "").strip()
+
+
+def rss_location(title: str) -> tuple[str, str | None]:
+    """'HP Data Protector Backup (Mumbai, IND-27, IN, 400708)' -> ('HP Data Protector Backup', 'Mumbai, IN')."""
+    m = re.match(r"^(.*?)\s*\(([^()]*)\)\s*$", title)
+    if not m:
+        return title, None
+    parts = [x.strip() for x in m.group(2).split(",") if x.strip() and not re.search(r"\d", x)]
+    return m.group(1).strip(), ", ".join(parts) or None
+
+
+async def successfactors(client: httpx.AsyncClient, co: Company, roles: list[str]) -> list[dict]:
+    if not re.fullmatch(r"[a-z0-9.-]{4,80}", co.host):
+        raise ValueError("invalid career site host")
+    seen: dict[str, dict] = {}
+    for role in roles:
+        resp = await client.get(f"https://{co.host}/services/rss/job/", params={"locale": "en_US", "keywords": role},
+                                headers={"Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.5"})
+        resp.raise_for_status()
+        for block in _RSS_ITEM.findall(resp.content.decode("utf-8", "replace")):
+            raw_title = html_to_text(_rss_tag(block, "title"))
+            link = html_to_text(_rss_tag(block, "link")).split("?")[0]
+            title, loc = rss_location(raw_title)
+            if not link.startswith(f"https://{co.host}/") or link in seen or not wanted(title, roles):
+                continue
+            try:
+                posted = datetime.strptime(_rss_tag(block, "pubDate")[:16], "%a, %d %b %Y").date().isoformat()
+            except ValueError:
+                posted = None
+            seen[link] = _item(co, source="successfactors", source_job_id=link.rstrip("/").rsplit("/", 1)[-1], title=title,
+                               location=loc, url=link, posted=posted, description=html_to_text(_rss_tag(block, "description")))
+    return list(seen.values())
+
+
+# ------------------------------------------------------------------ Oracle Recruiting Cloud (public candidate-experience REST)
+
+async def oracle(client: httpx.AsyncClient, co: Company, roles: list[str]) -> list[dict]:
+    if not (re.fullmatch(r"[a-z0-9.-]{4,80}\.oraclecloud\.com", co.host) and _ID.match(co.site)):
+        raise ValueError("invalid Oracle careers site")
+    api = f"https://{co.host}/hcmRestApi/resources/latest"
+    seen: dict[str, dict] = {}
+    for role in roles:
+        kw = quote(role.replace('"', ""), safe="")
+        url = (f"{api}/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList"
+               f"&finder=findReqs;siteNumber={co.site},limit=50,keyword=%22{kw}%22,sortBy=POSTING_DATES_DESC")
+        items = (await _json(client.get(url))).get("items") or [{}]
+        for r in items[0].get("requisitionList") or []:
+            if r.get("Id") and r["Id"] not in seen and wanted(r.get("Title", ""), roles):
+                seen[r["Id"]] = r
+    ids = list(seen)
+
+    async def detail(i: str) -> dict:
+        d = await _json(client.get(f"{api}/recruitingCEJobRequisitionDetails?expand=all&onlyData=true"
+                                   f"&finder=ById;Id=%22{quote(i, safe='')}%22,siteNumber={co.site}"))
+        return (d.get("items") or [{}])[0]
+
+    details = await asyncio.gather(*(detail(i) for i in ids[:DETAIL_LIMIT]), return_exceptions=True)
+    keys = ("ExternalDescriptionStr", "ExternalResponsibilitiesStr", "ExternalQualificationsStr")
+    text = {i: "\n\n".join(html_to_text(d.get(k) or "") for k in keys)
+            for i, d in zip(ids, details, strict=False) if isinstance(d, dict)}
+    return [_item(co, source="oracle", source_job_id=i, title=r.get("Title", ""), location=r.get("PrimaryLocation"),
+                  remote=True if "remote" in (r.get("WorkplaceType") or "").lower() else None,
+                  url=f"https://{co.host}/hcmUI/CandidateExperience/en/sites/{co.site}/job/{i}", posted=(r.get("PostedDate") or "")[:10] or None,
+                  description=(text.get(i) or r.get("ShortDescriptionStr") or "").strip()) for i, r in seen.items()]
+
+
+FETCHERS = {"greenhouse": greenhouse, "lever": lever, "ashby": ashby, "workday": workday, "amazon": amazon,
+            "successfactors": successfactors, "oracle": oracle}
 
 
 async def fetch(client: httpx.AsyncClient, co: Company, roles: list[str], country: str | None = None) -> list[dict]:
     if co.provider == "amazon":
         return await amazon(client, co, roles, country)
+    if co.provider == "smartrecruiters":
+        return await smartrecruiters(client, co, roles, country)
     return await FETCHERS[co.provider](client, co, roles)

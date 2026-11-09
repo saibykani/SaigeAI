@@ -25,6 +25,10 @@ TIERS: dict[str, str] = {
     "consumer": "Consumer internet",
     "enterprise": "Enterprise & semiconductors",
     "india": "India product companies",
+    "it_services": "IT services & consulting",
+    "banking": "Banks & financial services",
+    "healthcare": "Healthcare & pharma",
+    "industrial": "Industrial, retail & consumer",
 }
 
 
@@ -38,6 +42,8 @@ class Company:
     wd_host: str = ""  # workday: "wd5"
     wd_site: str = ""  # workday: career site id
     portal: str = ""  # portal: search URL template with {q} and {loc}
+    host: str = ""  # successfactors / oracle career-site host
+    site: str = ""  # oracle: site number
     careers_url: str = ""
     extra: dict = field(default_factory=dict)
 
@@ -61,6 +67,19 @@ def _ab(board: str, name: str, *tiers: str) -> Company:
 def _wd(tenant: str, host: str, site: str, name: str, *tiers: str) -> Company:
     return Company(tenant, name, "workday", tenant, tiers, wd_host=host, wd_site=site,
                    careers_url=f"https://{tenant}.{host}.myworkdayjobs.com/en-US/{site}")
+
+
+def _sr(cid: str, name: str, *tiers: str) -> Company:
+    return Company(cid.lower(), name, "smartrecruiters", cid, tiers, careers_url=f"https://jobs.smartrecruiters.com/{cid}")
+
+
+def _sf(cid: str, host: str, name: str, *tiers: str) -> Company:
+    return Company(cid, name, "successfactors", cid, tiers, host=host, careers_url=f"https://{host}/search/")
+
+
+def _orc(cid: str, host: str, site: str, name: str, *tiers: str) -> Company:
+    return Company(cid, name, "oracle", cid, tiers, host=host, site=site,
+                   careers_url=f"https://{host}/hcmUI/CandidateExperience/en/sites/{site}/requisitions")
 
 
 def _portal(cid: str, name: str, template: str, careers: str, *tiers: str) -> Company:
@@ -115,6 +134,55 @@ COMPANIES: list[Company] = [
     _gh("groww", "Groww", "india", "fintech"), _gh("hackerrank", "HackerRank", "india"), _gh("druva", "Druva", "india", "saas"),
     _lv("meesho", "Meesho", "india", "consumer"), _lv("cred", "CRED", "india", "fintech"),
     _lv("mindtickle", "Mindtickle", "india", "saas"), _ab("atlan", "Atlan", "india", "saas"),
+    _sr("Freshworks", "Freshworks", "india", "saas"), _sr("Swiggy", "Swiggy", "india", "consumer"),
+    # IT services & consulting
+    _sf("hcltech", "careers.hcltech.com", "HCLTech", "it_services", "india"), _sf("wipro", "careers.wipro.com", "Wipro", "it_services", "india"),
+    _sf("capgemini", "careers.capgemini.com", "Capgemini", "it_services"), _sf("ey", "careers.ey.com", "EY", "it_services"),
+    _wd("pwc", "wd3", "Global_Experienced_Careers", "PwC", "it_services"), _wd("dxctechnology", "wd1", "DXCJobs", "DXC Technology", "it_services"),
+    _wd("kyndryl", "wd5", "KyndrylProfessionalCareers", "Kyndryl", "it_services"), _wd("unisys", "wd5", "External", "Unisys", "it_services"),
+    _wd("thomsonreuters", "wd5", "External_Career_Site", "Thomson Reuters", "it_services", "saas"),
+    _portal("infosys", "Infosys", "https://career.infosys.com/joblist?searchText={q}", "https://career.infosys.com", "it_services", "india"),
+    _portal("tcs", "TCS", "https://ibegin.tcs.com/iBegin/jobs/search?keyword={q}", "https://www.tcs.com/careers", "it_services", "india"),
+    _portal("cognizant", "Cognizant", "https://careers.cognizant.com/global-en/jobs/?keyword={q}&location={loc}",
+            "https://careers.cognizant.com", "it_services"),
+    _portal("cgi", "CGI", "https://cgi.njoyn.com/corp/xweb/xweb.asp?page=joblisting&CLID=21001&keywords={q}", "https://www.cgi.com/en/careers",
+            "it_services"),
+    _portal("techmahindra", "Tech Mahindra", "https://careers.techmahindra.com/", "https://careers.techmahindra.com", "it_services", "india"),
+    _portal("ltimindtree", "LTIMindtree", "https://www.ltimindtree.com/careers/", "https://www.ltimindtree.com/careers/", "it_services", "india"),
+    _portal("deloitte", "Deloitte", "https://apply.deloitte.com/careers/SearchJobs/{q}", "https://www.deloitte.com/careers", "it_services"),
+    _portal("ibm", "IBM", "https://www.ibm.com/careers/search?q={q}", "https://www.ibm.com/careers", "it_services", "big_tech"),
+    _portal("tata-elxsi", "Tata Elxsi", "https://www.tataelxsi.com/careers", "https://www.tataelxsi.com/careers", "it_services", "india"),
+    # Banks & financial services
+    _orc("jpmorgan", "jpmc.fa.oraclecloud.com", "CX_1001", "JPMorgan Chase", "banking", "fintech"),
+    _wd("citi", "wd5", "2", "Citi", "banking"), _wd("barclays", "wd3", "External_Career_Site_Barclays", "Barclays", "banking"),
+    _wd("db", "wd3", "DBWebsite", "Deutsche Bank", "banking"), _wd("statestreet", "wd1", "Global", "State Street", "banking"),
+    _wd("blackrock", "wd1", "BlackRock_Professional", "BlackRock", "banking"), _wd("lseg", "wd3", "Careers", "LSEG", "banking"),
+    _wd("fis", "wd5", "SearchJobs", "FIS", "banking", "fintech"), _wd("fiserv", "wd5", "EXT", "Fiserv", "banking", "fintech"),
+    _wd("broadridge", "wd5", "Careers", "Broadridge", "banking", "fintech"), _sr("Experian", "Experian", "banking", "fintech"),
+    _portal("goldmansachs", "Goldman Sachs", "https://higher.gs.com/results?search={q}&location={loc}", "https://higher.gs.com", "banking"),
+    _portal("hdfcbank", "HDFC Bank", "https://www.hdfcbank.com/personal/about-us/careers", "https://www.hdfcbank.com/personal/about-us/careers",
+            "banking", "india"),
+    # Big tech & enterprise (more)
+    _orc("oracle", "eeho.fa.us2.oraclecloud.com", "CX_45001", "Oracle", "big_tech", "saas"),
+    _sr("ServiceNow", "ServiceNow", "saas", "big_tech"), _sr("LinkedIn3", "LinkedIn", "big_tech", "consumer"),
+    _wd("redhat", "wd5", "jobs", "Red Hat", "saas", "enterprise"), _wd("crowdstrike", "wd5", "crowdstrikecareers", "CrowdStrike", "saas"),
+    _wd("micron", "wd1", "External", "Micron", "enterprise"), _wd("marvell", "wd1", "MarvellCareers", "Marvell", "enterprise"),
+    _wd("analogdevices", "wd1", "External", "Analog Devices", "enterprise"), _wd("cadence", "wd1", "External_Careers", "Cadence", "enterprise"),
+    _wd("motorolasolutions", "wd5", "Careers", "Motorola Solutions", "enterprise"),
+    _wd("equinix", "wd1", "External", "Equinix", "enterprise", "saas"),
+    _sr("WesternDigital", "Western Digital", "enterprise"), _sr("BoschGroup", "Bosch", "industrial", "enterprise"),
+    _sr("Continental", "Continental", "industrial"),
+    # Healthcare & pharma
+    _wd("pfizer", "wd1", "PfizerCareers", "Pfizer", "healthcare"), _wd("astrazeneca", "wd3", "Careers", "AstraZeneca", "healthcare"),
+    _wd("novartis", "wd3", "Novartis_Careers", "Novartis", "healthcare"), _wd("abbott", "wd5", "abbottcareers", "Abbott", "healthcare"),
+    _wd("medtronic", "wd1", "MedtronicCareers", "Medtronic", "healthcare"), _wd("philips", "wd3", "jobs-and-careers", "Philips", "healthcare"),
+    _wd("elevancehealth", "wd1", "ANT", "Elevance Health", "healthcare"), _sr("AbbVie", "AbbVie", "healthcare"),
+    # Industrial, retail & consumer
+    _wd("boeing", "wd1", "EXTERNAL_CAREERS", "Boeing", "industrial"), _wd("3m", "wd1", "Search", "3M", "industrial"),
+    _wd("pg", "wd5", "1000", "P&G", "industrial"), _wd("nike", "wd1", "nke", "Nike", "industrial", "consumer"),
+    _wd("disney", "wd5", "disneycareer", "Disney", "consumer"), _wd("lowes", "wd5", "LWS_External_CS", "Lowe's", "industrial"),
+    _wd("homedepot", "wd5", "CareerDepot", "The Home Depot", "industrial"), _wd("chevron", "wd5", "jobs", "Chevron", "industrial"),
+    _wd("shell", "wd3", "ShellCareers", "Shell", "industrial"), _sr("Sodexo", "Sodexo", "industrial"),
 ]
 
 BY_ID: dict[str, Company] = {co.id: co for co in COMPANIES}

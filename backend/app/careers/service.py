@@ -36,7 +36,7 @@ from app.utils import utcnow
 
 logger = logging.getLogger("saige.careers")
 
-CONCURRENCY = 12
+CONCURRENCY = 28
 COMPANY_TIMEOUT = 25.0
 SCAN_BUDGET = 40.0
 MAX_PER_COMPANY = 150

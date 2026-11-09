@@ -112,13 +112,13 @@ export const MANUAL: ManualSection[] = [
   },
   {
     id: "careers", title: "Career portals", href: "/careers", tone: "orange", image: "/help/jobs.jpg",
-    purpose: "Openings for your roles read straight from 65+ company career sites (Amazon, NVIDIA, Salesforce, Adobe, Cisco, Stripe, OpenAI, Anthropic, Airbnb and more), each with your fit and what to change in your resume.",
+    purpose: "Openings for your roles read straight from 120+ company career sites (Amazon, NVIDIA, Salesforce, Accenture, HCLTech, Wipro, Capgemini, PwC, EY, JPMorgan, Oracle, ServiceNow, Stripe, OpenAI and more), each with your fit and what to change in your resume.",
     steps: [
       "Open Jobs → Career portals and click “Scan now” (it also runs every day at your chosen time).",
-      "Filter by fit, country, city, remote, company, company group (FAANG, big tech, AI labs, fintech, SaaS, India), posting date and your experience.",
+      "Filter by fit, country, city, remote, company, company group (FAANG, big tech, IT services, banks, AI labs, fintech, SaaS, healthcare, India), posting date and your experience.",
       "Click “Fit & resume changes” on a job: verified skills to add to your resume, required skills you don't have on record, and other checks.",
       "“Open career page” takes you to the official posting. “Save & tailor resume” tracks it in Jobs so you can generate a tailored resume.",
-      "Companies tab: Google, Meta, Apple, Microsoft and Netflix have no public jobs API, so Saige gives one-click searches on their own sites, filtered to your role and location.",
+      "Companies tab: Google, Meta, Apple, Microsoft, Netflix, Infosys, TCS, Cognizant and CGI have no public jobs feed, so Saige gives one-click searches on their own sites, filtered to your role and location.",
       "Daily email tab: turn the digest on or off, choose the time, minimum match, locations and which company groups to scan.",
     ],
     tips: ["The email is sent from your Gmail through the App Password connection (Settings → Integrations). Without it you get an in-app notification instead."],

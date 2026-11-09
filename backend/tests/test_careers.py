@@ -179,3 +179,53 @@ async def test_scheduler_runs_career_scan(client, auth, db, careers):
     res = await sched.run_for_user(db, me["_id"], datetime(2026, 11, 9, 6, 0, tzinfo=UTC), only="career_scan", trigger="manual")
     assert res[0]["status"] == "succeeded", res
     assert res[0]["result"]["found"] == 4 and "digest" in res[0]["result"]
+
+
+class MultiClient:
+    """Canned SmartRecruiters, SuccessFactors RSS and Oracle Recruiting Cloud responses."""
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    async def get(self, url, params=None, headers=None):
+        if "api.smartrecruiters.com/v1/companies/Experian/postings/9" in url:
+            return FakeResponse({"jobAd": {"sections": {"jobDescription": {"text": f"<p>{ROLES_JD}</p>"}}}})
+        if "api.smartrecruiters.com/v1/companies/Experian/postings" in url:
+            assert params["country"] == "in"
+            return FakeResponse({"content": [{"id": "9", "name": "Senior SDET", "releasedDate": "2026-11-05T00:00:00Z",
+                                              "location": {"fullLocation": "Hyderabad, , India", "remote": False},
+                                              "typeOfEmployment": {"label": "Full-time"}}]})
+        if "careers.wipro.com/services/rss/job/" in url:
+            assert "xml" in headers["Accept"]
+            rss = ("<rss><channel><item><title><![CDATA[QA Automation Engineer (Hyderabad, IND-36, IN, 500032)]]></title>"
+                   f"<description><![CDATA[<p>{ROLES_JD}</p>]]></description><pubDate>Mon, 09 Nov 2026 2:00:00 GMT</pubDate>"
+                   "<link>https://careers.wipro.com/job/Hyderabad-QA/123/?feedId=null&amp;utm_source=J2WRSS</link></item>"
+                   "<item><title>Sales Manager (Pune, IN)</title><link>https://careers.wipro.com/job/x/9/</link></item></channel></rss>")
+
+            class R(FakeResponse):
+                content = rss.encode()
+            return R({})
+        if "jpmc.fa.oraclecloud.com" in url and "recruitingCEJobRequisitionDetails" in url:
+            return FakeResponse({"items": [{"ExternalDescriptionStr": f"<p>{ROLES_JD}</p>"}]})
+        if "jpmc.fa.oraclecloud.com" in url:
+            assert "siteNumber=CX_1001" in url and "keyword=%22" in url
+            return FakeResponse({"items": [{"requisitionList": [{"Id": "210", "Title": "SDET - Payments", "PostedDate": "2026-11-03",
+                                                                 "PrimaryLocation": "Hyderabad, Telangana, India"}]}]})
+        raise RuntimeError("unreachable")
+
+
+async def test_smartrecruiters_successfactors_and_oracle_fetchers():
+    roles = ["SDET", "QA Automation Engineer"]
+    async with MultiClient() as cl:
+        sr = await providers.fetch(cl, catalog.BY_ID["experian"], roles, "India")
+        sf = await providers.fetch(cl, catalog.BY_ID["wipro"], roles)
+        orc = await providers.fetch(cl, catalog.BY_ID["jpmorgan"], roles)
+    assert sr[0]["location"] == "Hyderabad, India" and sr[0]["url"] == "https://jobs.smartrecruiters.com/Experian/9"
+    assert "Selenium" in sr[0]["description"]
+    assert len(sf) == 1 and sf[0]["title"] == "QA Automation Engineer" and sf[0]["location"] == "Hyderabad, IN"
+    assert sf[0]["url"] == "https://careers.wipro.com/job/Hyderabad-QA/123/" and sf[0]["posted"] == "2026-11-09"
+    assert orc[0]["url"].endswith("/sites/CX_1001/job/210") and "Selenium" in orc[0]["description"]
+    assert {"infosys", "tcs", "cognizant", "cgi", "hcltech", "wipro", "capgemini", "accenture"} <= set(catalog.BY_ID)
