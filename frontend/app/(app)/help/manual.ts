@@ -112,7 +112,7 @@ export const MANUAL: ManualSection[] = [
   },
   {
     id: "careers", title: "Career portals", href: "/careers", tone: "orange", image: "/help/jobs.jpg",
-    purpose: "Openings for your roles read straight from 120+ company career sites (Amazon, NVIDIA, Salesforce, Accenture, HCLTech, Wipro, Capgemini, PwC, EY, JPMorgan, Oracle, ServiceNow, Stripe, OpenAI and more), each with your fit and what to change in your resume.",
+    purpose: "Openings for your roles read straight from 170+ company career sites (Amazon, NVIDIA, Salesforce, Accenture, HCLTech, Wipro, Capgemini, PwC, EY, JPMorgan, Oracle, ServiceNow, Stripe, OpenAI and more), each with your fit and what to change in your resume.",
     steps: [
       "Open Jobs → Career portals and click “Scan now” (it also runs every day at your chosen time).",
       "Filter by fit, country, city, remote, company, company group (FAANG, big tech, IT services, banks, AI labs, fintech, SaaS, healthcare, India), posting date and your experience.",

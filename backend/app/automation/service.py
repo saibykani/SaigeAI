@@ -123,7 +123,7 @@ class CareerPortals(BaseModel):
     tiers: list[str] = Field(default=[], max_length=20)  # empty: every tier
     companies: list[str] = Field(default=[], max_length=200)  # catalogue ids added on top of the tiers
     locations: list[str] = Field(default=[], max_length=20)   # digest filter; empty: your country + remote
-    watch: bool = False                                  # live watch: rescan a slice of portals every `watch_seconds`
+    watch: bool = True                                   # live watch: rescan a slice of portals every `watch_seconds`
     watch_seconds: int = Field(default=30, ge=30, le=3600)
 
 

@@ -13,6 +13,7 @@ from app.email.gmail import GmailError
 
 HOST = "smtp.gmail.com"
 SMTP_FACTORY = smtplib.SMTP_SSL  # patched in tests
+STARTTLS_FACTORY = smtplib.SMTP  # fallback, patched in tests
 
 
 def _send_sync(address: str, app_password: str, from_name: str, to: str, subject: str, body: str,
@@ -29,9 +30,18 @@ def _send_sync(address: str, app_password: str, from_name: str, to: str, subject
         maintype, _, subtype = mime.partition("/")
         msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=filename)
     try:
-        with SMTP_FACTORY(HOST, 465, timeout=20) as s:
-            s.login(address, app_password)
-            s.send_message(msg)
+        try:
+            with SMTP_FACTORY(HOST, 465, timeout=20) as s:
+                s.login(address, app_password)
+                s.send_message(msg)
+        except (smtplib.SMTPServerDisconnected, ConnectionError, TimeoutError):
+            # Gmail sometimes drops implicit-TLS connections from cloud IPs; retry once over STARTTLS on 587.
+            with STARTTLS_FACTORY(HOST, 587, timeout=20) as s:
+                s.ehlo()
+                s.starttls()
+                s.ehlo()
+                s.login(address, app_password)
+                s.send_message(msg)
     except smtplib.SMTPAuthenticationError as exc:
         raise GmailError("Gmail rejected the App Password. Reconnect Gmail in Integrations.") from exc
     except (smtplib.SMTPException, OSError) as exc:

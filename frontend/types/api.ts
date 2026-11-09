@@ -901,7 +901,7 @@ export interface CareerFacet {
 export interface CareerScan {
   roles: string[];
   country: string | null;
-  status: "running" | "ok" | "partial" | "failed" | "needs_profile";
+  status: "running" | "ok" | "partial" | "failed" | "needs_profile" | "interrupted";
   error?: string;
   started_at: string;
   finished_at?: string;
@@ -912,6 +912,7 @@ export interface CareerScan {
   errors?: number;
   duration_ms?: number;
   companies?: { id: string; name: string; status: "ok" | "error"; found: number; error?: string }[];
+  watch?: { companies: number; found: number; new: number; closed: number; errors: number; finished_at: string; duration_ms: number };
 }
 
 export interface CareerJobsPage {

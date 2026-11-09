@@ -99,3 +99,11 @@ async def put_careers_settings(body: CareerPortals, user: dict = Depends(get_cur
 @router.post("/digest")
 async def send_digest(body: DigestIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     return await digest.send(db, user["_id"], trigger="manual", test=body.test)
+
+
+@router.post("/watch")
+async def watch_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Live watch tick from the open app (every 30 s): scans the next slice of portals and emails new matches."""
+    from app.careers import watch
+
+    return await watch.tick(db, user["_id"])

@@ -46,11 +46,13 @@ function ScanStatus({ scan }: { scan: CareerScan | null }) {
   if (!scan) return <p className="text-sm text-muted-foreground">No scan yet. Press Scan now to read every company career page for your roles.</p>;
   if (scan.status === "needs_profile") return <Notice tone="warning">{scan.error}</Notice>;
   const failed = (scan.companies ?? []).filter((c) => c.status === "error");
+  const label = scan.finished_at ? timeAgo(scan.finished_at) : scan.status === "interrupted" ? "cut off" : "running";
   return (
     <p className="text-sm text-muted-foreground">
-      Last scan {scan.finished_at ? timeAgo(scan.finished_at) : "running"} for <span className="text-foreground">{scan.roles.join(", ")}</span>
+      Last full scan {label} for <span className="text-foreground">{scan.roles.join(", ")}</span>
       {scan.country ? ` · ${scan.country}` : ""} · {scan.found} open, {scan.new} new, {scan.closed} closed
       {failed.length > 0 && <span title={failed.map((f) => `${f.name}: ${f.error}`).join("\n")}> · {failed.length} portal(s) didn&apos;t answer</span>}
+      {scan.watch && <> · Live watch {timeAgo(scan.watch.finished_at)}: {scan.watch.companies} companies, {scan.watch.new} new</>}
     </p>
   );
 }
@@ -455,7 +457,7 @@ export default function CareersPage() {
     <div>
       <PageHeader
         title="Career portals"
-        description="Openings for your roles, read straight from 120+ company career pages: FAANG, big tech, IT services (HCLTech, Wipro, Capgemini, Accenture, PwC, EY), banks, AI labs, fintech, SaaS, pharma and Indian product companies. Each job shows how well you fit and what to change in your resume."
+        description="Openings for your roles, read straight from 170+ company career pages, including Razorpay, Paytm, InMobi and other Indian startups: FAANG, big tech, IT services (HCLTech, Wipro, Capgemini, Accenture, PwC, EY), banks, AI labs, fintech, SaaS, pharma and Indian product companies. Each job shows how well you fit and what to change in your resume."
       />
       <div className="mb-6 inline-flex rounded-full border bg-muted/50 p-1 text-sm" role="tablist">
         {([["jobs", "Jobs"], ["companies", "Companies"], ["settings", "Daily email"]] as [View, string][]).map(([k, label]) => (

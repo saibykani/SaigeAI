@@ -72,9 +72,15 @@ export function useLiveSync(enabled: boolean) {
       } catch {
         /* offline or signed out: try again next tick */
       }
+      try {
+        const w = await request<{ new?: number }>("/careers/watch", { method: "POST" });
+        if ((w.new ?? 0) > 0) window.dispatchEvent(new Event("saige:refresh"));
+      } catch {
+        /* watch off or paused */
+      }
     };
     const first = window.setTimeout(tick, 8000);
-    const every = window.setInterval(tick, 60_000);
+    const every = window.setInterval(tick, 30_000);
     return () => { stopped = true; window.clearTimeout(first); window.clearInterval(every); };
   }, [enabled]);
 }

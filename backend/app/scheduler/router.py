@@ -55,8 +55,8 @@ async def cron_careers(authorization: str | None = Header(default=None), db: Asy
 
 @router.post("/live/tick")
 async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    """Called every minute while Saige is open: syncs Gmail (portal alerts, invites, recruiter mail) when the
-    last sync is a minute old, and refreshes Jobs for you when it is over 5 minutes old."""
+    """Called every 30 s while Saige is open: syncs Gmail (portal alerts, invites, recruiter mail) when the
+    last sync is 30 s old, and refreshes Jobs for you when it is over 5 minutes old."""
     from datetime import timedelta
 
     from app.automation.service import is_allowed
@@ -67,7 +67,7 @@ async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorData
     uid, now, out = user["_id"], utcnow(), {"gmail": None, "feed": None}
     integ = await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "gmail"})
     if integ and await is_allowed(db, uid, "gmail_sync") and (
-            not integ.get("last_sync_at") or now - as_utc(integ["last_sync_at"]) > timedelta(seconds=55)):
+            not integ.get("last_sync_at") or now - as_utc(integ["last_sync_at"]) > timedelta(seconds=25)):
         try:
             r = await run_sync(db, uid, integ)
             out["gmail"] = {"fetched": r.get("fetched", 0), "alert_jobs": r.get("alert_jobs", 0)}
@@ -79,12 +79,6 @@ async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorData
         out["scheduled"] = [r["job"] for r in ran]
     except Exception as exc:  # noqa: BLE001
         out["scheduled"] = {"error": str(exc)[:200]}
-    try:
-        from app.careers import watch
-
-        out["careers"] = await watch.tick(db, uid)
-    except Exception as exc:  # noqa: BLE001
-        out["careers"] = {"error": str(exc)[:200]}
     doc = await db[c.JOB_FEED].find_one({"_id": uid}, {"built_at": 1})
     if await is_allowed(db, uid, "job_discovery") and (not doc or now - as_utc(doc["built_at"]) > feed.FEED_TTL):
         try:

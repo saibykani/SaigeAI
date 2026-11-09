@@ -32,11 +32,11 @@ from app.schemas.profile import Profile
 from app.services.agent_runs import agent_run
 from app.services.audit import log_action
 from app.services.notify import notify
-from app.utils import utcnow
+from app.utils import as_utc, utcnow
 
 logger = logging.getLogger("saige.careers")
 
-CONCURRENCY = 28
+CONCURRENCY = 40
 COMPANY_TIMEOUT = 25.0
 SCAN_BUDGET = 40.0
 MAX_PER_COMPANY = 150
@@ -131,7 +131,9 @@ async def scan(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual", o
         await db[c.CAREER_SCANS].replace_one({"_id": uid}, report, upsert=True)
         return report
     pool = await companies_for(db, uid, s, only)
-    await db[c.CAREER_SCANS].replace_one({"_id": uid}, report, upsert=True)
+    watch = trigger == "watch"
+    if not watch:
+        await db[c.CAREER_SCANS].replace_one({"_id": uid}, report, upsert=True)
 
     async with agent_run(db, "career_portal_scan", uid, {"roles": roles, "companies": len(pool), "trigger": trigger}) as run:
         sem = asyncio.Semaphore(CONCURRENCY)
@@ -195,7 +197,12 @@ async def scan(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual", o
         run.output = {k: report[k] for k in ("found", "new", "closed", "strong_new", "errors")}
         run.action(f"scanned {len(pool)} career portals for {', '.join(roles)}")
 
-    await db[c.CAREER_SCANS].replace_one({"_id": uid}, report, upsert=True)
+    if watch:
+        await db[c.CAREER_SCANS].update_one({"_id": uid}, {"$set": {"watch": {k: report[k] for k in (
+            "found", "new", "closed", "errors", "finished_at", "duration_ms")} | {"companies": len(pool)}}}, upsert=True)
+    else:
+        prev = await db[c.CAREER_SCANS].find_one({"_id": uid}, {"watch": 1}) or {}
+        await db[c.CAREER_SCANS].replace_one({"_id": uid}, report | ({"watch": prev["watch"]} if prev.get("watch") else {}), upsert=True)
     await log_action(db, user_id=uid, action="careers.scanned", entity="career_jobs",
                      details={k: report[k] for k in ("found", "new", "closed", "strong_new", "errors", "trigger")})
     if strong_new:
@@ -277,9 +284,14 @@ def scan_out(doc: dict | None) -> dict | None:
     if not doc:
         return None
     out = {k: v for k, v in doc.items() if k not in ("_id", "user_id")}
+    # A serverless call killed mid-scan leaves "running" behind; after 2 minutes call it what it is.
+    if out.get("status") == "running" and out.get("started_at") and utcnow() - as_utc(out["started_at"]) > timedelta(minutes=2):
+        out.update(status="interrupted", error="The last scan was cut off before it finished. Scan again.")
     for k in ("started_at", "finished_at"):
         if out.get(k):
             out[k] = out[k].isoformat()
+    if isinstance(out.get("watch"), dict) and out["watch"].get("finished_at"):
+        out["watch"] = {**out["watch"], "finished_at": as_utc(out["watch"]["finished_at"]).isoformat()}
     return out
 
 

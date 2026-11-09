@@ -237,6 +237,8 @@ async def test_live_watch_rotates_slices_and_respects_interval(client, auth, db,
     monkeypatch.setattr(watch, "BATCH", 2)
     await _setup(client, auth)
     me = await db[c.USERS].find_one({"email": "asha@example.com"})
+    r = await client.put("/api/careers/settings", headers=auth, json={"watch": False})
+    assert r.status_code == 200, r.text
     assert (await watch.tick(db, me["_id"]))["skipped"] == "live watch off"
     r = await client.put("/api/careers/settings", headers=auth, json={"watch": True, "watch_seconds": 30})
     assert r.status_code == 200, r.text
@@ -248,3 +250,45 @@ async def test_live_watch_rotates_slices_and_respects_interval(client, auth, db,
     seen = {d["company_id"] for d in await db[c.CAREER_JOBS].find({"user_id": me["_id"]}).to_list(None)}
     assert len(seen) >= 3
     assert (await client.get("/api/cron/careers")).status_code in (401, 503)
+    assert (await client.post("/api/careers/watch", headers=auth)).json()["skipped"] == "not due"
+    scan = (await client.get("/api/careers/scan", headers=auth)).json()
+    assert scan["watch"]["companies"] == 2
+
+
+def test_smtp_falls_back_to_starttls(monkeypatch):
+    import smtplib
+
+    from app.email import smtp
+
+    sent = []
+
+    class Dropped:
+        def __init__(self, *a, **k):
+            raise smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
+
+    class Plain:
+        def __init__(self, host, port, timeout):
+            self.port = port
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def ehlo(self):
+            pass
+
+        def starttls(self):
+            pass
+
+        def login(self, *a):
+            pass
+
+        def send_message(self, msg):
+            sent.append((self.port, msg["To"]))
+
+    monkeypatch.setattr(smtp, "SMTP_FACTORY", Dropped)
+    monkeypatch.setattr(smtp, "STARTTLS_FACTORY", Plain)
+    smtp._send_sync("me@gmail.com", "pw", "Saige", "saibykani07@gmail.com", "s", "b")
+    assert sent == [(587, "saibykani07@gmail.com")]
