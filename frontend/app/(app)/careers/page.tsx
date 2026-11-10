@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, ChevronDown, ChevronUp, ExternalLink, Mail, MapPin, RefreshCw, Search, Sparkles, Star, Target } from "lucide-react";
+import { Building2, ChevronDown, FileText, ChevronUp, ExternalLink, Mail, MapPin, RefreshCw, Search, Sparkles, Star, Target } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -177,6 +177,9 @@ function JobRow({ job, onMsg }: { job: CareerJob; onMsg: (m: Msg) => void }) {
             </Button>
             <Button size="sm" variant="outline" onClick={save} disabled={busy}>
               <Star /> {job.saved_job_id ? "Open in Jobs" : "Save & tailor resume"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => router.push(`/studio?career_job=${encodeURIComponent(job.id)}&title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}`)}>
+              <FileText /> ATS resume for this job
             </Button>
           </div>
         </div>

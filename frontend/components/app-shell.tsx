@@ -1,20 +1,6 @@
 "use client";
 
-import {
-  Briefcase,
-  createLucideIcon,
-  FileText,
-  LayoutDashboard,
-  LifeBuoy,
-  Mail,
-  Menu,
-  Send,
-  Settings,
-  UserRound,
-  Users,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { Briefcase, FileText, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -47,6 +33,7 @@ const NAV: NavItem[] = [
   { group: "Workspace", href: "/jobs", label: "Jobs", icon: Briefcase, tone: "orange", tabs: [{ href: "/jobs", label: "Jobs" }, { href: "/careers", label: "Career portals" }] },
   { group: "Workspace", href: "/applications", label: "Applications", icon: Send, tone: "yellow", tabs: [{ href: "/applications", label: "Applications" }, { href: "/interviews", label: "Interviews" }] },
   { group: "Workspace", href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
+  { group: "Workspace", href: "/studio", label: "ATS Studio", icon: ScanText, tone: "teal", tabs: [{ href: "/studio", label: "Resume builder" }, { href: "/studio/analyze", label: "JD analyzer" }] },
   { group: "Network", href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
   { group: "Network", href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
   { group: "Network", href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [{ href: "/profiles", label: "LinkedIn & Naukri" }, { href: "/linkedin", label: "Daily posts" }, { href: "/profile-sync", label: "Resume sync" }] },

@@ -970,3 +970,66 @@ export interface CareerPortals {
   location: string;
   settings: CareerSettings;
 }
+
+// ------------------------------------------------------------------ ATS Studio
+
+export type EligibilityStatus = "met" | "not_met" | "partial" | "unknown";
+
+export interface JDAnalysisReport {
+  title: string;
+  company: string | null;
+  role: { seniority: string | null; employment_type: string | null; work_mode: string | null; salary: string | null; domains: string[] };
+  score: number;
+  classification: string;
+  breakdown: Record<string, number | null>;
+  verdict: { key: "eligible" | "partial" | "not_yet"; label: string };
+  eligibility: { label: string; status: EligibilityStatus; text: string }[];
+  skills: { required: { name: string; have: boolean }[]; preferred: { name: string; have: boolean }[]; required_coverage: number | null };
+  requirements: { text: string; status: EligibilityStatus; why: string; nice_to_have: boolean }[];
+  responsibilities: string[];
+  strengths: string[];
+  gaps: string[];
+  issues: string[];
+  keywords_to_use: string[];
+  summary: string;
+}
+
+export interface StudioAts {
+  score: number;
+  required_coverage: number;
+  preferred_coverage: number;
+  matched_keywords: string[];
+  missing_required: string[];
+  missing_preferred: string[];
+  checks: { check: string; passed: boolean }[];
+  word_count: number;
+}
+
+export interface StudioTemplates {
+  templates: { id: string; name: string; description: string }[];
+  formats: { id: string; name: string }[];
+}
+
+export interface StudioResumeRow {
+  id: string;
+  name: string;
+  company: string | null;
+  title: string | null;
+  template: string | null;
+  ats_score: number | null;
+  created_at: string;
+}
+
+export interface StudioGenerated {
+  id: string;
+  name: string;
+  company: string;
+  title: string;
+  template: string;
+  engine: string;
+  ats: StudioAts;
+  changes: string[];
+  improve: string[];
+  verdict: { key: string; label: string };
+  html: string;
+}

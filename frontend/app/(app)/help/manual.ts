@@ -128,6 +128,20 @@ export const MANUAL: ManualSection[] = [
     ],
   },
   {
+    id: "studio", title: "ATS Studio", href: "/studio", tone: "teal", image: "/help/ats.jpg",
+    purpose: "Build a resume aimed at one job from your verified profile, see its ATS score, download it in five templates and five formats, and analyse any job description against your profile.",
+    steps: [
+      "Resume builder: enter the company and job title, paste the job description, pick a template and click “Generate ATS resume”.",
+      "Read the ATS score, the keywords you match, the required keywords you don't have on record, and the checks (contact details, summary, dates, length).",
+      "Switch templates (Classic, Modern, Compact, Skills-first, Executive) to change the preview. Download as PDF, Word, plain text, Markdown or HTML: the file is named Your_Name_Company_Date.",
+      "From Career portals, “ATS resume for this job” builds one from that posting's description in one click.",
+      "JD analyzer: paste a job description to see the verdict (eligible, partly eligible, not yet), every requirement checked against your profile, skills you have and don't, where you fit most, gaps and what to do, and keywords to use.",
+    ],
+    tips: [
+      "Saige never adds a skill, employer, title or number you haven't verified. The score reaches 100 only when your profile really covers every required keyword; to raise it, add skills you truly have in Profile and generate again.",
+    ],
+  },
+  {
     id: "auto-apply", title: "Auto-applier", href: "/jobs", tone: "purple", image: "/help/auto-apply.jpg",
     purpose: "Every morning Saige picks jobs at or above your match score, attaches your best resume and prepares the applications, then messages you on WhatsApp.",
     steps: [
