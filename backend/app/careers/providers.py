@@ -102,10 +102,10 @@ async def lever(client: httpx.AsyncClient, co: Company, roles: list[str]) -> lis
 
 
 async def ashby(client: httpx.AsyncClient, co: Company, roles: list[str]) -> list[dict]:
-    data = await _json(client.get(f"https://api.ashbyhq.com/posting-api/job-board/{co.board}"))
+    data = await _json(client.get(f"https://api.ashbyhq.com/posting-api/job-board/{co.board}?includeCompensation=true"))
     return [_item(co, source="ashby", source_job_id=str(j.get("id")), title=j.get("title", ""), location=j.get("location"),
                   remote=j.get("isRemote"), url=j.get("jobUrl"), posted=(j.get("publishedAt") or "")[:10] or None,
-                  employment_type=j.get("employmentType"),
+                  employment_type=j.get("employmentType"), comp_summary=(j.get("compensation") or {}).get("compensationTierSummary"),
                   description=j.get("descriptionPlain") or html_to_text(j.get("descriptionHtml") or ""))
             for j in data.get("jobs", []) if j.get("isListed", True) and wanted(j.get("title", ""), roles)]
 

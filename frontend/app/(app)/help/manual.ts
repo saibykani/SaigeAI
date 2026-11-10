@@ -121,7 +121,11 @@ export const MANUAL: ManualSection[] = [
       "Companies tab: Google, Meta, Apple, Microsoft, Netflix, Infosys, TCS, Cognizant and CGI have no public jobs feed, so Saige gives one-click searches on their own sites, filtered to your role and location.",
       "Daily email tab: turn the digest on or off, choose the time, minimum match, locations and which company groups to scan.",
     ],
-    tips: ["The email is sent from your Gmail through the App Password connection (Settings → Integrations). Without it you get an in-app notification instead."],
+    tips: [
+      "The email is sent from your Gmail through the App Password connection (Settings → Integrations). Without it you get an in-app notification instead.",
+      "Jobs posted in the last 24 hours always appear first. Use the job-type tabs (Manual testing, Automation testing, QA) and the Posted, Experience, Compensation and Job type filters to narrow the list.",
+      "Pay is shown only when the posting states it; the Compensation filter compares it in ₹ LPA.",
+    ],
   },
   {
     id: "auto-apply", title: "Auto-applier", href: "/jobs", tone: "purple", image: "/help/auto-apply.jpg",

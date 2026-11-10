@@ -44,7 +44,9 @@ class CareerClient:
                                                     "startDate": "2026-11-05", "timeType": "Full time",
                                                     "externalUrl": "https://nvidia.wd5.myworkdayjobs.com/job/sdet_JR1"}})
         if "amazon.jobs" in url:
-            assert params["base_query"] in ("SDET", "QA Automation Engineer")
+            assert params["base_query"] in ("SDET", "QA Automation Engineer", "Manual Tester", "QA Analyst")
+            if params["base_query"] in ("Manual Tester", "QA Analyst"):
+                return FakeResponse({"jobs": []})
             return FakeResponse({"jobs": [{"id_icims": "555", "title": "SDET II, Payments", "normalized_location": "Hyderabad, Telangana, IND",
                                            "job_path": "/en/jobs/555/sdet-ii", "posted_date": "November  2, 2026",
                                            "description": "Build test automation.", "basic_qualifications": "- 3+ years of Java<br/>- Selenium",
@@ -97,8 +99,20 @@ async def test_scan_filters_advice_save_and_closing(client, auth, db, careers):
     assert rep["new"] == 4 and await db[c.CAREER_JOBS].count_documents({}) == 4
     assert await db[c.AGENT_RUNS].count_documents({"agent_name": "career_portal_scan"}) == 1
 
+    ranked = (await client.get("/api/careers/jobs?fresh_first=false", headers=auth)).json()
+    assert ranked["items"][0]["score"] >= ranked["items"][-1]["score"]
     jobs = (await client.get("/api/careers/jobs", headers=auth)).json()
-    assert jobs["total"] == 4 and jobs["items"][0]["score"] >= jobs["items"][-1]["score"]
+    assert jobs["total"] == 4
+    flags = [x["fresh"] for x in jobs["items"]]
+    assert flags == sorted(flags, reverse=True)  # last-24h postings first
+    assert {f["value"] for f in jobs["facets"]["categories"]} <= {"manual", "automation", "qa", "other"}
+    assert "last_24h" in jobs["counts"]
+    auto = (await client.get("/api/careers/jobs?categories=automation", headers=auth)).json()
+    assert auto["total"] >= 1 and all(x["category"] == "automation" for x in auto["items"])
+    assert (await client.get("/api/careers/jobs?min_lpa=20", headers=auth)).json()["total"] == 0
+    paid = (await client.get("/api/careers/jobs?min_lpa=15", headers=auth)).json()
+    assert paid["total"] >= 1 and paid["items"][0]["salary_text"] == "₹18-28 LPA"
+    assert (await client.get("/api/careers/jobs?posted_hours=24&min_exp=0", headers=auth)).status_code == 200
     assert {f["value"] for f in jobs["facets"]["companies"]} == {"stripe", "nvidia", "amazon"}
     assert "description" not in jobs["items"][0] and jobs["items"][0]["url"]
 
@@ -319,3 +333,16 @@ async def test_digest_backs_off_after_gmail_error(client, auth, db, careers, mon
     assert r["sent"] == 0 and "30 minutes" in r["error"] and len(calls) == 2
     r = await digest.send(db, me["_id"], trigger="watch")
     assert r["skipped"] == "waiting after a Gmail error" and len(calls) == 2
+
+
+def test_category_and_compensation_parsing():
+    from app.careers.classify import category, compensation
+
+    assert category("Manual QA Engineer") == "manual" and category("SDET II") == "automation"
+    assert category("QA Engineer", "Manual testing and regression testing of web apps") == "manual"
+    assert category("Software Engineer") == "other"
+    assert compensation("CTC: 8 - 12 LPA")["salary_lpa"] == 8.0
+    usd = compensation("The base pay range is $120,000 - $160,000 per year")
+    assert usd["salary_currency"] == "USD" and usd["salary_min"] == 120000
+    assert compensation("We raised $5 - 10 million") == {}
+    assert compensation("No pay stated") == {}

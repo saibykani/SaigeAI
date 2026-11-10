@@ -20,7 +20,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ASCENDING, DESCENDING, UpdateOne
 
 from app.automation.service import AutomationSettings, get_settings_doc, is_blocked
-from app.careers import catalog, providers
+from app.careers import catalog, classify, providers
 from app.careers.catalog import Company
 from app.database import collections as c
 from app.jobs import discover, feed
@@ -55,8 +55,15 @@ def fit_for(score: int) -> str:
     return "strong" if score >= 80 else "good" if score >= 65 else "stretch" if score >= 50 else "low"
 
 
+MANUAL_ROLES = ("Manual Tester", "QA Analyst")
+
+
 def roles_for(profile: Profile, s: AutomationSettings) -> list[str]:
-    return [r.strip() for r in s.careers.roles if r.strip()][:5] or feed.roles_for(profile)
+    roles = [r.strip() for r in s.careers.roles if r.strip()][:5] or feed.roles_for(profile)
+    # Manual testing track: QA searches also look for manual tester / QA analyst openings.
+    if s.careers.manual_testing and any(discover.title_matches("QA Test Engineer", r) for r in roles):
+        roles += [m for m in MANUAL_ROLES if m.lower() not in {r.lower() for r in roles}]
+    return roles
 
 
 def city_of(location: str | None) -> str | None:
@@ -100,6 +107,9 @@ def _doc(uid: str, it: dict, co: Company, country: str | None) -> dict:
         "walk_in": it.get("walk_in"), "hr_emails": it.get("hr_emails", []), "snippet": it.get("snippet", ""),
         "description": (it.get("description") or "")[:DESC_KEEP], "has_description": len(it.get("description") or "") > 200,
         "home_country": country,
+        "category": classify.category(it["title"], it.get("description") or ""),
+        "salary_min": None, "salary_max": None, "salary_currency": None, "salary_lpa": None, "salary_text": None,
+        **classify.compensation(it.get("description") or "", it.get("comp_summary")),
     }
 
 
@@ -242,6 +252,20 @@ def _filter(uid: str, f: dict) -> dict:
         q["posted"] = {"$gte": (utcnow() - timedelta(days=int(f["posted_days"]))).date().isoformat()}
     if f.get("new_days"):
         q["first_seen"] = {"$gte": utcnow() - timedelta(days=int(f["new_days"]))}
+    if f.get("categories"):
+        q["category"] = {"$in": f["categories"]}
+    if f.get("posted_hours"):
+        since = utcnow() - timedelta(hours=int(f["posted_hours"]))
+        q.setdefault("$and", []).append({"$or": [{"posted": {"$gte": since.date().isoformat()}},
+                                                 {"posted": None, "first_seen": {"$gte": since}}]})
+    if f.get("min_lpa"):
+        q["salary_lpa"] = {"$ne": None, "$gte": float(f["min_lpa"])}
+    elif f.get("salary_listed"):
+        q["salary_lpa"] = {"$ne": None}
+    if f.get("min_exp") is not None:
+        q["exp_min"] = {"$ne": None, "$gte": float(f["min_exp"])}
+    if f.get("employment_types"):
+        q["employment_type"] = {"$in": f["employment_types"]}
     if f.get("max_exp") is not None:
         q.setdefault("$and", []).append({"$or": [{"exp_min": None}, {"exp_min": {"$lte": float(f["max_exp"])}}]})
     return q
@@ -260,14 +284,45 @@ async def query(db: AsyncIOMotorDatabase, uid: str, f: dict) -> dict:
     q = _filter(uid, f)
     sort = SORTS.get(f.get("sort") or "score", SORTS["score"])
     total = await db[c.CAREER_JOBS].count_documents(q)
-    items = await db[c.CAREER_JOBS].find(q, LIST_FIELDS).sort(sort).skip((page - 1) * size).limit(size).to_list(size)
+    # Postings from the last 24 hours always come first, then the chosen order.
+    day = utcnow() - timedelta(hours=24)
+    fresh = _fresh_q(day)
+    if f.get("fresh_first", True) and (f.get("sort") or "score") != "company":
+        n_fresh = await db[c.CAREER_JOBS].count_documents({"$and": [q, fresh]})
+        skip, items = (page - 1) * size, []
+        if skip < n_fresh:
+            items = await db[c.CAREER_JOBS].find({"$and": [q, fresh]}, LIST_FIELDS).sort(sort).skip(skip).limit(size).to_list(size)
+        if len(items) < size:
+            items += await db[c.CAREER_JOBS].find({"$and": [q, {"$nor": [fresh]}]}, LIST_FIELDS).sort(sort).skip(
+                max(0, skip - n_fresh)).limit(size - len(items)).to_list(size)
+    else:
+        items = await db[c.CAREER_JOBS].find(q, LIST_FIELDS).sort(sort).skip((page - 1) * size).limit(size).to_list(size)
+    for d in items:
+        d["fresh"] = _is_fresh(d, day)
     base = {"user_id": uid, "active": True}
-    companies, countries, fits, scopes = await asyncio.gather(
-        _facet(db, base, "company_id", "company"), _facet(db, base, "country"), _facet(db, base, "fit"), _facet(db, base, "scope"))
+    companies, countries, fits, scopes, categories, types = await asyncio.gather(
+        _facet(db, base, "company_id", "company"), _facet(db, base, "country"), _facet(db, base, "fit"), _facet(db, base, "scope"),
+        _facet(db, base, "category"), _facet(db, base, "employment_type"))
+    for row in categories:
+        row["label"] = classify.CATEGORIES.get(row["value"], row["value"])
+    fresh_count = await db[c.CAREER_JOBS].count_documents({"$and": [base, fresh]})
+    salary_count = await db[c.CAREER_JOBS].count_documents({**base, "salary_lpa": {"$ne": None}})
     scan_doc = await db[c.CAREER_SCANS].find_one({"_id": uid}, {"companies": 0})
     return {"items": [public(d) for d in items], "total": total, "page": page, "page_size": size,
-            "facets": {"companies": companies, "countries": countries, "fits": fits, "scopes": scopes},
+            "facets": {"companies": companies, "countries": countries, "fits": fits, "scopes": scopes, "categories": categories,
+                       "employment_types": types},
+            "counts": {"last_24h": fresh_count, "salary_listed": salary_count},
             "scan": scan_out(scan_doc)}
+
+
+def _fresh_q(day) -> dict:
+    return {"$or": [{"posted": {"$gte": day.date().isoformat()}}, {"posted": None, "first_seen": {"$gte": day}}]}
+
+
+def _is_fresh(d: dict, day) -> bool:
+    if d.get("posted"):
+        return d["posted"] >= day.date().isoformat()
+    return bool(d.get("first_seen")) and as_utc(d["first_seen"]) >= day
 
 
 def public(d: dict) -> dict:

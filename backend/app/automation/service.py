@@ -125,6 +125,10 @@ class CareerPortals(BaseModel):
     locations: list[str] = Field(default=[], max_length=20)   # digest filter; empty: your country + remote
     watch: bool = True                                   # live watch: rescan a slice of portals every `watch_seconds`
     watch_seconds: int = Field(default=30, ge=30, le=3600)
+    manual_testing: bool = True                          # QA searches also cover manual tester / QA analyst roles
+    categories: list[str] = Field(default=[], max_length=4)   # email only these job types; empty: all
+    exp_years: float | None = Field(default=None, ge=0, le=50)  # email skips roles needing more experience
+    min_salary_lpa: float | None = Field(default=None, ge=0, le=1000)  # email skips roles that state lower pay
 
 
 class AutomationSettings(BaseModel):

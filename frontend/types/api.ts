@@ -844,6 +844,13 @@ export type CareerFit = "strong" | "good" | "stretch" | "low";
 
 export interface CareerJob {
   id: string;
+  fresh?: boolean;
+  category?: "manual" | "automation" | "qa" | "other";
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
+  salary_lpa?: number | null;
+  salary_text?: string | null;
   item_id: string;
   company_id: string;
   company: string;
@@ -920,7 +927,8 @@ export interface CareerJobsPage {
   total: number;
   page: number;
   page_size: number;
-  facets: { companies: CareerFacet[]; countries: CareerFacet[]; fits: CareerFacet[]; scopes: CareerFacet[] };
+  facets: { companies: CareerFacet[]; countries: CareerFacet[]; fits: CareerFacet[]; scopes: CareerFacet[]; categories?: CareerFacet[]; employment_types?: CareerFacet[] };
+  counts?: { last_24h: number; salary_listed: number };
   scan: CareerScan | null;
 }
 
@@ -936,6 +944,10 @@ export interface CareerSettings {
   locations: string[];
   watch: boolean;
   watch_seconds: number;
+  manual_testing: boolean;
+  categories: string[];
+  exp_years: number | null;
+  min_salary_lpa: number | null;
 }
 
 export interface CareerPortal {

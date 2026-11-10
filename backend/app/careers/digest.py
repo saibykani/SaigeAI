@@ -27,8 +27,18 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$", re.I)
 
 
 async def pending(db: AsyncIOMotorDatabase, uid: str, *, min_score: int, locations: list[str], limit: int = MAX_ITEMS,
-                  include_sent: bool = False) -> list[dict]:
+                  include_sent: bool = False, categories: list[str] | None = None, exp_years: float | None = None,
+                  min_salary_lpa: float | None = None) -> list[dict]:
     q: dict = {"user_id": uid, "active": True, "score": {"$gte": min_score}}
+    extra: list[dict] = []
+    if categories:
+        q["category"] = {"$in": categories}
+    if exp_years is not None:
+        extra.append({"$or": [{"exp_min": None}, {"exp_min": {"$lte": exp_years}}]})
+    if min_salary_lpa:
+        extra.append({"$or": [{"salary_lpa": None}, {"salary_lpa": {"$gte": min_salary_lpa}}]})
+    if extra:
+        q["$and"] = extra
     if not include_sent:
         q["emailed_at"] = None
     locs = [re.escape(x.strip()) for x in locations if x.strip()]
@@ -62,7 +72,7 @@ def render(items: list[dict], roles: list[str], app_url: str) -> tuple[str, str,
             "<tr><td style='padding:14px 0;border-bottom:1px solid #2a2a2a'>"
             f"<div style='font-size:15px;font-weight:600;color:#f5f5f5'>{e(d['title'])}</div>"
             f"<div style='color:#a3a3a3;font-size:13px;margin-top:2px'>{e(d['company'])} · {e(where)}"
-            + (f" · posted {e(d['posted'])}" if d.get("posted") else "") + "</div>"
+            + (f" · posted {e(d['posted'])}" if d.get("posted") else "") + (f" · {e(d['salary_text'])}" if d.get("salary_text") else "") + "</div>"
             f"<div style='color:#d4d4d4;font-size:13px;margin-top:6px'>{e(FIT_LABEL.get(d.get('fit', ''), ''))}"
             + (f"<br><span style='color:#a3a3a3'>{e(_gap_line(d))}</span>" if _gap_line(d) else "") + "</div>"
             f"<div style='margin-top:8px'><a href='{e(d.get('url') or d.get('careers_url') or '')}' "
@@ -92,7 +102,8 @@ async def send(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual", t
         return {"skipped": "email digest off"}
     if not await is_allowed(db, uid, "emails"):
         return {"skipped": "emails paused"}
-    items = await pending(db, uid, min_score=s.careers.min_score, locations=s.careers.locations, include_sent=test)
+    items = await pending(db, uid, min_score=s.careers.min_score, locations=s.careers.locations, include_sent=test,
+                          categories=s.careers.categories, exp_years=s.careers.exp_years, min_salary_lpa=s.careers.min_salary_lpa)
     if not items:
         return {"sent": 0, "reason": "no new matches above your threshold"}
     user = await db[c.USERS].find_one({"_id": uid}, {"email": 1}) or {}

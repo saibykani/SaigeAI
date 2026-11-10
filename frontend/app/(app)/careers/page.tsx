@@ -26,7 +26,11 @@ const SCOPE_NAME: Record<string, string> = { country: "In your country", remote:
 const CHANGE_TONE: Record<CareerChange["kind"], string> = {
   add: "green", ok: "green", gap: "red", nice: "yellow", experience: "orange", title: "purple", info: "teal",
 };
-const EMPTY = { q: "", fits: "", countries: "", location: "", companies: "", tiers: "", scopes: "", posted_days: "", max_exp: "", remote: false, sort: "score" };
+const EMPTY = { q: "", fits: "", countries: "", location: "", companies: "", tiers: "", scopes: "", posted_hours: "", max_exp: "", min_exp: "",
+  categories: "", min_lpa: "", salary_listed: false, employment_types: "", remote: false, sort: "score" };
+const CATEGORY_TABS = [{ value: "", label: "All roles" }, { value: "manual", label: "Manual testing" }, { value: "automation", label: "Automation testing" },
+  { value: "qa", label: "QA (general)" }, { value: "other", label: "Other roles" }];
+const CATEGORY_NAME: Record<string, string> = { manual: "Manual testing", automation: "Automation", qa: "QA", other: "Other" };
 
 function Dot({ tone }: { tone: string }) {
   return <span aria-hidden className="inline-block size-2 shrink-0 rounded-full" style={{ background: `var(--tone-${tone})` }} />;
@@ -142,7 +146,9 @@ function JobRow({ job, onMsg }: { job: CareerJob; onMsg: (m: Msg) => void }) {
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold leading-snug">{job.title}</h3>
             {!job.active && <Badge variant="muted">Closed</Badge>}
-            {Date.now() - Date.parse(job.first_seen) < 86_400_000 * 2 && job.active && <Badge variant="success">New</Badge>}
+            {job.fresh && job.active ? <Badge variant="success">Last 24 hours</Badge>
+              : Date.now() - Date.parse(job.first_seen) < 86_400_000 * 2 && job.active && <Badge variant="success">New</Badge>}
+            {job.category && job.category !== "other" && <Badge variant="outline">{CATEGORY_NAME[job.category]}</Badge>}
           </div>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
             <span className="flex items-center gap-1"><Building2 className="size-3.5" />{job.company}</span>
@@ -150,6 +156,8 @@ function JobRow({ job, onMsg }: { job: CareerJob; onMsg: (m: Msg) => void }) {
             <span>{SCOPE_NAME[job.scope] ?? job.scope}</span>
             {job.posted && <span>Posted {formatDate(job.posted)}</span>}
             {job.exp_min != null && <span>{job.exp_min}{job.exp_max != null ? `–${job.exp_max}` : "+"} yrs</span>}
+            {job.salary_text && <span className="font-medium text-foreground" title={job.salary_lpa != null ? `≈ ₹${job.salary_lpa} LPA` : undefined}>{job.salary_text}</span>}
+            {job.employment_type && <span>{job.employment_type}</span>}
           </p>
           <p className="mt-2 flex items-center gap-2 text-[13px]"><Dot tone={FIT_TONE[job.fit]} />{job.fit_label}</p>
           {(job.matched_skills.length > 0 || job.missing_skills.length > 0) && (
@@ -181,8 +189,9 @@ function JobsView({ onMsg }: { onMsg: (m: Msg) => void }) {
   const [page, setPage] = useState(1);
   const qs = useMemo(() => {
     const p = new URLSearchParams({ sort: f.sort, page: String(page), page_size: "25" });
-    for (const k of ["q", "fits", "countries", "location", "companies", "tiers", "scopes", "posted_days", "max_exp"] as const) if (f[k]) p.set(k, f[k]);
+    for (const k of ["q", "fits", "countries", "location", "companies", "tiers", "scopes", "posted_hours", "max_exp", "min_exp", "categories", "min_lpa", "employment_types"] as const) if (f[k]) p.set(k, f[k]);
     if (f.remote) p.set("remote", "true");
+    if (f.salary_listed) p.set("salary_listed", "true");
     return p.toString();
   }, [f, page]);
   const { data, error, loading, reload } = useApi<CareerJobsPage>(`/careers/jobs?${qs}`);
@@ -238,8 +247,21 @@ function JobsView({ onMsg }: { onMsg: (m: Msg) => void }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <CountKpi label="Open roles for you" value={totalOpen} icon={Search} tone="orange" />
         <CountKpi label="Strong fits" value={strong} hint="80%+ match" icon={Sparkles} tone="green" delay={60} />
-        <CountKpi label="New in last scan" value={data?.scan?.new ?? 0} icon={Star} tone="yellow" delay={120} />
+        <CountKpi label="Posted in last 24 hours" value={data?.counts?.last_24h ?? 0} hint="Shown first" icon={Star} tone="yellow" delay={120} />
         <CountKpi label="Companies hiring" value={data?.facets.companies.length ?? 0} icon={Building2} tone="purple" delay={180} />
+      </div>
+
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Job type">
+        {CATEGORY_TABS.map((c) => {
+          const n = c.value ? data?.facets.categories?.find((x) => x.value === c.value)?.count ?? 0 : totalOpen;
+          const on = f.categories === c.value;
+          return (
+            <button key={c.value || "all"} type="button" role="tab" aria-selected={on} onClick={() => set("categories", c.value)}
+                    className={cn("rounded-full border px-4 py-2 text-sm", on ? "border-foreground bg-foreground text-background" : "text-muted-foreground")}>
+              {c.label} <span className="opacity-70">{n}</span>
+            </button>
+          );
+        })}
       </div>
 
       <Card>
@@ -287,18 +309,37 @@ function JobsView({ onMsg }: { onMsg: (m: Msg) => void }) {
               {Object.entries(tiers).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </Select>
           </Field>
-          <Field label="Posted within">
-            <Select value={f.posted_days} onChange={(e) => set("posted_days", e.target.value)}>
-              <option value="">Any time</option><option value="1">24 hours</option><option value="7">7 days</option>
-              <option value="14">14 days</option><option value="30">30 days</option>
+          <Field label="Posted">
+            <Select value={f.posted_hours} onChange={(e) => set("posted_hours", e.target.value)}>
+              <option value="">Any time</option><option value="24">Last 24 hours</option><option value="72">Last 3 days</option>
+              <option value="168">Last week</option><option value="336">Last 2 weeks</option><option value="720">Last month</option>
+              <option value="2160">Last 3 months</option>
             </Select>
           </Field>
-          <Field label="My experience (years)">
-            <Input type="number" min={0} max={50} placeholder="Hide roles needing more" value={f.max_exp} onChange={(e) => set("max_exp", e.target.value)} />
+          <Field label="Experience (years)">
+            <div className="flex gap-2">
+              <Input type="number" min={0} max={50} placeholder="Min" aria-label="Minimum years required" value={f.min_exp} onChange={(e) => set("min_exp", e.target.value)} />
+              <Input type="number" min={0} max={50} placeholder="My years" aria-label="Hide roles needing more than" value={f.max_exp} onChange={(e) => set("max_exp", e.target.value)} />
+            </div>
+          </Field>
+          <Field label="Compensation" hint="Only postings that state pay">
+            <Select value={f.min_lpa} onChange={(e) => set("min_lpa", e.target.value)}>
+              <option value="">Any pay</option><option value="3">₹3 LPA+</option><option value="6">₹6 LPA+</option><option value="10">₹10 LPA+</option>
+              <option value="15">₹15 LPA+</option><option value="25">₹25 LPA+</option><option value="40">₹40 LPA+</option><option value="80">₹80 LPA+</option>
+            </Select>
+          </Field>
+          <Field label="Job type">
+            <Select value={f.employment_types} onChange={(e) => set("employment_types", e.target.value)}>
+              <option value="">Any type</option>
+              {(data?.facets.employment_types ?? []).map((x) => <option key={x.value} value={x.value}>{x.label} ({x.count})</option>)}
+            </Select>
           </Field>
           <div className="flex items-end justify-between gap-3">
             <label className="flex h-10 items-center gap-2 text-sm">
               <input type="checkbox" checked={f.remote} onChange={(e) => set("remote", e.target.checked)} className="size-4 accent-[var(--tone-green)]" /> Remote only
+            </label>
+            <label className="flex h-10 items-center gap-2 text-sm">
+              <input type="checkbox" checked={f.salary_listed} onChange={(e) => set("salary_listed", e.target.checked)} className="size-4 accent-[var(--tone-green)]" /> Pay listed ({data?.counts?.salary_listed ?? 0})
             </label>
             <Button variant="ghost" size="sm" onClick={() => { setPage(1); setF(EMPTY); }}>Clear</Button>
           </div>
@@ -314,7 +355,7 @@ function JobsView({ onMsg }: { onMsg: (m: Msg) => void }) {
         </CardContent></Card>
       ) : (
         <>
-          <p className="text-sm text-muted-foreground">{data?.total ?? 0} job(s)</p>
+          <p className="text-sm text-muted-foreground">{data?.total ?? 0} job(s){f.sort !== "company" ? " · last 24 hours first" : ""}</p>
           <ul className="space-y-3">{data?.items.map((j) => <JobRow key={j.id} job={j} onMsg={onMsg} />)}</ul>
           {pages > 1 && (
             <div className="flex items-center justify-center gap-3">
@@ -429,6 +470,30 @@ function SettingsView({ onMsg }: { onMsg: (m: Msg) => void }) {
           <Field label="Email locations" hint="Empty: your country + remote">
             <Input value={s.locations.join(", ")} onChange={(e) => upd({ locations: list(e.target.value) })} placeholder="Hyderabad, Bengaluru" />
           </Field>
+          <Field label="My experience (years)" hint="Email skips roles that need more">
+            <Input type="number" min={0} max={50} value={s.exp_years ?? ""} onChange={(e) => upd({ exp_years: e.target.value === "" ? null : Number(e.target.value) })} />
+          </Field>
+          <Field label="Minimum pay (₹ LPA)" hint="Skips roles that state less; roles without pay listed still come">
+            <Input type="number" min={0} max={1000} value={s.min_salary_lpa ?? ""} onChange={(e) => upd({ min_salary_lpa: e.target.value === "" ? null : Number(e.target.value) })} />
+          </Field>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Job types to email (none selected: all)</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {CATEGORY_TABS.filter((c) => c.value).map((c) => {
+              const on = s.categories.includes(c.value);
+              return (
+                <button key={c.value} type="button" aria-pressed={on} onClick={() => upd({ categories: on ? s.categories.filter((x) => x !== c.value) : [...s.categories, c.value] })}
+                        className={cn("rounded-full border px-3.5 py-1.5 text-sm", on ? "border-foreground bg-foreground text-background" : "text-muted-foreground")}>
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+          <label className="mt-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" className="size-4 accent-[var(--tone-green)]" checked={s.manual_testing} onChange={(e) => upd({ manual_testing: e.target.checked })} />
+            Also search manual testing roles (Manual Tester, QA Analyst) on every career page
+          </label>
         </div>
         <div>
           <p className="text-xs font-medium text-muted-foreground">Company groups to scan (none selected: all of them)</p>

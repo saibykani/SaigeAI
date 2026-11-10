@@ -54,14 +54,19 @@ async def list_jobs(
     countries: str | None = None, location: str | None = Query(None, max_length=60), scopes: str | None = None,
     fits: str | None = None, min_score: int = Query(0, ge=0, le=100), remote: bool = False,
     posted_days: int | None = Query(None, ge=1, le=365), new_days: int | None = Query(None, ge=1, le=90),
-    max_exp: float | None = Query(None, ge=0, le=50), include_closed: bool = False,
+    max_exp: float | None = Query(None, ge=0, le=50), min_exp: float | None = Query(None, ge=0, le=50), include_closed: bool = False,
+    categories: str | None = None, posted_hours: int | None = Query(None, ge=1, le=8760), min_lpa: float | None = Query(None, ge=0, le=1000),
+    salary_listed: bool = False, employment_types: str | None = None, fresh_first: bool = True,
     sort: Literal["score", "recent", "new", "company"] = "score",
     page: int = Query(1, ge=1, le=1000), page_size: int = Query(25, ge=5, le=100),
     user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep),
 ):
     f = {"q": q, "companies": _csv(companies), "tiers": _csv(tiers), "countries": _csv(countries), "location": location,
          "scopes": _csv(scopes), "fits": _csv(fits), "min_score": min_score, "remote": remote, "posted_days": posted_days,
-         "new_days": new_days, "max_exp": max_exp, "include_closed": include_closed, "sort": sort, "page": page, "page_size": page_size}
+         "new_days": new_days, "max_exp": max_exp, "min_exp": min_exp,
+         "categories": _csv(categories), "posted_hours": posted_hours, "min_lpa": min_lpa, "salary_listed": salary_listed,
+         "employment_types": _csv(employment_types), "fresh_first": fresh_first,
+         "include_closed": include_closed, "sort": sort, "page": page, "page_size": page_size}
     return await service.query(db, user["_id"], f)
 
 
