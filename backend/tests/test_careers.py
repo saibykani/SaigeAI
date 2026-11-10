@@ -346,3 +346,20 @@ def test_category_and_compensation_parsing():
     assert usd["salary_currency"] == "USD" and usd["salary_min"] == 120000
     assert compensation("We raised $5 - 10 million") == {}
     assert compensation("No pay stated") == {}
+
+
+async def test_opening_a_job_reads_its_full_description_and_rescores(client, auth, db, careers, monkeypatch):
+    monkeypatch.setattr(providers, "DETAIL_LIMIT", 0)  # scan stores listings only
+    await _setup(client, auth)
+    await client.post("/api/careers/scan", headers=auth, json={})
+    job = await db[c.CAREER_JOBS].find_one({"company_id": "stripe", "has_description": False})
+    assert job is not None
+    before = job["score"]
+    d = (await client.get(f"/api/careers/jobs/{job['_id']}", headers=auth)).json()
+    assert d["has_description"] is True and len(d["description"]) > 200
+    stored = await db[c.CAREER_JOBS].find_one({"_id": job["_id"]})
+    assert stored["has_description"] and stored["jd_checked_at"] and stored["score"] != before or stored["matched_skills"]
+
+    from app.careers import service as careers_service
+    me = await db[c.USERS].find_one({"email": "asha@example.com"})
+    assert await careers_service.enrich_batch(db, me["_id"]) >= 1  # the other listing-only postings

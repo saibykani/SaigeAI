@@ -300,3 +300,32 @@ async def fetch(client: httpx.AsyncClient, co: Company, roles: list[str], countr
     if co.provider == "smartrecruiters":
         return await smartrecruiters(client, co, roles, country)
     return await FETCHERS[co.provider](client, co, roles)
+
+
+# ------------------------------------------------------------------ one posting's full description (read on demand)
+
+async def describe(client: httpx.AsyncClient, co: Company, job: dict) -> str:
+    """The full job description for one stored posting, from the same public API it came from ("" if unavailable)."""
+    jid = str(job.get("source_job_id") or "")
+    if co.provider == "greenhouse" and jid.isdigit():
+        d = await _json(client.get(f"https://boards-api.greenhouse.io/v1/boards/{co.board}/jobs/{jid}"))
+        return html_to_text(d.get("content") or "")
+    if co.provider == "workday":
+        m = re.search(r"(/job/[^?#]+)", job.get("url") or "")
+        if m and _PATH.match(m.group(1)) and _ID.match(co.board) and _ID.match(co.wd_site):
+            api = f"https://{co.board}.{co.wd_host}.myworkdayjobs.com/wday/cxs/{co.board}/{co.wd_site}"
+            d = await _json(client.get(f"{api}{m.group(1)}"))
+            return html_to_text((d.get("jobPostingInfo") or {}).get("jobDescription") or "")
+    if co.provider == "smartrecruiters" and _ID.match(co.board) and re.fullmatch(r"[\w-]{1,40}", jid):
+        d = await _json(client.get(f"https://api.smartrecruiters.com/v1/companies/{co.board}/postings/{jid}"))
+        secs = (d.get("jobAd") or {}).get("sections") or {}
+        return "\n\n".join(html_to_text((secs.get(k) or {}).get("text") or "")
+                           for k in ("jobDescription", "qualifications", "additionalInformation")).strip()
+    if co.provider == "oracle" and re.fullmatch(r"[\w-]{1,40}", jid):
+        api = f"https://{co.host}/hcmRestApi/resources/latest"
+        d = await _json(client.get(f"{api}/recruitingCEJobRequisitionDetails?expand=all&onlyData=true"
+                                   f"&finder=ById;Id=%22{quote(jid, safe='')}%22,siteNumber={co.site}"))
+        it = (d.get("items") or [{}])[0]
+        return "\n\n".join(html_to_text(it.get(k) or "") for k in
+                           ("ExternalDescriptionStr", "ExternalResponsibilitiesStr", "ExternalQualificationsStr")).strip()
+    return ""

@@ -427,8 +427,70 @@ def advice(profile: Profile, job: dict, jd, match, resume: dict | None) -> list[
     return changes
 
 
+def _company_of(d: dict) -> Company | None:
+    cid = d.get("company_id") or ""
+    if cid in catalog.BY_ID:
+        return catalog.BY_ID[cid]
+    if ":" in cid:  # a board the user follows, e.g. "greenhouse:acme"
+        provider, board = cid.split(":", 1)
+        return Company(cid, d.get("company") or board, provider, board, ("followed",))
+    return None
+
+
+async def enrich(db: AsyncIOMotorDatabase, uid: str, docs: list[dict], *, timeout: float = 12.0) -> int:
+    """Read the full job description of postings stored from the listing only, then rescore them on it.
+
+    Scans fetch full descriptions for a few postings per company; the rest are scored on title and location.
+    This fills them in when the user opens one, and a batch at a time in the background (live watch)."""
+    todo = [(d, co) for d in docs if not d.get("has_description") and (co := _company_of(d)) and co.is_api]
+    if not todo:
+        return 0
+    profile, weights = await get_profile(db, uid), await get_weights(db, uid)
+    country = feed.country_for(profile)
+    done = 0
+    async with providers.http_client() as client:
+        async def one(d: dict, co: Company):
+            try:
+                return d, co, await asyncio.wait_for(providers.describe(client, co, d), timeout)
+            except Exception:  # noqa: BLE001 - an unreadable posting keeps its title-only score
+                return d, co, ""
+        results = await asyncio.gather(*(one(d, co) for d, co in todo))
+    ops = []
+    for d, co, text in results:
+        if len(text) < 200:
+            ops.append(UpdateOne({"_id": d["_id"]}, {"$set": {"jd_checked_at": utcnow()}}))
+            continue
+        item = {"id": d["item_id"], "title": d["title"], "company": d["company"], "location": d.get("location"), "remote": d.get("remote"),
+                "url": d.get("url"), "source": d.get("source"), "source_job_id": d.get("source_job_id"), "posted": d.get("posted"),
+                "employment_type": d.get("employment_type"), "description": text}
+        scored = discover.score(item, profile, weights)
+        if not scored:
+            continue
+        feed.annotate(scored, country)
+        fresh = _doc(uid, scored, co, country)
+        keep = ("score", "fit", "classification", "matched_skills", "missing_skills", "exp_min", "exp_max", "seniority", "employment_type",
+                "walk_in", "hr_emails", "snippet", "description", "has_description", "category", "salary_min", "salary_max",
+                "salary_currency", "salary_lpa", "salary_text")
+        ops.append(UpdateOne({"_id": d["_id"]}, {"$set": {**{k: fresh[k] for k in keep}, "jd_checked_at": utcnow()}}))
+        done += 1
+    if ops:
+        await _bulk_upsert(db, ops)
+    return done
+
+
+async def enrich_batch(db: AsyncIOMotorDatabase, uid: str, limit: int = 15) -> int:
+    """Background: newest and best-scoring postings that still lack a full description and weren't tried yet."""
+    docs = await db[c.CAREER_JOBS].find({"user_id": uid, "active": True, "has_description": False, "jd_checked_at": None},
+                                        {"description": 0}).sort([("first_seen", DESCENDING), ("score", DESCENDING)]).to_list(limit)
+    return await enrich(db, uid, docs, timeout=8.0)
+
+
 async def detail(db: AsyncIOMotorDatabase, uid: str, job_id: str) -> dict:
     d = await get_owned(db, uid, job_id)
+    if not d.get("has_description"):
+        # First time this posting is opened: read its full description from the career site and rescore on it.
+        if await enrich(db, uid, [d]):
+            d = await get_owned(db, uid, job_id)
     profile, weights = await get_profile(db, uid), await get_weights(db, uid)
     jd = analyze_jd(d["title"], d.get("description") or d["title"])
     match = compute_match(profile, {"title": d["title"], "company": d["company"], "location": d.get("location"),

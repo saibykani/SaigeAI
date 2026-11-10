@@ -159,7 +159,9 @@ function JobRow({ job, onMsg }: { job: CareerJob; onMsg: (m: Msg) => void }) {
             {job.salary_text && <span className="font-medium text-foreground" title={job.salary_lpa != null ? `≈ ₹${job.salary_lpa} LPA` : undefined}>{job.salary_text}</span>}
             {job.employment_type && <span>{job.employment_type}</span>}
           </p>
-          <p className="mt-2 flex items-center gap-2 text-[13px]"><Dot tone={FIT_TONE[job.fit]} />{job.fit_label}</p>
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-[13px]"><Dot tone={FIT_TONE[job.fit]} />{job.fit_label}
+            <span className="text-xs text-muted-foreground">{job.has_description ? "· checked against the full job description" : "· from the title only: open Fit & resume changes to read the full description"}</span>
+          </p>
           {(job.matched_skills.length > 0 || job.missing_skills.length > 0) && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {job.matched_skills.slice(0, 5).map((s) => <Badge key={s} variant="success">{s}</Badge>)}

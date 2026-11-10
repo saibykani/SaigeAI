@@ -42,8 +42,12 @@ async def tick(db: AsyncIOMotorDatabase, uid: str, *, force: bool = False) -> di
     report = await careers.scan(db, uid, trigger="watch", only=ids, budget=BUDGET)
     if report.get("status") == "needs_profile":
         return {"skipped": report["error"]}
+    try:
+        read = await careers.enrich_batch(db, uid)
+    except Exception:  # noqa: BLE001 - reading descriptions is best effort
+        read = 0
     mail = await digest.send(db, uid, trigger="watch")
-    return {"scanned": len(ids), "new": report.get("new", 0), "email": mail}
+    return {"scanned": len(ids), "new": report.get("new", 0), "descriptions_read": read, "email": mail}
 
 
 async def tick_all(db: AsyncIOMotorDatabase) -> list[dict]:
