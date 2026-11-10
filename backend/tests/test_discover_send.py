@@ -81,7 +81,7 @@ class FakeSMTP:
     sent: list = []
     password = "abcdefghijklmnop"
 
-    def __init__(self, host, port, timeout=None):
+    def __init__(self, host, port, timeout=None, **kw):
         assert (host, port) == ("smtp.gmail.com", 465)
 
     def __enter__(self):

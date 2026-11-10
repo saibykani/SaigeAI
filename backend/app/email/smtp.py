@@ -12,6 +12,7 @@ from email.utils import formataddr, make_msgid
 from app.email.gmail import GmailError
 
 HOST = "smtp.gmail.com"
+EHLO_NAME = "saige-ai.vercel.app"  # serverless hosts can report hostnames Gmail rejects
 SMTP_FACTORY = smtplib.SMTP_SSL  # patched in tests
 STARTTLS_FACTORY = smtplib.SMTP  # fallback, patched in tests
 
@@ -31,12 +32,12 @@ def _send_sync(address: str, app_password: str, from_name: str, to: str, subject
         msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=filename)
     try:
         try:
-            with SMTP_FACTORY(HOST, 465, timeout=20) as s:
+            with SMTP_FACTORY(HOST, 465, timeout=20, local_hostname=EHLO_NAME) as s:
                 s.login(address, app_password)
                 s.send_message(msg)
         except (smtplib.SMTPServerDisconnected, ConnectionError, TimeoutError):
             # Gmail sometimes drops implicit-TLS connections from cloud IPs; retry once over STARTTLS on 587.
-            with STARTTLS_FACTORY(HOST, 587, timeout=20) as s:
+            with STARTTLS_FACTORY(HOST, 587, timeout=20, local_hostname=EHLO_NAME) as s:
                 s.ehlo()
                 s.starttls()
                 s.ehlo()

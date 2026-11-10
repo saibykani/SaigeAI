@@ -8,6 +8,7 @@ posting is included once (`emailed_at`).
 
 import html
 import re
+from datetime import timedelta
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -18,9 +19,10 @@ from app.database import collections as c
 from app.profiles.service import get_profile
 from app.services.audit import log_action
 from app.services.notify import notify
-from app.utils import utcnow
+from app.utils import as_utc, utcnow
 
 MAX_ITEMS = 25
+MAIL_BACKOFF = timedelta(minutes=30)
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$", re.I)
 
 
@@ -103,10 +105,22 @@ async def send(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual", t
                      body="Connect Gmail with an App Password in Integrations to also get this by email.",
                      details=[{"platform": d["company"], "field": d["title"], "after": f"{d['score']}%"} for d in items[:5]])
         return {"sent": 0, "notified": len(items), "error": "Connect Gmail with an App Password (Settings → Integrations) to get it by email."}
+    # After a failed send, automatic runs wait MAIL_BACKOFF before logging in to Gmail again: retrying every
+    # 30 s makes Gmail throttle the account, and then it drops every connection ("Connection unexpectedly closed").
+    state = (await db[c.SYSTEM_SETTINGS].find_one({"user_id": uid}, {"careers_mail": 1}) or {}).get("careers_mail") or {}
+    if trigger != "manual" and state.get("retry_after") and as_utc(state["retry_after"]) > utcnow():
+        return {"sent": 0, "skipped": "waiting after a Gmail error", "retry_after": as_utc(state["retry_after"]).isoformat()}
     try:
         mid = await smtp.send(integ["email"], crypto.decrypt(integ["app_password_enc"]), "Saige AI", to, subject, text, html=body_html)
     except GmailError as exc:
-        return {"sent": 0, "error": str(exc)}
+        await db[c.SYSTEM_SETTINGS].update_one({"user_id": uid}, {"$set": {"careers_mail": {
+            "retry_after": utcnow() + MAIL_BACKOFF, "error": str(exc)[:300]}}}, upsert=True)
+        msg = str(exc)
+        if "unexpectedly closed" in msg:
+            msg = ("Gmail is refusing logins for a while, usually after many attempts in a short time. Saige will try again "
+                   "in 30 minutes. If it keeps failing, create a new App Password and reconnect Gmail in Integrations.")
+        return {"sent": 0, "error": msg}
+    await db[c.SYSTEM_SETTINGS].update_one({"user_id": uid}, {"$unset": {"careers_mail": ""}})
     await db[c.CAREER_JOBS].update_many({"_id": {"$in": [d["_id"] for d in items]}}, {"$set": {"emailed_at": utcnow()}})
     await log_action(db, user_id=uid, action="careers.digest_sent", entity="career_jobs",
                      details={"to": to, "jobs": len(items), "trigger": trigger, "message_id": mid})

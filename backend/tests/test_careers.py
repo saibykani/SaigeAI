@@ -267,7 +267,7 @@ def test_smtp_falls_back_to_starttls(monkeypatch):
             raise smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
 
     class Plain:
-        def __init__(self, host, port, timeout):
+        def __init__(self, host, port, timeout, **kw):
             self.port = port
 
         def __enter__(self):
@@ -292,3 +292,30 @@ def test_smtp_falls_back_to_starttls(monkeypatch):
     monkeypatch.setattr(smtp, "STARTTLS_FACTORY", Plain)
     smtp._send_sync("me@gmail.com", "pw", "Saige", "saibykani07@gmail.com", "s", "b")
     assert sent == [(587, "saibykani07@gmail.com")]
+
+
+async def test_digest_backs_off_after_gmail_error(client, auth, db, careers, monkeypatch):
+    import smtplib
+
+    from app.careers import digest
+    from app.email import smtp
+    from app.services import crypto
+
+    await _setup(client, auth)
+    me = await db[c.USERS].find_one({"email": "asha@example.com"})
+    await client.post("/api/careers/scan", headers=auth, json={})
+    await db[c.INTEGRATIONS].insert_one({"user_id": me["_id"], "provider": "gmail", "method": "app_password",
+                                         "email": "asha@gmail.com", "app_password_enc": crypto.encrypt("pw")})
+    calls = []
+
+    class Dropped:
+        def __init__(self, *a, **k):
+            calls.append(1)
+            raise smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
+
+    monkeypatch.setattr(smtp, "SMTP_FACTORY", Dropped)
+    monkeypatch.setattr(smtp, "STARTTLS_FACTORY", Dropped)
+    r = await digest.send(db, me["_id"], trigger="watch")
+    assert r["sent"] == 0 and "30 minutes" in r["error"] and len(calls) == 2
+    r = await digest.send(db, me["_id"], trigger="watch")
+    assert r["skipped"] == "waiting after a Gmail error" and len(calls) == 2

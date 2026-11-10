@@ -17,7 +17,7 @@ class FakeIMAP:
     password = "abcdefghijklmnop"
     calls: list = []
 
-    def __init__(self, host, port, timeout=None):
+    def __init__(self, host, port, timeout=None, **kw):
         assert host == "imap.gmail.com" and port == 993
 
     def login(self, user, pw):

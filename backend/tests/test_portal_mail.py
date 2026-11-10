@@ -43,7 +43,7 @@ class AllMailIMAP:
     """Gmail search returns nothing (as on the user's account); the SINCE fallback finds the mail."""
     searches: list = []
 
-    def __init__(self, host, port, timeout=None):
+    def __init__(self, host, port, timeout=None, **kw):
         pass
 
     def login(self, user, pw):
