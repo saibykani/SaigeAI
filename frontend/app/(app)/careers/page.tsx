@@ -17,7 +17,7 @@ import type { CareerChange, CareerFit, CareerJob, CareerJobDetail, CareerJobsPag
 import { cn } from "@/utils/cn";
 import { formatDate, timeAgo } from "@/utils/format";
 
-type View = "jobs" | "companies" | "settings";
+type View = "jobs" | "manual" | "companies" | "settings";
 type Msg = { tone: "success" | "error" | "warning" | "info"; text: React.ReactNode } | null;
 
 const FIT_TONE: Record<CareerFit, string> = { strong: "green", good: "yellow", stretch: "orange", low: "red" };
@@ -184,8 +184,9 @@ function JobRow({ job, onMsg }: { job: CareerJob; onMsg: (m: Msg) => void }) {
   );
 }
 
-function JobsView({ onMsg }: { onMsg: (m: Msg) => void }) {
-  const [f, setF] = useState(EMPTY);
+function JobsView({ onMsg, manual = false }: { onMsg: (m: Msg) => void; manual?: boolean }) {
+  const base = manual ? { ...EMPTY, categories: "manual", sort: "recent" } : EMPTY;
+  const [f, setF] = useState(base);
   const [page, setPage] = useState(1);
   const qs = useMemo(() => {
     const p = new URLSearchParams({ sort: f.sort, page: String(page), page_size: "25" });
@@ -251,7 +252,13 @@ function JobsView({ onMsg }: { onMsg: (m: Msg) => void }) {
         <CountKpi label="Companies hiring" value={data?.facets.companies.length ?? 0} icon={Building2} tone="purple" delay={180} />
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Job type">
+      {manual && (
+        <Notice tone="info">
+          Manual testing roles only (Manual Tester, QA Analyst, Functional / UAT Tester, Test Analyst) from every company career page, newest first.
+          Turn the manual testing search on or off in Daily email.
+        </Notice>
+      )}
+      {!manual && <div className="flex flex-wrap gap-2" role="tablist" aria-label="Job type">
         {CATEGORY_TABS.map((c) => {
           const n = c.value ? data?.facets.categories?.find((x) => x.value === c.value)?.count ?? 0 : totalOpen;
           const on = f.categories === c.value;
@@ -262,7 +269,7 @@ function JobsView({ onMsg }: { onMsg: (m: Msg) => void }) {
             </button>
           );
         })}
-      </div>
+      </div>}
 
       <Card>
         <CardContent className="grid gap-3 pt-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -341,7 +348,7 @@ function JobsView({ onMsg }: { onMsg: (m: Msg) => void }) {
             <label className="flex h-10 items-center gap-2 text-sm">
               <input type="checkbox" checked={f.salary_listed} onChange={(e) => set("salary_listed", e.target.checked)} className="size-4 accent-[var(--tone-green)]" /> Pay listed ({data?.counts?.salary_listed ?? 0})
             </label>
-            <Button variant="ghost" size="sm" onClick={() => { setPage(1); setF(EMPTY); }}>Clear</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setPage(1); setF(base); }}>Clear</Button>
           </div>
         </CardContent>
       </Card>
@@ -525,7 +532,7 @@ export default function CareersPage() {
         description="Openings for your roles, read straight from 170+ company career pages, including Razorpay, Paytm, InMobi and other Indian startups: FAANG, big tech, IT services (HCLTech, Wipro, Capgemini, Accenture, PwC, EY), banks, AI labs, fintech, SaaS, pharma and Indian product companies. Each job shows how well you fit and what to change in your resume."
       />
       <div className="mb-6 inline-flex rounded-full border bg-muted/50 p-1 text-sm" role="tablist">
-        {([["jobs", "Jobs"], ["companies", "Companies"], ["settings", "Daily email"]] as [View, string][]).map(([k, label]) => (
+        {([["jobs", "Jobs"], ["manual", "Manual testing"], ["companies", "Companies"], ["settings", "Daily email"]] as [View, string][]).map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)}
                   className={cn("rounded-full px-4 py-1.5", view === k ? "bg-background font-medium shadow-sm" : "text-muted-foreground")}>
             {label}
@@ -534,6 +541,7 @@ export default function CareersPage() {
       </div>
       {msg && <div className="mb-4"><Notice tone={msg.tone}>{msg.text}</Notice></div>}
       {view === "jobs" && <JobsView onMsg={setMsg} />}
+      {view === "manual" && <JobsView key="manual" onMsg={setMsg} manual />}
       {view === "companies" && <CompaniesView />}
       {view === "settings" && <SettingsView onMsg={setMsg} />}
     </div>

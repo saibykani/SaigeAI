@@ -279,7 +279,20 @@ async def _facet(db: AsyncIOMotorDatabase, base: dict, field: str, label: str | 
     return [{"value": r["_id"], "label": r.get("label") or r["_id"], "count": r["count"]} for r in rows if r["_id"]]
 
 
+async def backfill(db: AsyncIOMotorDatabase, uid: str, limit: int = 2000) -> int:
+    """Postings stored before job types and pay existed get them from their saved title and description."""
+    docs = await db[c.CAREER_JOBS].find({"user_id": uid, "category": None}, {"title": 1, "description": 1}).to_list(limit)
+    ops = [UpdateOne({"_id": d["_id"]}, {"$set": {
+        "category": classify.category(d.get("title") or "", d.get("description") or ""),
+        "salary_min": None, "salary_max": None, "salary_currency": None, "salary_lpa": None, "salary_text": None,
+        **classify.compensation(d.get("description") or "")}}) for d in docs]
+    if ops:
+        await _bulk_upsert(db, ops)
+    return len(ops)
+
+
 async def query(db: AsyncIOMotorDatabase, uid: str, f: dict) -> dict:
+    await backfill(db, uid)
     page, size = max(1, int(f.get("page") or 1)), min(100, max(5, int(f.get("page_size") or 25)))
     q = _filter(uid, f)
     sort = SORTS.get(f.get("sort") or "score", SORTS["score"])
