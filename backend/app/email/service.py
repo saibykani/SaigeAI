@@ -77,6 +77,18 @@ async def ingest(db: AsyncIOMotorDatabase, user_id: str, msg: dict, *, source: s
         extracted["portal"] = portal.portal_for(msg["sender"])
     else:
         app = await match_application(db, user_id, msg["subject"], msg["body"], extracted)
+    from app.recruiters.service import on_inbound_email  # local import avoids a cycle
+
+    outreach = None
+    if category == "Other" and not app and not classifier.is_job_related(msg["sender"], msg["subject"], msg["body"]):
+        outreach = await on_inbound_email(db, user_id, extracted.get("sender_email"), msg["body"])  # a reply or bounce to your outreach
+    if category == "Other" and not app and not outreach and not classifier.is_job_related(msg["sender"], msg["subject"], msg["body"]):
+        # Bank, shopping, course and account mail: remembered (so it isn't fetched again) but not stored or shown.
+        doc = {"_id": new_id(), "user_id": user_id, "gmail_id": msg.get("gmail_id"), "sender": msg["sender"][:200],
+               "subject": msg["subject"][:200], "body": "", "received_at": received, "category": "Skipped", "hidden": True,
+               "confidence": 0.0, "extracted": {}, "application_id": None, "action": None, "source": source, "created_at": utcnow()}
+        await db[c.EMAILS].insert_one(doc)
+        return doc
     if category == "Recruiter Outreach" and app:
         category = "Recruiter Reply"  # a recruiter writing about a job you're already pursuing
     doc = {"_id": new_id(), "user_id": user_id, "gmail_id": msg.get("gmail_id"), "thread_id": msg.get("thread_id"),
@@ -89,9 +101,8 @@ async def ingest(db: AsyncIOMotorDatabase, user_id: str, msg: dict, *, source: s
                                                   "category": category, "confidence": doc["confidence"],
                                                   "signals": signals, "created_at": utcnow()})
     action = await apply_to_application(db, user_id, doc, app) if app else None
-    from app.recruiters.service import on_inbound_email  # local import avoids a cycle
-
-    outreach = await on_inbound_email(db, user_id, extracted.get("sender_email"), msg["body"])
+    if outreach is None:
+        outreach = await on_inbound_email(db, user_id, extracted.get("sender_email"), msg["body"])
     if outreach and not action:
         action = f"outreach_{outreach}"
     if not app and category in {"Recruiter Outreach", "Interview Invitation", "Offer", "Portal Invite", "Portal Message"}:
@@ -175,3 +186,14 @@ async def apply_to_application(db: AsyncIOMotorDatabase, user_id: str, email: di
     await notify(db, user_id=user_id, kind=target.lower(), title=f"{titles[target]}: {app['role']} at {app['company']}",
                  body="Detected from Gmail", link=f"/applications/{app['_id']}")
     return f"status:{target}"
+
+
+async def hide_unrelated(db: AsyncIOMotorDatabase, user_id: str) -> int:
+    """Hide mail stored before the job-only filter existed (bank, OTP, shopping, courses...)."""
+    n = 0
+    async for e in db[c.EMAILS].find({"user_id": user_id, "category": "Other", "application_id": None, "hidden": {"$ne": True}},
+                                     {"sender": 1, "subject": 1, "body": 1}):
+        if not classifier.is_job_related(e.get("sender", ""), e.get("subject", ""), e.get("body", "")):
+            await db[c.EMAILS].update_one({"_id": e["_id"]}, {"$set": {"hidden": True, "category": "Skipped", "body": ""}})
+            n += 1
+    return n

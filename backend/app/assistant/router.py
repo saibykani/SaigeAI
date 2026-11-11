@@ -39,7 +39,7 @@ async def context(db: AsyncIOMotorDatabase, uid: str) -> dict:
     feed = await db[c.JOB_FEED].find_one({"_id": uid}, {"items": {"$slice": 8}, "country": 1, "roles": 1}) or {}
     upcoming = [i async for i in db[c.INTERVIEWS].find({"user_id": uid, "scheduled_at": {"$gte": utcnow()}},
                                                         {"company": 1, "role": 1, "scheduled_at": 1}).sort("scheduled_at", 1).limit(5)]
-    emails = [e async for e in db[c.EMAILS].find({"user_id": uid}, {"subject": 1, "category": 1, "sender": 1})
+    emails = [e async for e in db[c.EMAILS].find({"user_id": uid, "hidden": {"$ne": True}}, {"subject": 1, "category": 1, "sender": 1})
               .sort("received_at", DESCENDING).limit(8)]
     drafts = await db[c.OUTREACH].count_documents({"user_id": uid, "status": "draft"})
     return {

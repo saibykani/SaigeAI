@@ -136,7 +136,8 @@ async def disconnect_gmail(delete_emails: bool = False, user: dict = Depends(get
 @router.get("/emails")
 async def list_emails(category: str | None = None, limit: int = Query(100, ge=1, le=300),
                       user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    q: dict = {"user_id": user["_id"]}
+    await svc.hide_unrelated(db, user["_id"])
+    q: dict = {"user_id": user["_id"], "hidden": {"$ne": True}}
     if category:
         q["category"] = category
     docs = await db[c.EMAILS].find(q).sort("received_at", DESCENDING).to_list(limit)
@@ -190,6 +191,9 @@ async def run_sync(db: AsyncIOMotorDatabase, uid: str, integ: dict) -> dict:
         actions = 0
         for m in messages + portal_msgs:
             doc = await svc.ingest(db, uid, m, source="gmail")
+            if doc.get("hidden"):
+                counts["Skipped"] = counts.get("Skipped", 0) + 1
+                continue
             counts[doc["category"]] = counts.get(doc["category"], 0) + 1
             if doc.get("action"):
                 actions += 1

@@ -111,3 +111,23 @@ async def test_gmail_api_is_used_when_oauth_can_send(db, monkeypatch):
     assert len(sent) == 1
     await db[c.INTEGRATIONS].insert_one({"user_id": "u2", "provider": "gmail", "email": "x@gmail.com", "refresh_token_enc": "e", "scopes": []})
     assert await outbound.find_sender(db, "u2") is None
+
+
+async def test_inbox_keeps_only_job_mail(client, auth, db):
+    from app.email.classifier import is_job_related as job
+
+    assert job("Rahul HR <r@gmail.com>", "Re: Application for QA Automation Engineer", "Please share your CTC")
+    assert job("Priya <p@acme.com>", "Quick chat?", "We are hiring for an SDET position. Are you open?")
+    assert not job("SBI <sbi@communications.sbi.co.in>", "Activate Your UPI on YONO SBI", "Your bank account")
+    assert not job("Google <no-reply@accounts.google.com>", "Security alert", "New sign-in to your account")
+    assert not job("Team Scaler <hello@scaler.com>", "Become an FDE", "Our hiring partners love this course. Unsubscribe")
+    junk = {"sender": "Amazon <order@amazon.in>", "subject": "Your order has shipped", "body": "Track your package"}
+    r = await client.post("/api/emails/import", headers=auth, json=junk)
+    assert r.status_code == 201 and r.json()["category"] == "Skipped"
+    keep = {"sender": "HR <hr@acme.com>", "subject": "Your application for SDET", "body": "We received your application."}
+    assert (await client.post("/api/emails/import", headers=auth, json=keep)).status_code == 201
+    await db[c.EMAILS].insert_one({"_id": "old", "user_id": (await db[c.USERS].find_one({}))["_id"], "sender": "SBI <a@sbi.co.in>",
+                                   "subject": "Statement ready", "body": "Bank statement", "category": "Other", "application_id": None,
+                                   "received_at": __import__("datetime").datetime(2026, 11, 1), "confidence": 0.3})
+    subjects = [e["subject"] for e in (await client.get("/api/emails", headers=auth)).json()]
+    assert subjects == ["Your application for SDET"]

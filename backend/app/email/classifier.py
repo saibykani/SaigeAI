@@ -46,6 +46,30 @@ _TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b|\b([01]?\d|2[0-3]):([0
 _TZ_TOKEN = re.compile(r"\b(IST|PST|PDT|EST|EDT|GMT|UTC|BST|CET|SGT|GST)\b")
 
 
+_JOB = re.compile(
+    r"\b(applications?|applied|applying|interview\w*|resume|cv|shortlist\w*|offer letter|recruit\w*|hiring|vacanc\w*|walk[- ]?in"
+    r"|job (?:openings?|opportunit\w*|description|alerts?|posted|id)|new jobs|positions?|candidature|candidate|notice period|ctc"
+    r"|talent acquisition|hr team|joining)\b", re.I)
+_JUNK = re.compile(
+    r"\b(otp|verification code|one[- ]time password|debited|credited|transactions?|statement|invoice|receipt|orders?|shipped|delivered"
+    r"|payments?|upi|emi|loan|credit card|bank\w*|cashback|sale|discounts?|coupon|deals?|webinars?|masterclass|courses?|enrol\w*"
+    r"|newsletter|security alert|sign[- ]?in|password|progress report|events?|registration|subscription|recharge|bill(er)?s?)\b|% off",
+    re.I)
+
+
+def is_job_related(sender: str, subject: str, body: str) -> bool:
+    """For mail no rule recognised: keep it only when it's clearly about a job, not a bank, shop, course or account notice."""
+    if _JOB.search(subject or ""):
+        return True
+    if _MARKETING.search(sender or "") or re.search(r"\bunsubscribe\b", body or "", re.I):
+        return False  # bulk mail (courses, webinars, offers) is about a job only when its subject says so
+    return bool(_JOB.search((body or "")[:3000])) and not _JUNK.search(f"{subject} {sender}")
+
+
+_MARKETING = re.compile(r"(scaler|simplilearn|upgrad|coursera|udemy|greatlearning|great learning|edureka|intellipaat|eventbrite"
+                        r"|zoom\.us|newsletter|marketing|promo|offers?@|deals?@|hello@|updates@|news@)", re.I)
+
+
 def classify(subject: str, body: str) -> tuple[str, float, list[str]]:
     text = f"{subject}\n{body}".lower()
     for category, patterns in _RULES:
