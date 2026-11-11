@@ -45,7 +45,7 @@ _RANGE = re.compile(r"(₹|\$|€|£|\b(?:usd|eur|gbp|cad|aud|sgd|aed|inr|rs)\b)
 
 def _val(num: str, unit: str | None) -> float:
     # "120,000" and "120.000" are thousands; "7.5" is a decimal.
-    n = float(re.sub(r"[,.](?=\d{3})", "", num).replace(",", ""))
+    n = float(re.sub(r"[,.](?=\d{3}\b)", "", num).replace(",", ""))
     u = (unit or "").lower()
     if u == "k":
         n *= 1_000

@@ -18,7 +18,7 @@ from app.resumes import tailor
 from app.resumes.ai_router import _base_parsed, _matched
 from app.schemas.resume import ParsedResume
 from app.services.audit import log_action
-from app.studio import analyzer, render
+from app.studio import analyzer, polish, render
 from app.utils import new_id, utcnow
 
 router = APIRouter(prefix="/studio", tags=["studio"])
@@ -121,6 +121,7 @@ async def generate(body: ResumeIn, user: dict = Depends(get_current_user), db: A
     fallback = tailor.template_summary(profile, title, matched)
     summary, engine = (await tailor.llm_polish("summary", profile, title, company or "the company", matched, fallback)
                        ) if fallback else (None, "deterministic")
+    title = title or "Target role"
     try:
         parsed, changes = tailor.tailor_resume(profile, jd, {"_id": None, "title": title, "company": company}, base_parsed, summary)
     except tailor.TailorError as exc:
@@ -131,6 +132,8 @@ async def generate(body: ResumeIn, user: dict = Depends(get_current_user), db: A
     if bad:
         await log_action(db, user_id=uid, action="studio.resume_blocked", entity="resume", details={"violations": bad})
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": bad})
+    # Repair import artefacts (split skills, broken bullets, repeated sentences) in the user's own content, then score it.
+    parsed = polish.polish(parsed)
     report = tailor.ats_report(parsed, jd)
     analysis = analyzer.analyze(profile, text, title, company)
     template = body.template if body.template in render.TEMPLATES else "modern"

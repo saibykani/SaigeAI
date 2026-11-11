@@ -51,7 +51,7 @@ def _requirement_rows(jd: JDAnalysis, have: set[str], years: float | None) -> li
 
 
 def analyze(profile: Profile, jd_text: str, title: str = "", company: str = "") -> dict:
-    title = (title or "").strip() or _guess_title(jd_text)
+    title = (title or "").strip() or _guess_title(jd_text) or "This role"
     jd = analyze_jd(title, jd_text)
     p = profile.personal
     have = candidate_skills(profile)
@@ -157,12 +157,30 @@ def _salary(jd: JDAnalysis) -> str | None:
     return f"{jd.currency or ''} {lo:,.0f}{f' – {hi:,.0f}' if hi and hi != lo else ''}".strip()
 
 
+_ROLE_WORDS = re.compile(r"\b(engineer|sdet|tester|testing|qa|qe|developer|analyst|architect|lead|manager|consultant|specialist|"
+                         r"scientist|designer|administrator|associate|intern|executive|officer|devops|sre|programmer)\b", re.I)
+_JUNK = re.compile(r"cookie|accept|privacy|sign in|log in|apply now|share|save job|subscribe|consent|javascript|skip to|menu|"
+                   r"posted|applicants|easy apply|promoted", re.I)
+_TITLE_PATTERNS = [
+    re.compile(r"(?im)^\s*(?:job title|position|role|designation|opening|job role|title)\s*[:\-–]\s*(.{3,80}?)\s*$"),
+    re.compile(r"(?i)\b(?:hiring|looking for|seeking|searching for)\s+(?:an?\s+|experienced\s+|talented\s+)*"
+               r"((?:senior|junior|lead|staff|principal|sr\.?|jr\.?)?\s*[A-Za-z/&()+\- ]{2,60}?"
+               r"(?:engineer|sdet|tester|developer|analyst|architect|lead|manager|consultant|specialist|scientist|designer)s?)\b"),
+]
+
+
 def _guess_title(text: str) -> str:
-    for line in (text or "").splitlines()[:6]:
-        line = line.strip(" :-*#")
-        if 3 <= len(line) <= 80 and not line.endswith("."):
+    """The job title in a JD, ignoring page furniture copied with it (cookie banners, buttons)."""
+    head = (text or "")[:5000]
+    for rx in _TITLE_PATTERNS:
+        m = rx.search(head)
+        if m and not _JUNK.search(m.group(1)):
+            return re.sub(r"\s+", " ", m.group(1)).strip(" :-–,.")
+    for line in head.splitlines()[:25]:
+        line = line.strip(" :-*#•|\t")
+        if 3 <= len(line) <= 70 and not line.endswith(".") and _ROLE_WORDS.search(line) and not _JUNK.search(line):
             return line
-    return "Target role"
+    return ""
 
 
 def _plain_summary(title: str, company: str, verdict: str, cov: int | None, missing: list[str], exp: dict) -> str:

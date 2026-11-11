@@ -9,7 +9,6 @@ standard PDF fonts), HTML, Markdown and plain text.
 import html
 import io
 import re
-import textwrap
 import zlib
 from dataclasses import dataclass
 
@@ -20,6 +19,7 @@ from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
 
 from app.schemas.resume import ParsedResume
+from app.studio import fontmetrics as fm
 
 
 @dataclass(frozen=True)
@@ -91,12 +91,16 @@ def sections(r: ParsedResume, t: Template) -> list[tuple[str, list[Row]]]:
         if key == "summary" and r.summary:
             rows = [("p", r.summary, "")]
         elif key == "skills" and r.skills:
+            from app.studio.polish import group_skills
+
             key_skills = [s for s in r.tools if s in r.skills]
-            rest = [s for s in r.skills if s not in key_skills]
-            if key_skills:
-                rows.append(("k", "Key skills for this role: " + ", ".join(key_skills), ""))
-            if rest:
-                rows.append(("k" if key_skills else "p", ("Also: " if key_skills else "") + ", ".join(rest), ""))
+            if len(key_skills) >= 2:
+                rows.append(("k", "Core skills for this role: " + ", ".join(key_skills), ""))
+            groups = group_skills(r.skills)
+            if len(groups) <= 1:
+                rows.append(("p", ", ".join(r.skills), ""))
+            else:
+                rows += [("k", f"{label}: " + ", ".join(items), "") for label, items in groups]
         elif key == "experience":
             for e in r.experience:
                 rows.append(("h", e.title or e.company or "", _dates(e)))
@@ -240,10 +244,13 @@ def to_pdf(r: ParsedResume, t: Template, headline: str | None = None) -> bytes:
     lead = size * (1.22 if t.compact else 1.34)
     times = t.pdf_font == "Times"
     reg, bold, ital = ("Times-Roman", "Times-Bold", "Times-Italic") if times else ("Helvetica", "Helvetica-Bold", "Helvetica-Oblique")
-    cw = 0.46 if times else 0.5  # average glyph width / font size
+    face = {"F1": reg, "F2": bold, "F3": ital}
 
-    def wrap(s: str, sz: float, indent: float = 0) -> list[str]:
-        return textwrap.wrap(s, max(20, int((W - 2 * margin - indent) / (sz * cw)))) or [""]
+    def tw(s: str, font: str, sz: float) -> float:
+        return fm.width(s, face[font], sz)
+
+    def wrap(s: str, sz: float, indent: float = 0, font: str = "F1") -> list[str]:
+        return fm.wrap(s, face[font], sz, W - 2 * margin - indent)
 
     pages: list[list[str]] = [[]]
     y = H - margin
@@ -259,9 +266,9 @@ def to_pdf(r: ParsedResume, t: Template, headline: str | None = None) -> bytes:
         nonlocal y
         need(sz * 1.3)
         if center:
-            x = (W - len(s) * sz * cw) / 2
+            x = (W - tw(s, font, sz)) / 2
         elif right:
-            x = W - margin - len(s) * sz * cw
+            x = W - margin - tw(s, font, sz)
         pages[-1].append(f"BT {_rgb(rgb)} rg /{font} {sz} Tf {x:.1f} {y - sz:.1f} Td ({_esc(s)}) Tj ET")
         if advance:
             y -= sz * 1.28 if sz > size + 1 else lead
@@ -306,13 +313,22 @@ def to_pdf(r: ParsedResume, t: Template, headline: str | None = None) -> bytes:
                 y -= 2
                 if right:
                     put(right, 0, "F1", size - 0.5, (90, 90, 90), right=True, advance=False)
-                for ln in wrap(s, size, len(right) * size * cw + 12 if right else 0):
+                for ln in wrap(s, size, tw(right, "F1", size - 0.5) + 14 if right else 0, "F2"):
                     put(ln, margin, "F2", size)
             elif kind == "s":
                 for ln in wrap(s, size - 0.5):
                     put(ln, margin, "F3", size - 0.5, (82, 82, 82))
             elif kind == "k":
-                for ln in wrap(s, size):
+                label, sep, rest = s.partition(": ")
+                if not sep:
+                    for ln in wrap(s, size):
+                        put(ln, margin, "F1", size)
+                    continue
+                lab_w = tw(label + ": ", "F2", size)
+                first, *more = fm.wrap(rest, reg, size, W - 2 * margin - lab_w)
+                put(label + ":", margin, "F2", size, advance=False)
+                put(first, margin + lab_w, "F1", size)
+                for ln in fm.wrap(" ".join(more), reg, size, W - 2 * margin) if more else []:
                     put(ln, margin, "F1", size)
             else:
                 for ln in wrap(s, size):

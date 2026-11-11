@@ -91,3 +91,26 @@ def test_extract_company_patterns():
     assert extract_company("At Freshworks, we build software. Apply at careers.freshworks.com") == "Freshworks"
     assert extract_company("Mail your CV to hr@zeptonow.com") == "Zeptonow"
     assert extract_company("Looking for a tester. You will test apps.") is None
+
+
+def test_polish_repairs_imported_resume_artefacts():
+    from app.schemas.resume import ParsedProject, ParsedResume
+    from app.studio import polish
+    from app.studio.analyzer import _guess_title
+
+    raw = ["Java (Test Automation", "Page Object Model (POM", "Newman (Postman CLI", "Spike", "Testing", "Data", "Functional",
+           "Cucumber BDD", "Cucumber", "BDD", "Java", "CI/CD", "MySQL", "Azure SQL"]
+    r = ParsedResume(name="A", summary="SDET with 3+ years of experience. SDET with 3 years of experience in test automation and API testing.",
+                     skills=raw, projects=[ParsedProject(name="P", highlights=["Automated UI tests for onboarding and", "transaction flows.",
+                                                                                "Ran master–", "slave distributed tests."])])
+    p = polish.polish(r)
+    assert p.summary.count("years of experience") == 1
+    assert "Page Object Model (POM)" in p.skills and "Newman (Postman CLI)" in p.skills and "Spike Testing" in p.skills
+    assert "Functional Testing" in p.skills and "CI/CD" in p.skills and p.skills.count("Java") == 1
+    assert not {"Testing", "Data", "Cucumber", "BDD", "Java (Test Automation"} & set(p.skills)
+    assert p.projects[0].highlights == ["Automated UI tests for onboarding and transaction flows.", "Ran master–slave distributed tests."]
+    groups = dict(polish.group_skills(p.skills))
+    assert "MySQL" in groups["Databases"] and "Azure SQL" in groups["Databases"] and "Java" in groups["Languages"]
+    assert _guess_title("I Do Not Accept I Accept\nWe are hiring a Senior QA Automation Engineer to join us.") == "Senior QA Automation Engineer"
+    assert _guess_title("Job Title: SDET II\nLocation: Hyderabad") == "SDET II"
+    assert _guess_title("Cookie settings\nAccept all") == ""

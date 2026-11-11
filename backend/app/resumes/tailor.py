@@ -72,14 +72,18 @@ def template_summary(profile: Profile, job_title: str, matched: list[str]) -> st
     yrs_n = p.total_experience_years
     if kb.professional_summary:
         parts.append(kb.professional_summary.strip().rstrip(".") + ".")
-        if yrs_n and yrs_n >= 1 and not re.search(r"years?|yrs?", kb.professional_summary, re.I):
+        if yrs_n and yrs_n >= 1 and not re.search(r"\b(?:years?|yrs?)\b", kb.professional_summary, re.I):
             role = p.current_designation or "Professional"
             parts.insert(0, f"{role} with {int(yrs_n)}+ years of experience.")
     elif p.current_designation:
         yrs = f" with {int(p.total_experience_years)}+ years of experience" if p.total_experience_years else ""
         parts.append(f"{p.current_designation}{yrs}.")
-    if matched:
-        parts.append(f"Hands-on experience with {', '.join(matched[:6])}, directly relevant to the {job_title} role.")
+    # Name the job's skills the summary doesn't already mention (no repeats), and the role only when it's known.
+    said = " ".join(parts).lower()
+    extra = [s for s in matched if s.lower() not in said][:6]
+    if extra:
+        role = f", directly relevant to the {job_title} role" if job_title and job_title.lower() not in ("target role", "this role") else ""
+        parts.append(f"Hands-on experience with {', '.join(extra)}{role}.")
     if kb.domains:
         parts.append(f"Domain experience: {', '.join(kb.domains)}.")
     return " ".join(parts) or None
