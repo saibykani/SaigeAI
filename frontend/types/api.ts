@@ -994,6 +994,7 @@ export interface JDAnalysisReport {
   issues: string[];
   keywords_to_use: string[];
   summary: string;
+  company_detected?: boolean;
 }
 
 export interface StudioAts {
@@ -1034,6 +1035,9 @@ export interface StudioGenerated {
   improve: string[];
   verdict: { key: string; label: string };
   html: string;
+  headline?: string | null;
+  experience_years?: number | null;
+  company_detected?: boolean;
 }
 
 // ------------------------------------------------------------------ Saige learning

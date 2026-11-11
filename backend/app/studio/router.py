@@ -59,7 +59,17 @@ async def _jd_source(db: AsyncIOMotorDatabase, uid: str, body: JDIn) -> tuple[st
     text = (body.jd_text or "").strip()
     if len(text) < 30:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Paste the job description (at least a few lines).")
-    return text, body.title.strip(), body.company.strip()
+    return text, body.title.strip(), body.company.strip() or (analyzer.extract_company(text) or "")
+
+
+def _headline(profile) -> str | None:
+    """Current role and experience counted from the role dates, e.g. "Senior QA Engineer · 3 yrs 5 mo experience"."""
+    from app.profiles.experience import describe
+
+    p, roles = profile.personal, profile.knowledge.experience
+    role = p.current_designation or next((e.title for e in roles if e.is_current), None) or (roles[0].title if roles else None)
+    yrs = describe(p.total_experience_years) if p.total_experience_years else None
+    return " · ".join(x for x in (role, f"{yrs} experience" if yrs else None) if x) or None
 
 
 @router.get("/templates")
@@ -75,6 +85,7 @@ async def analyze(body: JDIn, user: dict = Depends(get_current_user), db: AsyncI
     uid = user["_id"]
     text, title, company = await _jd_source(db, uid, body)
     out = analyzer.analyze(await get_profile(db, uid), text, title, company)
+    out["company_detected"] = bool(company) and not body.company.strip() and not body.career_job_id
     await log_action(db, user_id=uid, action="studio.jd_analyzed", entity="jd",
                      details={"title": out["title"], "company": company, "score": out["score"], "verdict": out["verdict"]["key"]})
     return out
@@ -123,11 +134,13 @@ async def generate(body: ResumeIn, user: dict = Depends(get_current_user), db: A
     report = tailor.ats_report(parsed, jd)
     analysis = analyzer.analyze(profile, text, title, company)
     template = body.template if body.template in render.TEMPLATES else "modern"
+    headline = _headline(profile)
     now = utcnow()
     doc = {"_id": new_id(), "user_id": uid, "name": f"{title} · {company}"[:120] if company else title[:120], "kind": KIND,
            "status": "active", "file_id": None, "filename": None, "content_type": None, "size": None, "job_id": body.job_id,
            "career_job_id": body.career_job_id, "company": company or None, "target_title": title, "template": template,
-           "jd_text": text[:20000], "base_resume_id": base["_id"] if base else None, "current_version_id": None, "version_count": 0,
+           "jd_text": text[:20000], "headline": headline,
+           "base_resume_id": base["_id"] if base else None, "current_version_id": None, "version_count": 0,
            "created_at": now, "updated_at": now, "ats": report, "engine": engine}
     await db[c.RESUMES].insert_one(doc)
     await resumes.add_version(db, doc, parsed=parsed, raw_text=tailor.resume_text(parsed), source="studio",
@@ -136,7 +149,9 @@ async def generate(body: ResumeIn, user: dict = Depends(get_current_user), db: A
                      details={"title": title, "company": company, "ats_score": report["score"], "template": template})
     return {"id": doc["_id"], "name": doc["name"], "company": company, "title": title, "template": template, "engine": engine,
             "resume": parsed.model_dump(), "ats": report, "changes": changes, "improve": _improve(report, analysis),
-            "verdict": analysis["verdict"], "html": render.to_html(parsed, render.TEMPLATES[template])}
+            "verdict": analysis["verdict"], "headline": headline, "experience_years": profile.personal.total_experience_years,
+            "company_detected": bool(company) and not body.company.strip() and not body.career_job_id,
+            "html": render.to_html(parsed, render.TEMPLATES[template], headline)}
 
 
 def _out(d: dict) -> dict:
@@ -164,17 +179,18 @@ async def get_resume(resume_id: str, template: str | None = None, user: dict = D
                      db: AsyncIOMotorDatabase = Depends(db_dep)):
     d, parsed = await _parsed(db, user["_id"], resume_id)
     t = render.TEMPLATES.get(template or d.get("template") or "modern", render.TEMPLATES["modern"])
-    return {**_out(d), "ats": d.get("ats"), "resume": parsed.model_dump(), "html": render.to_html(parsed, t)}
+    return {**_out(d), "ats": d.get("ats"), "resume": parsed.model_dump(), "headline": d.get("headline"),
+            "html": render.to_html(parsed, t, d.get("headline"))}
 
 
 @router.get("/resumes/{resume_id}/download")
 async def download(resume_id: str, format: str = Query("pdf", pattern="^(pdf|docx|txt|md|html)$"),
                    template: str | None = Query(None, max_length=30), on: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
                    user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    """The file is named Your_Name_Company_YYYY-MM-DD.<ext> (`on` is the date in your timezone)."""
+    """The file is named First_Last_YYYY-MM-DD_Company.<ext> (`on` is the date in your timezone)."""
     d, parsed = await _parsed(db, user["_id"], resume_id)
     tid = template if template in render.TEMPLATES else d.get("template") or "modern"
-    data = render.render(parsed, tid, format)
+    data = render.render(parsed, tid, format, d.get("headline"))
     profile = await get_profile(db, user["_id"])
     name = profile.personal.name or parsed.name
     fname = render.filename(name, d.get("company"), on or date.today().isoformat(), format)

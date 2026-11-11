@@ -55,6 +55,7 @@ function Builder() {
       setPreview(r.html);
       setTitle(r.title);
       setCompany(r.company);
+      if (r.company_detected) setMsg({ tone: "info", text: `Company read from the job description: ${r.company}. Change it above and generate again if that's wrong.` });
       await history.reload();
     } catch (e) {
       setMsg({ tone: "error", text: e instanceof Error ? e.message : "Couldn't generate the resume." });
@@ -131,7 +132,7 @@ function Builder() {
 
       <Card>
         <CardContent className="grid gap-4 pt-5 lg:grid-cols-2">
-          <Field label="Company"><Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="e.g. Razorpay" /></Field>
+          <Field label="Company" hint="Leave empty: Saige reads it from the job description"><Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="e.g. Razorpay" /></Field>
           <Field label="Job title"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. QA Automation Engineer" /></Field>
           {careerJob ? (
             <div className="lg:col-span-2"><Notice tone="info">Using the job description from Career portals. <button type="button" className="underline" onClick={() => setCareerJob(null)}>Paste a different one</button></Notice></div>
@@ -173,13 +174,14 @@ function Builder() {
                 <div className="min-w-0">
                   <p className="font-semibold">ATS score for {result.title}{result.company ? ` at ${result.company}` : ""}</p>
                   <p className="mt-1 text-sm text-muted-foreground">Required keywords {ats.required_coverage}% · nice-to-have {ats.preferred_coverage}% · {ats.word_count} words</p>
+                  {result.headline && <p className="mt-1 text-sm">Headline: {result.headline}</p>}
                   {ats.score >= 100 ? <p className="mt-1 text-sm text-[var(--tone-green)]">Every keyword and check is covered.</p>
                     : <p className="mt-1 text-sm text-muted-foreground">Only verified facts are used, so the score shows your real match. See below for how to raise it honestly.</p>}
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Download</CardTitle><CardDescription>Saved as Your_Name_{(result.company || "Company").replace(/\W+/g, "_")}_{localDate()}</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Download</CardTitle><CardDescription>Saved as First_Last_{localDate()}_{(result.company || "Company").replace(/\W+/g, "_")}</CardDescription></CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {(tpl.data?.formats ?? []).map((f) => (
                   <Button key={f.id} variant={f.id === "pdf" ? "default" : "outline"} size="sm" onClick={() => void download(f.id)}><Download /> {f.name}</Button>

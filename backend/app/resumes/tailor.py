@@ -69,8 +69,12 @@ def order_skills(profile: Profile, jd: JDAnalysis) -> tuple[list[str], list[str]
 def template_summary(profile: Profile, job_title: str, matched: list[str]) -> str | None:
     p, kb = profile.personal, profile.knowledge
     parts: list[str] = []
+    yrs_n = p.total_experience_years
     if kb.professional_summary:
         parts.append(kb.professional_summary.strip().rstrip(".") + ".")
+        if yrs_n and yrs_n >= 1 and not re.search(r"years?|yrs?", kb.professional_summary, re.I):
+            role = p.current_designation or "Professional"
+            parts.insert(0, f"{role} with {int(yrs_n)}+ years of experience.")
     elif p.current_designation:
         yrs = f" with {int(p.total_experience_years)}+ years of experience" if p.total_experience_years else ""
         parts.append(f"{p.current_designation}{yrs}.")

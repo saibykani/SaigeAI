@@ -175,3 +175,54 @@ def _plain_summary(title: str, company: str, verdict: str, cov: int | None, miss
     if exp["status"] != "unknown":
         parts.append(exp["text"])
     return " ".join(parts)
+
+
+# ------------------------------------------------------------------ company name from the JD
+
+_GENERIC = {"us", "the company", "our company", "company", "the team", "our team", "we", "you", "the role", "this role", "india",
+            "remote", "hybrid", "job", "jobs", "careers", "linkedin", "naukri", "indeed", "glassdoor", "equal opportunity"}
+_CO = r"([A-Z][A-Za-z0-9&.'\-]*(?:\s+(?:[A-Z][A-Za-z0-9&.'\-]*|&|of|and)){0,4})"
+_PATTERNS = [
+    re.compile(r"(?im)^\s*(?:company|company name|organi[sz]ation|employer|client)\s*[:\-–]\s*(.+?)\s*$"),
+    re.compile(r"(?m)^\s*About\s+" + _CO + r"\s*:?\s*$"),
+    re.compile(r"(?:Join|join)\s+(?:us\s+at\s+|the\s+team\s+at\s+)?" + _CO + r"(?=[\s,.!]|$)"),
+    re.compile(r"(?:at|At)\s+" + _CO + r",?\s+(?:we|our|you)\b"),
+    re.compile(r"(?m)^\s*" + _CO + r"\s+(?:is|are)\s+(?:a|an|the|one of|india'?s|the world'?s|hiring|looking)\b"),
+    re.compile(r"(?:Why|why)\s+" + _CO + r"\s*\?"),
+    re.compile(r"(?:work(?:ing)?\s+(?:at|with|for))\s+" + _CO + r"(?=[\s,.!]|$)"),
+]
+_DOMAIN = re.compile(r"(?:@|https?://(?:www\.|careers\.|jobs\.)?|www\.)([a-z0-9-]{2,40})\.(?:com|in|io|ai|co|org|net|tech)\b", re.I)
+_FREEMAIL = {"gmail", "yahoo", "outlook", "hotmail", "linkedin", "naukri", "indeed", "greenhouse", "lever", "workday", "myworkdayjobs",
+             "ashbyhq", "smartrecruiters", "google", "forms", "bit", "rediffmail", "icloud", "proton"}
+
+
+def _clean_company(s: str) -> str | None:
+    s = re.sub(r"\s+", " ", s or "").strip(" .,:;-–|\"'")
+    s = re.sub(r"\s+(?:is|are|was|has|we|our|India|Pvt|Private|Limited|Ltd|Inc|LLC)\.?$", "", s, flags=re.I).strip()
+    if not s or len(s) > 60 or s.lower() in _GENERIC or len(s) < 2:
+        return None
+    return s
+
+
+def extract_company(text: str) -> str | None:
+    """The hiring company named in a job description, or None if it isn't clear."""
+    head = (text or "")[:6000]
+    votes: dict[str, int] = {}
+    for i, rx in enumerate(_PATTERNS):
+        for m in rx.finditer(head):
+            name = _clean_company(m.group(1))
+            if name:
+                votes[name] = votes.get(name, 0) + (3 if i == 0 else 2)
+    for m in _DOMAIN.finditer(head):
+        d = m.group(1).lower()
+        if d not in _FREEMAIL:
+            # prefer a written name that matches the domain ("razorpay.com" -> "Razorpay")
+            match = next((n for n in votes if n.lower().replace(" ", "") in d or d in n.lower().replace(" ", "")), None)
+            key = match or d.capitalize()
+            votes[key] = votes.get(key, 0) + 2
+    if not votes:
+        return None
+    # names repeated across the text are stronger evidence
+    for n in list(votes):
+        votes[n] += min(len(re.findall(re.escape(n), head)), 5)
+    return max(votes, key=votes.get)

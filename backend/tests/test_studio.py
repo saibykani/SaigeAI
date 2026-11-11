@@ -44,7 +44,7 @@ async def test_generate_resume_preview_and_download_every_format(client, auth):
         assert d.status_code == 200, d.text
         assert d.content.startswith(magic)
         cd = d.headers["content-disposition"]
-        assert "Acme_Corp_2026-11-10." + fmt in cd and "Asha" in cd
+        assert "Asha_Rao_2026-11-10_Acme_Corp." + fmt in cd
     one = (await client.get(f"/api/studio/resumes/{rid}?template=compact", headers=auth)).json()
     assert one["ats"]["score"] == g["ats"]["score"] and one["html"]
 
@@ -60,4 +60,34 @@ def test_every_template_renders_every_format(tid):
     for fmt in render.FORMATS:
         out = render.render(r, tid, fmt)
         assert len(out) > 200
-    assert render.filename("Asha Rao", "Acme & Co.", "2026-11-10", "pdf") == "Asha_Rao_Acme_Co_2026-11-10.pdf"
+    assert render.filename("Asha K Rao", "Acme & Co.", "2026-11-10", "pdf") == "Asha_Rao_2026-11-10_Acme_Co.pdf"
+
+
+async def test_company_is_read_from_the_jd_and_experience_counts_from_dates(client, auth):
+    from datetime import date
+
+    profile = {**PROFILE, "knowledge": {**PROFILE["knowledge"], "experience": [
+        {"company": "Acme Fintech", "title": "QA Engineer", "start_date": "July 2023", "is_current": True,
+         "responsibilities": ["Tested payment flows with Selenium and Rest Assured."]}]}}
+    assert (await client.put("/api/profile", headers=auth, json=profile)).status_code == 200
+    jd = "About Razorpay\nRazorpay is India's leading payments company.\n" + SDET_JD
+    g = (await client.post("/api/studio/resume", headers=auth, json={"jd_text": jd, "template": "banner"})).json()
+    assert g["company"] == "Razorpay" and g["company_detected"] is True
+    t = date.today()
+    months = (t.year - 2023) * 12 + t.month - 7 + 1
+    assert g["experience_years"] == round(months / 12, 1)
+    assert "QA Engineer" in g["headline"] or "Senior QA Engineer" in g["headline"]
+    assert "yr" in g["headline"] and g["headline"] in g["html"]
+    d = await client.get(f"/api/studio/resumes/{g['id']}/download?format=pdf&on=2026-11-11", headers=auth)
+    assert "Asha_Rao_2026-11-11_Razorpay.pdf" in d.headers["content-disposition"]
+    a = (await client.post("/api/studio/analyze", headers=auth, json={"jd_text": jd})).json()
+    assert a["company"] == "Razorpay" and a["company_detected"] is True
+
+
+def test_extract_company_patterns():
+    from app.studio.analyzer import extract_company
+
+    assert extract_company("Company: Infosys Limited\nRole: QA") == "Infosys"
+    assert extract_company("At Freshworks, we build software. Apply at careers.freshworks.com") == "Freshworks"
+    assert extract_company("Mail your CV to hr@zeptonow.com") == "Zeptonow"
+    assert extract_company("Looking for a tester. You will test apps.") is None

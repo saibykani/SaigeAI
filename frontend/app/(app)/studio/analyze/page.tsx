@@ -36,7 +36,9 @@ export default function AnalyzePage() {
     setBusy(true);
     setErr(null);
     try {
-      setA(await request<JDAnalysisReport>("/studio/analyze", { method: "POST", body: { jd_text: jd, title, company } }));
+      const r = await request<JDAnalysisReport>("/studio/analyze", { method: "POST", body: { jd_text: jd, title, company } });
+      setA(r);
+      if (r.company_detected && r.company) setCompany(r.company);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Couldn't analyse this job description.");
     } finally {
@@ -61,7 +63,7 @@ export default function AnalyzePage() {
       {err && <Notice tone="error">{err}</Notice>}
       <Card>
         <CardContent className="grid gap-4 pt-5 lg:grid-cols-2">
-          <Field label="Company"><Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional" /></Field>
+          <Field label="Company"><Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional: read from the JD if empty" /></Field>
           <Field label="Job title"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Optional: read from the JD if empty" /></Field>
           <Field label="Job description" className="lg:col-span-2">
             <Textarea rows={10} value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste the full job description here" />

@@ -64,7 +64,18 @@ async def get_profile_doc(db: AsyncIOMotorDatabase, user_id: str) -> dict | None
 
 
 async def get_profile(db: AsyncIOMotorDatabase, user_id: str) -> Profile:
-    return to_profile(await get_profile_doc(db, user_id))
+    profile = to_profile(await get_profile_doc(db, user_id))
+    return with_live_experience(profile)
+
+
+def with_live_experience(profile: Profile) -> Profile:
+    """Total experience from the role dates (a current role counts up to today), when every role has dates."""
+    from app.profiles.experience import years_from_roles
+
+    yrs = years_from_roles(profile.knowledge.experience) if profile.knowledge.experience else None
+    if yrs is not None:
+        profile.personal.total_experience_years = yrs
+    return profile
 
 
 def _diff(before: dict, after: dict, prefix: str = "") -> list[dict]:
