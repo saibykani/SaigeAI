@@ -64,3 +64,26 @@ async def test_confirmed_skills_raise_the_ats_score(client, auth):
     assert r.status_code == 200 and r.json()["added"]
     again = (await client.post("/api/studio/resume", headers=auth, json={"jd_text": SDET_JD, "title": "SDET", "company": "Acme"})).json()
     assert again["ats"]["required_coverage"] == 100 and again["ats"]["score"] > first["ats"]["score"]
+
+
+async def test_projects_from_every_uploaded_resume_reach_the_ats_resume(client, auth, db):
+    from app.utils import new_id, utcnow
+
+    assert (await client.put("/api/profile", headers=auth, json=PROFILE)).status_code == 200
+    me = await db[c.USERS].find_one({"email": "asha@example.com"})
+    for projects in ([{"name": "Video Customer Identification Platform", "highlights": ["Automated KYC with Selenium."]}],
+                     [{"name": "Video Customer Identification Platform (VCIP)", "highlights": ["Ran JMeter load tests on VCIP APIs."]},
+                      {"name": "NGO Project Management System (PPMS)", "highlights": ["Automated donor onboarding with Selenium."]},
+                      {"name": "Residential Welfare Association Platform", "highlights": ["Automated visitor management with Cucumber."]}]):
+        rid, vid = new_id(), new_id()
+        await db[c.RESUMES].insert_one({"_id": rid, "user_id": me["_id"], "name": "Upload", "kind": "Master", "status": "active",
+                                        "current_version_id": vid, "created_at": utcnow()})
+        await db[c.RESUME_VERSIONS].insert_one({"_id": vid, "resume_id": rid, "parsed": {"projects": projects}})
+    r = (await client.post("/api/studio/resume", headers=auth, json={"jd_text": SDET_JD, "title": "SDET", "company": "Acme"})).json()
+    names = [p["name"] for p in r["resume"]["projects"]]
+    assert "Video Customer Identification Platform (VCIP)" in names and "NGO Project Management System (PPMS)" in names
+    assert sum("Video Customer" in n for n in names) == 1
+    vcip = next(p for p in r["resume"]["projects"] if "VCIP" in p["name"])
+    assert len(vcip["highlights"]) == 2
+    prof = (await client.get("/api/profile", headers=auth)).json()
+    assert len([p for p in prof["knowledge"]["projects"] if "Video" in p["name"]]) == 1

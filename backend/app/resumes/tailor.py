@@ -163,7 +163,7 @@ def tailor_resume(profile: Profile, jd: JDAnalysis, job: dict, base: ParsedResum
     projects = sorted(kb.projects, key=lambda pr: -_relevance(" ".join([pr.name, *pr.highlights, *pr.technologies]),
                                                                jd_keys, req_words))
     parsed_projects = [ParsedProject(name=pr.name, highlights=pr.highlights, technologies=pr.technologies)
-                       for pr in projects[:4]]
+                       for pr in projects[:5]]
     if len(projects) > 1 and projects[0].name != kb.projects[0].name:
         changes.append(f"Projects reordered: '{projects[0].name}' now first")
 

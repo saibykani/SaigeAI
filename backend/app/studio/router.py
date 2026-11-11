@@ -130,7 +130,9 @@ async def generate(body: ResumeIn, user: dict = Depends(get_current_user), db: A
 async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, title: str, company: str) -> dict:
     title = title or analyzer._guess_title(text)
     jd = analyze_jd(title, text)
-    profile = await get_profile(db, uid)
+    from app.studio import projects as project_sync
+
+    profile, added_projects = await project_sync.sync(db, uid, await get_profile(db, uid))
     base, base_parsed = await _base_parsed(db, uid, body.base_resume_id)
     matched = _matched(profile, jd)
     fallback = tailor.template_summary(profile, title, matched)
@@ -141,6 +143,8 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
         parsed, changes = tailor.tailor_resume(profile, jd, {"_id": None, "title": title, "company": company}, base_parsed, summary)
     except tailor.TailorError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    if added_projects:
+        changes = [f"Projects from your other resumes added to Profile: {', '.join(added_projects)}", *(changes or [])]
     validation = tailor.validate_resume(parsed, profile)
     own = tailor.resume_text(base_parsed).lower() if base_parsed else ""
     bad = [v for v in validation["violations"] if str(v.get("value", "")).lower() not in own]
@@ -178,6 +182,7 @@ def _surface_verified(parsed: ParsedResume, profile, jd) -> ParsedResume:
     """Every JD keyword that is in the verified profile goes on the resume, spelled the way the JD spells it."""
     from app.jobs.matching import _skill_key as normalize_key
     from app.jobs.matching import candidate_skills
+    from app.services.skills_vocab import find_skills
 
     have = candidate_skills(profile)
     on = {normalize_key(x): i for i, x in enumerate(parsed.skills)}
@@ -191,7 +196,12 @@ def _surface_verified(parsed: ParsedResume, profile, jd) -> ParsedResume:
         else:
             skills.insert(0, kw)
             on[k] = 0
-    return parsed.model_copy(update={"skills": list(dict.fromkeys(skills))})
+    keys = {normalize_key(k) for k in jd.required_skills + jd.preferred_skills}
+    projects = []
+    for pr in parsed.projects:  # the four bullets that hit the most JD keywords, in their original order
+        ranked = sorted(range(len(pr.highlights)), key=lambda i: -sum(normalize_key(k) in keys for k in find_skills(pr.highlights[i])))[:4]
+        projects.append(pr.model_copy(update={"highlights": [pr.highlights[i] for i in sorted(ranked)]}))
+    return parsed.model_copy(update={"skills": list(dict.fromkeys(skills)), "projects": projects})
 
 
 class ConfirmSkillsIn(BaseModel):
