@@ -125,8 +125,9 @@ export async function downloadFile(path: string, fallbackName: string) {
   const res = await request<Response>(path, { raw: true });
   const blob = await res.blob();
   const cd = res.headers.get("Content-Disposition") ?? "";
-  const match = /filename\*=UTF-8''([^;]+)|filename=([^;]+)/i.exec(cd);
-  const name = match ? decodeURIComponent((match[1] ?? match[2]).trim()) : fallbackName;
+  // Prefer the UTF-8 name; strip the quotes around a plain name (Windows turns stray quotes into "_").
+  const raw = /filename\*=UTF-8''([^;]+)/i.exec(cd)?.[1] ?? /filename="?([^";]+)"?/i.exec(cd)?.[1];
+  const name = raw ? decodeURIComponent(raw.trim()).replace(/^["']+|["']+$/g, "") || fallbackName : fallbackName;
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
