@@ -124,8 +124,10 @@ def _improve(report: dict, analysis: dict) -> list[str]:
 @router.post("/resume", status_code=201)
 async def generate(body: ResumeIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     """A resume aimed at this JD, built only from your verified profile, scored against the JD."""
-    uid = user["_id"]
-    text, title, company = await _jd_source(db, uid, body)
+    return await _build(db, user["_id"], body, *(await _jd_source(db, user["_id"], body)))
+
+
+async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, title: str, company: str) -> dict:
     title = title or analyzer._guess_title(text)
     jd = analyze_jd(title, text)
     profile = await get_profile(db, uid)
@@ -235,3 +237,105 @@ async def download(resume_id: str, format: str = Query("pdf", pattern="^(pdf|doc
     return Response(content=data, media_type=render.FORMATS[format],
                     headers={"Content-Disposition": f"attachment; filename=\"{re.sub(r'[^A-Za-z0-9_.-]', '_', fname)}\"; "
                                                     f"filename*=UTF-8''{quote(fname)}", "X-Content-Type-Options": "nosniff"})
+
+
+# ------------------------------------------------------------------ apply by email (JD or LinkedIn hiring post)
+
+SEND_CAP = 25  # application emails per day from ATS Studio
+
+
+class ApplyDraftIn(ResumeIn):
+    to: str | None = Field(default=None, max_length=200)
+    answers: dict[str, str] = Field(default_factory=dict)
+
+
+class ApplySendIn(BaseModel):
+    resume_id: str = Field(max_length=64)
+    to: str = Field(max_length=200, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    subject: str = Field(min_length=3, max_length=200)
+    body: str = Field(min_length=20, max_length=8000)
+    format: str = Field(default="pdf", pattern="^(pdf|docx)$")
+    template: str | None = Field(default=None, max_length=30)
+    on: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+async def _gmail(db: AsyncIOMotorDatabase, uid: str) -> dict | None:
+    return await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "gmail", "method": "app_password"})
+
+
+@router.post("/apply/draft")
+async def apply_draft(body: ApplyDraftIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Paste a JD or LinkedIn hiring post: Saige asks for any missing facts, then builds the resume and drafts the email."""
+    from app.profiles.service import update_profile
+    from app.schemas.profile import ProfileUpdate
+    from app.studio import apply
+
+    uid = user["_id"]
+    text, title, company = await _jd_source(db, uid, body)
+    patch = apply.coerce(body.answers)
+    if patch:  # facts the user typed in when asked are saved to the profile, so they're asked only once
+        await update_profile(db, uid, ProfileUpdate.model_validate({"personal": patch}), source="user")
+    profile = await get_profile(db, uid)
+    found = apply.emails_in(text)
+    gmail = await _gmail(db, uid)
+    need = apply.questions(profile, text)
+    if need:
+        return {"status": "needs_details", "questions": need, "emails_found": found, "company": company,
+                "gmail": gmail["email"] if gmail else None}
+    out = await _build(db, uid, body, text, title, company)
+    subject, mail = apply.draft(profile, out["title"], company, out["ats"].get("matched_keywords", []), text)
+    await log_action(db, user_id=uid, action="studio.application_drafted", entity="resume", entity_id=out["id"],
+                     details={"company": company, "to": body.to or (found[0] if found else None)})
+    return {**out, "status": "ready", "to": body.to or (found[0] if found else ""), "emails_found": found,
+            "subject": subject, "body": mail, "gmail": gmail["email"] if gmail else None}
+
+
+@router.post("/apply/send")
+async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Send the reviewed email from your Gmail with the resume attached. Runs only on your click."""
+    from datetime import timedelta
+
+    from app.automation.service import is_allowed
+    from app.email import smtp
+    from app.email.gmail import GmailError
+    from app.services import crypto
+    from app.services.agent_runs import agent_run
+    from app.services.notify import notify
+    from app.services.truth_guard import GeneratedClaims, validate_claims
+
+    uid = user["_id"]
+    gmail = await _gmail(db, uid)
+    if not gmail:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Connect Gmail with an App Password in Settings → Integrations to send from Saige.")
+    if not await is_allowed(db, uid, "emails"):
+        raise HTTPException(status.HTTP_423_LOCKED, "Sending email is paused in Automation settings.")
+    since = utcnow() - timedelta(days=1)
+    if await db[c.AUDIT_LOGS].count_documents({"user_id": uid, "action": "studio.application_sent", "timestamp": {"$gte": since}}) >= SEND_CAP:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, f"Daily limit of {SEND_CAP} application emails reached. Try again tomorrow.")
+    profile = await get_profile(db, uid)
+    check = validate_claims(GeneratedClaims(text=body.body), profile)
+    if not check.passed:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": [
+            v.model_dump() if hasattr(v, "model_dump") else v for v in check.violations]})
+    d, parsed = await _parsed(db, uid, body.resume_id)
+    tid = body.template if body.template in render.TEMPLATES else d.get("template") or "modern"
+    data = render.render(parsed, tid, body.format, d.get("headline"))
+    fname = render.filename(profile.personal.name or parsed.name, d.get("company"), body.on or date.today().isoformat(), body.format)
+    async with agent_run(db, "apply_by_email", uid, {"resume_id": body.resume_id, "to": body.to}) as run:
+        try:
+            mid = await smtp.send(gmail["email"], crypto.decrypt(gmail["app_password_enc"]), profile.personal.name or "",
+                                  body.to, body.subject, body.body, [(fname, data, render.FORMATS[body.format])])
+        except GmailError as exc:
+            run.errors.append(str(exc))
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+        run.actions.append(f"Emailed {body.to} with {fname}")
+        run.output = {"message_id": mid}
+    now = utcnow()
+    await db[c.RESUMES].update_one({"_id": d["_id"]}, {"$push": {"sent": {"to": body.to, "subject": body.subject, "at": now,
+                                                                         "message_id": mid, "file": fname}}})
+    await log_action(db, user_id=uid, action="studio.application_sent", entity="resume", entity_id=d["_id"],
+                     details={"to": body.to, "company": d.get("company"), "file": fname})
+    await notify(db, user_id=uid, kind="application_emailed", title=f"Application sent to {body.to}",
+                 body=f"{d.get('target_title') or 'Resume'}{' at ' + d['company'] if d.get('company') else ''}: {fname} attached.",
+                 link="/studio/apply")
+    return {"status": "sent", "to": body.to, "from": gmail["email"], "file": fname, "message_id": mid}

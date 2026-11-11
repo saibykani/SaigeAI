@@ -1040,6 +1040,12 @@ export interface StudioGenerated {
   company_detected?: boolean;
 }
 
+export interface ApplyQuestion { key: string; label: string; type: "text" | "number" }
+
+export type ApplyDraft =
+  | (StudioGenerated & { status: "ready"; to: string; subject: string; body: string; emails_found: string[]; gmail: string | null })
+  | { status: "needs_details"; questions: ApplyQuestion[]; emails_found: string[]; company: string; gmail: string | null };
+
 // ------------------------------------------------------------------ Saige learning
 
 export interface MlStatus {

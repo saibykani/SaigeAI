@@ -138,6 +138,7 @@ export const MANUAL: ManualSection[] = [
       "Your experience is counted from your role dates in Profile (a current role started in July 2023 counts up to today) and shown under your name.",
       "From Career portals, “ATS resume for this job” builds one from that posting's description in one click.",
       "JD analyzer: paste a job description to see the verdict (eligible, partly eligible, not yet), every requirement checked against your profile, skills you have and don't, where you fit most, gaps and what to do, and keywords to use.",
+      "Apply by email: paste a job description or a LinkedIn hiring post. Saige finds the address to apply to, asks once for anything the post wants that your profile lacks (CTC, notice period, location, phone), builds the resume, drafts the email (using the subject line the post asks for) and sends it from your Gmail with the resume attached as PDF or Word when you click Send.",
     ],
     tips: [
       "Saige never adds a skill, employer, title or number you haven't verified. The score reaches 100 only when your profile really covers every required keyword; to raise it, add skills you truly have in Profile and generate again.",
