@@ -61,7 +61,8 @@ export default function ApplyByEmailPage() {
       });
       setMsg({ tone: "success", text: `Sent from ${r.from} to ${r.to} with ${r.file} attached.` });
     } catch (e) {
-      setMsg({ tone: "error", text: e instanceof Error ? e.message : "Couldn't send." });
+      const text = e instanceof Error ? e.message : "Couldn't send.";
+      setMsg({ tone: "error", text: /unexpectedly closed|Gmail API|refusing/i.test(text) ? `${text} Fix: Settings → Integrations → “Send through the Gmail API”.` : text });
     } finally {
       setBusy(null);
     }

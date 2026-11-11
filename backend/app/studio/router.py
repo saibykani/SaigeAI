@@ -11,6 +11,7 @@ from pymongo import DESCENDING
 
 from app.auth.deps import db_dep, get_current_user
 from app.database import collections as c
+from app.email import outbound
 from app.jobs.jd_parser import analyze_jd
 from app.profiles.service import get_profile
 from app.resumes import service as resumes
@@ -311,7 +312,7 @@ class ApplySendIn(BaseModel):
 
 
 async def _gmail(db: AsyncIOMotorDatabase, uid: str) -> dict | None:
-    return await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "gmail", "method": "app_password"})
+    return await outbound.find_sender(db, uid)
 
 
 @router.post("/apply/draft")
@@ -347,9 +348,7 @@ async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), 
     from datetime import timedelta
 
     from app.automation.service import is_allowed
-    from app.email import smtp
     from app.email.gmail import GmailError
-    from app.services import crypto
     from app.services.agent_runs import agent_run
     from app.services.notify import notify
     from app.services.truth_guard import GeneratedClaims, validate_claims
@@ -374,7 +373,7 @@ async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), 
     fname = render.filename(profile.personal.name or parsed.name, d.get("company"), body.on or date.today().isoformat(), body.format)
     async with agent_run(db, "apply_by_email", uid, {"resume_id": body.resume_id, "to": body.to}) as run:
         try:
-            mid = await smtp.send(gmail["email"], crypto.decrypt(gmail["app_password_enc"]), profile.personal.name or "",
+            mid = await outbound.send(gmail, profile.personal.name or "",
                                   body.to, body.subject, body.body, [(fname, data, render.FORMATS[body.format])])
         except GmailError as exc:
             run.errors.append(str(exc))

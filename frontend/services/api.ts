@@ -137,7 +137,7 @@ export async function downloadFile(path: string, fallbackName: string) {
 }
 
 // Background calls that shouldn't trigger the "saved" celebration.
-const QUIET = [/^\/live\//, /^\/assistant\//, /^\/auth\//, /^\/notifications/, /^\/jobs\/feed$/, /^\/emails\/import$/];
+const QUIET = [/^\/live\//, /^\/careers\/watch$/, /^\/ml\/feedback$/, /^\/assistant\//, /^\/auth\//, /^\/notifications/, /^\/jobs\/feed$/, /^\/emails\/import$/];
 
 /** Tell the UI a change succeeded (components/celebrate.tsx shows a short animation). */
 function announce(method: string, path: string) {

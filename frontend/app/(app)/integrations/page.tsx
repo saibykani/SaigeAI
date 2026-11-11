@@ -132,6 +132,16 @@ export default function IntegrationsPage() {
         </div>
       )}
 
+      {data.gmail.connected && !data.gmail.api_send && data.gmail.available && (
+        <div className="mb-6">
+          <Notice tone="warning">
+            Gmail sometimes drops emails Saige sends with an App Password (&quot;Connection unexpectedly closed&quot;).{" "}
+            <button type="button" className="font-semibold underline" onClick={connectGmail}>Send through the Gmail API</button>: sign in with Google
+            as {data.gmail.email} and allow &quot;Send email on your behalf&quot;. Saige then sends over HTTPS and uses the App Password only as backup.
+          </Notice>
+        </div>
+      )}
+
       <HiringPortalsCard />
 
       <Card className="animate-rise mb-6 overflow-hidden">

@@ -41,6 +41,7 @@ class Template:
 
 ORDER = ("summary", "skills", "experience", "projects", "education", "certifications")
 SKILLS_FIRST = ("summary", "skills", "experience", "projects", "certifications", "education")
+PROJECTS_FIRST = ("summary", "skills", "projects", "experience", "education", "certifications")
 TEMPLATES = {t.id: t for t in (
     Template("modern", "Modern", "Sans-serif, deep-green accent, thin rules, dates on the right. A clean all-rounder.",
              "Calibri", "Helvetica", (22, 101, 52), 24, 10.5, False, ORDER, "rule"),
@@ -56,6 +57,16 @@ TEMPLATES = {t.id: t for t in (
              "Garamond", "Times", (120, 53, 15), 26, 11, True, ORDER, "rule"),
     Template("compact", "Compact", "Tighter spacing and smaller type: fits more on one page.",
              "Arial", "Helvetica", (40, 40, 40), 18, 9.5, False, ORDER, "plain", compact=True),
+    Template("projects_first", "Projects-first", "Projects right after skills, teal bars. Best when your projects show the JD's work best.",
+             "Calibri", "Helvetica", (15, 118, 110), 23, 10.5, False, PROJECTS_FIRST, "bar"),
+    Template("graphite", "Graphite", "Charcoal header band, neutral rules. Premium and understated.",
+             "Calibri", "Helvetica", (55, 55, 55), 24, 10.5, False, ORDER, "rule", band=True),
+    Template("elegant", "Elegant", "Centered serif name, burgundy small-caps headings. Polished for client-facing roles.",
+             "Georgia", "Times", (127, 29, 29), 24, 10.5, True, ORDER, "caps"),
+    Template("technical", "Technical", "Sans-serif, amber bars, skills and projects up front. For SDET, automation and performance roles.",
+             "Arial", "Helvetica", (180, 83, 9), 22, 10, False, PROJECTS_FIRST, "bar", compact=True),
+    Template("corporate", "Corporate", "Left-aligned slate headings with rules, classic order. Works for every enterprise ATS.",
+             "Cambria", "Times", (51, 65, 85), 22, 10.5, False, ORDER, "rule"),
 )}
 FORMATS = {"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "pdf": "application/pdf",
            "html": "text/html; charset=utf-8", "md": "text/markdown; charset=utf-8", "txt": "text/plain; charset=utf-8"}

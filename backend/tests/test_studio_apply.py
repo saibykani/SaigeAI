@@ -87,3 +87,27 @@ async def test_projects_from_every_uploaded_resume_reach_the_ats_resume(client, 
     assert len(vcip["highlights"]) == 2
     prof = (await client.get("/api/profile", headers=auth)).json()
     assert len([p for p in prof["knowledge"]["projects"] if "Video" in p["name"]]) == 1
+
+
+async def test_gmail_api_is_used_when_oauth_can_send(db, monkeypatch):
+    from app.email import gmail, outbound
+    from app.services import crypto
+
+    sent = []
+
+    async def token(rt):
+        return "tok"
+
+    async def send_raw(tok, raw):
+        sent.append(raw)
+        return "gid"
+
+    monkeypatch.setattr(gmail, "access_token", token)
+    monkeypatch.setattr(gmail, "send_raw", send_raw)
+    await db[c.INTEGRATIONS].insert_one({"user_id": "u1", "provider": "gmail", "email": "me@gmail.com",
+                                         "refresh_token_enc": crypto.encrypt("rt"), "scopes": [outbound.SEND_SCOPE]})
+    integ = await outbound.find_sender(db, "u1")
+    assert integ and (await outbound.send(integ, "Me", "hr@x.com", "Hi", "Body text")).startswith("<")
+    assert len(sent) == 1
+    await db[c.INTEGRATIONS].insert_one({"user_id": "u2", "provider": "gmail", "email": "x@gmail.com", "refresh_token_enc": "e", "scopes": []})
+    assert await outbound.find_sender(db, "u2") is None

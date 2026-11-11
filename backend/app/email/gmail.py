@@ -1,4 +1,5 @@
-"""Gmail API client (official OAuth, read-only scope). Nothing here sends, deletes or modifies mail."""
+"""Gmail API client (official OAuth). Reads mail (gmail.readonly) and sends only messages the user approved (gmail.send).
+Nothing here deletes or modifies mail."""
 
 import base64
 from urllib.parse import urlencode
@@ -13,7 +14,8 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105 - public endpoin
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 API = "https://gmail.googleapis.com/gmail/v1/users/me"
-SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly"]
+READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+SCOPES = ["openid", "email", READ_SCOPE, "https://www.googleapis.com/auth/gmail.send"]
 # Only job-search mail: skip promotions/social, look back 30 days.
 DEFAULT_QUERY = "newer_than:30d -category:promotions -category:social"
 
@@ -115,3 +117,15 @@ async def fetch_messages(token: str, query: str = DEFAULT_QUERY, limit: int = 50
                 "received_ms": int(msg.get("internalDate", "0")), "snippet": msg.get("snippet", ""),
             })
         return out
+
+
+async def send_raw(token: str, raw: str) -> str:
+    """Send one RFC 822 message (base64url) through the Gmail API."""
+    async with http_client() as c:
+        r = await c.post("https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+                         headers={"Authorization": f"Bearer {token}"}, json={"raw": raw})
+    if r.status_code == 403:
+        raise GmailError("Gmail didn't allow sending. Reconnect Gmail with Google and allow sending email.")
+    if r.status_code >= 300:
+        raise GmailError(f"Gmail API couldn't send the email ({r.status_code}).")
+    return r.json().get("id", "")

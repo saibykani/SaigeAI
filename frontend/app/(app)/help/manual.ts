@@ -130,11 +130,11 @@ export const MANUAL: ManualSection[] = [
   },
   {
     id: "studio", title: "ATS Studio", href: "/studio", tone: "teal", image: "/help/ats.jpg",
-    purpose: "Build a resume aimed at one job from your verified profile, see its ATS score, download it in five templates and five formats, and analyse any job description against your profile.",
+    purpose: "Build a resume aimed at one job from your verified profile, see its ATS score, download it in 12 templates and five formats, and analyse any job description against your profile.",
     steps: [
       "Resume builder: paste the job description, pick a template and click “Generate ATS resume”. Leave Company empty and Saige reads the company name from the job description.",
       "Read the ATS score, the keywords you match, the required keywords you don't have on record, and the checks (contact details, summary, dates, length).",
-      "Switch templates (Modern, Banner, Classic, Minimal, Skills-first, Executive, Compact) to change the preview. Download as PDF, Word, plain text, Markdown or HTML: the file is named First_Last_Date_Company (e.g. Sai_Bykani_2026-11-11_Razorpay.pdf).",
+      "Switch templates (Modern, Banner, Classic, Minimal, Skills-first, Executive, Compact, Projects-first, Graphite, Elegant, Technical, Corporate) to change the preview. Download as PDF, Word, plain text, Markdown or HTML: the file is named First_Last_Date_Company (e.g. Sai_Bykani_2026-11-11_Razorpay.pdf).",
       "Your experience is counted from your role dates in Profile (a current role started in July 2023 counts up to today) and shown under your name.",
       "From Career portals, “ATS resume for this job” builds one from that posting's description in one click.",
       "JD analyzer: paste a job description to see the verdict (eligible, partly eligible, not yet), every requirement checked against your profile, skills you have and don't, where you fit most, gaps and what to do, and keywords to use.",

@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import collections as c
+from app.email import outbound
 from app.recruiters import service as rs
 from app.schemas.recruiter import DraftIn
 from app.utils import utcnow
@@ -27,7 +28,7 @@ async def _send(db, uid: str, outreach_id: str) -> str:
 async def run(db: AsyncIOMotorDatabase, uid: str, s, now=None) -> dict:
     if s.outreach.mode != "auto":
         return {"skipped": "outreach is in manual mode"}
-    if not await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "gmail", "method": "app_password"}):
+    if not await outbound.find_sender(db, uid):
         return {"skipped": "connect Gmail with an App Password to send automatically"}
     now = now or utcnow()
     out = {"replies": 0, "followups": 0, "cold": 0, "held": 0}

@@ -16,6 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.automation.service import get_settings_doc, is_allowed
 from app.database import collections as c
+from app.email import outbound
 from app.jobs import discover, feed
 from app.jobs import service as jobs
 from app.profiles.service import get_profile
@@ -110,14 +111,12 @@ def application_email(profile, a: dict, job: dict) -> tuple[str, str]:
 
 
 async def send_application_email(db: AsyncIOMotorDatabase, uid: str, a: dict) -> dict:
-    from app.email import smtp
     from app.email.gmail import GmailError
     from app.resumes.docx_export import resume_docx
     from app.schemas.resume import ParsedResume
-    from app.services import crypto
     from app.services.truth_guard import GeneratedClaims, validate_claims
 
-    integ = await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "gmail", "method": "app_password"})
+    integ = await outbound.find_sender(db, uid)
     if not integ:
         raise HTTPException(409, "Connect Gmail with an App Password to send email applications.")
     profile = await get_profile(db, uid)
@@ -135,7 +134,7 @@ async def send_application_email(db: AsyncIOMotorDatabase, uid: str, a: dict) ->
             attachments.append((f"{name} - Resume.docx", resume_docx(ParsedResume.model_validate(v["parsed"])),
                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
     try:
-        mid = await smtp.send(integ["email"], crypto.decrypt(integ["app_password_enc"]), profile.personal.name or "",
+        mid = await outbound.send(integ, profile.personal.name or "",
                               a["apply_email"], subject, body, attachments)
     except GmailError as exc:
         raise HTTPException(502, str(exc)) from exc

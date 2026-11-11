@@ -21,6 +21,7 @@ from pymongo import DESCENDING
 
 from app.automation.service import get_settings_doc, is_allowed
 from app.database import collections as c
+from app.email import outbound
 from app.jobs.dedupe import company_key
 from app.profiles.service import get_profile
 from app.schemas.profile import Profile
@@ -627,9 +628,7 @@ async def resume_attachment(db: AsyncIOMotorDatabase, user_id: str) -> list[tupl
 
 async def send_now(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str, *, approve_first: bool = False) -> dict:
     """Send an approved message from the user's Gmail (App Password connection) and record it."""
-    from app.email import smtp
     from app.email.gmail import GmailError
-    from app.services import crypto
 
     doc = await get_outreach(db, user_id, outreach_id)
     if approve_first and doc["status"] == "draft":
@@ -641,14 +640,14 @@ async def send_now(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str, *, 
     contact = await _preflight(db, user_id, doc, now)
     if not contact.get("email"):
         raise HTTPException(status.HTTP_409_CONFLICT, "This contact has no email address. Add one, or send on LinkedIn.")
-    integ = await db[c.INTEGRATIONS].find_one({"user_id": user_id, "provider": "gmail", "method": "app_password"})
+    integ = await outbound.find_sender(db, user_id)
     if not integ:
         raise HTTPException(status.HTTP_409_CONFLICT, "Connect Gmail with an App Password (Integrations) so Saige can "
                                                       "send for you, or open it in Gmail and send it yourself.")
     user = await db[c.USERS].find_one({"_id": user_id}, {"name": 1})
     attachments = await resume_attachment(db, user_id) if doc.get("attach_resume") else []
     try:
-        message_id = await smtp.send(integ["email"], crypto.decrypt(integ["app_password_enc"]), (user or {}).get("name") or "",
+        message_id = await outbound.send(integ, (user or {}).get("name") or "",
                                      contact["email"], doc["subject"], doc["body"], attachments)
     except GmailError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
@@ -732,7 +731,7 @@ async def stats(db: AsyncIOMotorDatabase, user_id: str) -> dict:
             due.append({"followup_id": f["_id"], "outreach_id": o["_id"], "contact_id": o["contact_id"],
                         "contact_name": o.get("contact_name"), "company": o.get("company"), "subject": o["subject"],
                         "sequence": f["sequence"], "due_at": as_utc(f["due_at"]).isoformat()})
-    can_send = bool(await db[c.INTEGRATIONS].find_one({"user_id": user_id, "provider": "gmail", "method": "app_password"}))
+    can_send = bool(await outbound.find_sender(db, user_id))
     by_source: dict[str, int] = {}
     async for row in db[c.RECRUITER_CONTACTS].aggregate([{"$match": {"user_id": user_id}},
                                                          {"$group": {"_id": "$source", "n": {"$sum": 1}}}]):

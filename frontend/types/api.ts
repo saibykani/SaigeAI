@@ -656,7 +656,7 @@ export interface InboxEmail {
 
 export interface Integrations {
   google: { connected: boolean; available: boolean };
-  gmail: { connected: boolean; available: boolean; email: string | null; method: "oauth" | "app_password" | null; status: string; error: string | null; last_sync_at: string | null;
+  gmail: { connected: boolean; available: boolean; email: string | null; method: "oauth" | "app_password" | null; api_send?: boolean; status: string; error: string | null; last_sync_at: string | null;
     last_result?: { search?: Record<"mail" | "portals", { matched?: number; fetched?: number; mailbox?: string; fallback?: boolean } | undefined> } | null };
   whatsapp: { connected: boolean; enabled: boolean; phone: string | null; error: string | null; muted?: string[] };
   linkedin: { snapshot: boolean; mode: string };

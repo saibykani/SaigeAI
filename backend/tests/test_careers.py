@@ -304,7 +304,7 @@ def test_smtp_falls_back_to_starttls(monkeypatch):
 
     monkeypatch.setattr(smtp, "SMTP_FACTORY", Dropped)
     monkeypatch.setattr(smtp, "STARTTLS_FACTORY", Plain)
-    smtp._send_sync("me@gmail.com", "pw", "Saige", "saibykani07@gmail.com", "s", "b")
+    smtp._send_msg_sync("me@gmail.com", "pw", smtp.build_message("me@gmail.com", "Saige", "saibykani07@gmail.com", "s", "b"))
     assert sent == [(587, "saibykani07@gmail.com")]
 
 
@@ -329,10 +329,11 @@ async def test_digest_backs_off_after_gmail_error(client, auth, db, careers, mon
 
     monkeypatch.setattr(smtp, "SMTP_FACTORY", Dropped)
     monkeypatch.setattr(smtp, "STARTTLS_FACTORY", Dropped)
+    monkeypatch.setattr(smtp, "RETRY_WAIT", 0)
     r = await digest.send(db, me["_id"], trigger="watch")
-    assert r["sent"] == 0 and "30 minutes" in r["error"] and len(calls) == 2
+    assert r["sent"] == 0 and "30 minutes" in r["error"] and len(calls) == 4  # 465, 587, then one retry of both
     r = await digest.send(db, me["_id"], trigger="watch")
-    assert r["skipped"] == "waiting after a Gmail error" and len(calls) == 2
+    assert r["skipped"] == "waiting after a Gmail error" and len(calls) == 4
 
 
 def test_category_and_compensation_parsing():
