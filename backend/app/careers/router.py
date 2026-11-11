@@ -57,7 +57,7 @@ async def list_jobs(
     max_exp: float | None = Query(None, ge=0, le=50), min_exp: float | None = Query(None, ge=0, le=50), include_closed: bool = False,
     categories: str | None = None, posted_hours: int | None = Query(None, ge=1, le=8760), min_lpa: float | None = Query(None, ge=0, le=1000),
     salary_listed: bool = False, employment_types: str | None = None, fresh_first: bool = True,
-    sort: Literal["score", "recent", "new", "company"] = "score",
+    sort: Literal["score", "recent", "new", "company", "learned"] = "score",
     page: int = Query(1, ge=1, le=1000), page_size: int = Query(25, ge=5, le=100),
     user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep),
 ):

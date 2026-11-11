@@ -61,6 +61,8 @@ backend/app/
   careers/                # Career portals (/api/careers): catalog.py (65+ companies: Greenhouse/Lever/Ashby/Workday/Amazon APIs,
                           # deep links for Google/Meta/Apple/Microsoft/Netflix), providers.py, service.py (scan with 40 s budget -> career_jobs,
                           # filters + facets, fit + truthful resume changes), digest.py (daily email to self); scheduler job career_scan
+  ml/                     # Saige learning (/api/ml): models.py (pure-Python logistic regression + naive Bayes + k-fold eval), service.py
+                          # (feedback -> ml_samples, auto/daily/manual train -> ml_models + ml_runs, ai_score on career_jobs, uncertainty tasks)
   studio/                 # ATS Studio (/api/studio): analyzer.py (JD vs verified profile: eligibility, requirements, have/miss, strengths),
                           # render.py (5 single-column templates; DOCX/PDF/HTML/MD/TXT, dependency-free PDF), router.py (generate, list, download
                           # Name_Company_Date.ext). Resumes are stored in `resumes` with kind "ATS Resume"

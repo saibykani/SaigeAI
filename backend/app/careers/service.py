@@ -44,7 +44,8 @@ DESC_KEEP = 12000
 SORTS = {"score": [("score", DESCENDING), ("first_seen", DESCENDING)],
          "recent": [("posted", DESCENDING), ("first_seen", DESCENDING)],
          "new": [("first_seen", DESCENDING), ("score", DESCENDING)],
-         "company": [("company", ASCENDING), ("score", DESCENDING)]}
+         "company": [("company", ASCENDING), ("score", DESCENDING)],
+         "learned": [("ai_score", DESCENDING), ("score", DESCENDING)]}
 FITS = ("strong", "good", "stretch", "low")
 FIT_LABEL = {"strong": "Strong fit: apply", "good": "Good fit: tailor your resume first",
              "stretch": "Stretch: close the gaps first", "low": "Not a fit right now"}

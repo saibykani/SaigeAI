@@ -125,6 +125,7 @@ export const MANUAL: ManualSection[] = [
       "The email is sent from your Gmail through the App Password connection (Settings → Integrations). Without it you get an in-app notification instead.",
       "Jobs posted in the last 24 hours always appear first. Use the job-type tabs (Manual testing, Automation testing, QA) and the Posted, Experience, Compensation and Job type filters to narrow the list.",
       "Pay is shown only when the posting states it; the Compensation filter compares it in ₹ LPA.",
+      "Teach Saige: press 👍 or 👎 on jobs and correct a job's type. Saige learning trains a model on your ratings, saved jobs and application outcomes, shows its accuracy, and ranks jobs with Sort → “Saige picks”. Its Training tasks are the jobs it's least sure about.",
     ],
   },
   {

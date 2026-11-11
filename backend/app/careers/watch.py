@@ -6,6 +6,7 @@ pinger such as cron-job.org, every 30 s) and from the app's live tick while Saig
 the user's own address only, holds only postings never emailed before, and nothing is sent when nothing is new.
 """
 
+import logging
 from datetime import timedelta
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -16,6 +17,7 @@ from app.careers import service as careers
 from app.database import collections as c
 from app.utils import as_utc, utcnow
 
+log = logging.getLogger(__name__)
 BATCH = 30
 BUDGET = 20.0
 
@@ -42,6 +44,12 @@ async def tick(db: AsyncIOMotorDatabase, uid: str, *, force: bool = False) -> di
     report = await careers.scan(db, uid, trigger="watch", only=ids, budget=BUDGET)
     if report.get("status") == "needs_profile":
         return {"skipped": report["error"]}
+    try:
+        from app.ml import service as ml
+
+        await ml.score_all(db, uid, only_missing=True)  # new postings get the learned relevance
+    except Exception:  # noqa: BLE001 - learned scores are best effort
+        log.warning("learned scoring failed for %s", uid, exc_info=True)
     try:
         read = await careers.enrich_batch(db, uid)
     except Exception:  # noqa: BLE001 - reading descriptions is best effort

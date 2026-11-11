@@ -845,6 +845,8 @@ export type CareerFit = "strong" | "good" | "stretch" | "low";
 export interface CareerJob {
   id: string;
   fresh?: boolean;
+  ai_score?: number | null;
+  rating?: "up" | "down" | null;
   category?: "manual" | "automation" | "qa" | "other";
   salary_min?: number | null;
   salary_max?: number | null;
@@ -1033,3 +1035,18 @@ export interface StudioGenerated {
   verdict: { key: string; label: string };
   html: string;
 }
+
+// ------------------------------------------------------------------ Saige learning
+
+export interface MlStatus {
+  relevance: {
+    trained: boolean; version: number | null; metrics: { accuracy: number; auc: number | null; folds: number } | null; samples: number | null;
+    trained_at: string | null; top_positive: [string, number][]; top_negative: [string, number][]; labels_since: number; retrain_every: number; min_samples: number;
+  };
+  job_type: { trained: boolean; samples: number; min_samples: number };
+  labels: { total: number; liked: number; disliked: number; type_corrections: number };
+  history: { trained_at: string; status: string; samples: number; trigger: string; version: number | null; accuracy: number | null; auc: number | null }[];
+}
+
+export interface MlTask { id: string; title: string; company: string; location: string | null; score: number; ai_score: number | null; category: string | null; url: string; why: string }
+export interface MlTrainResult { status: "trained" | "needs_data"; samples: number; version?: number; message?: string; metrics?: { accuracy: number; auc: number | null } }

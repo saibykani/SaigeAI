@@ -242,6 +242,12 @@ async def _career_scan(db: AsyncIOMotorDatabase, uid: str, trigger: str) -> dict
     if report.get("status") == "needs_profile":
         return {"skipped": report["error"]}
     out = {k: report.get(k) for k in ("found", "new", "closed", "strong_new", "errors")}
+    try:  # daily retrain on the latest ratings and application outcomes, then rescore every posting
+        from app.ml import service as ml
+
+        out["learning"] = (await ml.train(db, uid, trigger="daily"))["status"]
+    except Exception as exc:  # noqa: BLE001 - learning is best effort; the scan and digest still run
+        out["learning"] = f"error: {str(exc)[:120]}"
     out["digest"] = await digest.send(db, uid, trigger=trigger)
     return out
 

@@ -53,7 +53,7 @@ def close() -> None:
 
 
 # Bump when ensure_indexes changes. Serverless cold starts then skip ~45 create_index round trips.
-INDEX_VERSION = 11
+INDEX_VERSION = 12
 
 
 async def ensure_indexes_once(db: AsyncIOMotorDatabase) -> None:
@@ -73,6 +73,9 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[c.CANDIDATE_PROFILES].create_index("user_id", unique=True)
     await db[c.CAREER_JOBS].create_index([("user_id", ASCENDING), ("active", ASCENDING), ("score", DESCENDING)])
     await db[c.CAREER_JOBS].create_index([("user_id", ASCENDING), ("first_seen", DESCENDING)])
+    await db[c.CAREER_JOBS].create_index([("user_id", ASCENDING), ("active", ASCENDING), ("ai_score", DESCENDING)])
+    await db[c.ML_SAMPLES].create_index([("user_id", ASCENDING), ("label", ASCENDING)])
+    await db[c.ML_RUNS].create_index([("user_id", ASCENDING), ("trained_at", DESCENDING)])
     await db[c.CAREER_JOBS].create_index([("user_id", ASCENDING), ("company_id", ASCENDING), ("last_seen", ASCENDING)])
     await db[c.CAREER_SCANS].create_index("user_id")
     await db[c.RESUMES].create_index([("user_id", ASCENDING), ("updated_at", DESCENDING)])

@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
 import { CountKpi } from "@/components/kpi";
+import { LearningView, RateButtons, sendFeedback } from "@/components/saige-learning";
 import { Loader3D } from "@/components/loader3d";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import type { CareerChange, CareerFit, CareerJob, CareerJobDetail, CareerJobsPag
 import { cn } from "@/utils/cn";
 import { formatDate, timeAgo } from "@/utils/format";
 
-type View = "jobs" | "manual" | "companies" | "settings";
+type View = "jobs" | "manual" | "learning" | "companies" | "settings";
 type Msg = { tone: "success" | "error" | "warning" | "info"; text: React.ReactNode } | null;
 
 const FIT_TONE: Record<CareerFit, string> = { strong: "green", good: "yellow", stretch: "orange", low: "red" };
@@ -149,6 +150,7 @@ function JobRow({ job, onMsg }: { job: CareerJob; onMsg: (m: Msg) => void }) {
             {job.fresh && job.active ? <Badge variant="success">Last 24 hours</Badge>
               : Date.now() - Date.parse(job.first_seen) < 86_400_000 * 2 && job.active && <Badge variant="success">New</Badge>}
             {job.category && job.category !== "other" && <Badge variant="outline">{CATEGORY_NAME[job.category]}</Badge>}
+            {job.ai_score != null && <Badge variant="outline" title="How likely you are to want this job, learned from your ratings">Saige pick {job.ai_score}%</Badge>}
           </div>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
             <span className="flex items-center gap-1"><Building2 className="size-3.5" />{job.company}</span>
@@ -181,6 +183,12 @@ function JobRow({ job, onMsg }: { job: CareerJob; onMsg: (m: Msg) => void }) {
             <Button size="sm" variant="outline" onClick={() => router.push(`/studio?career_job=${encodeURIComponent(job.id)}&title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}`)}>
               <FileText /> ATS resume for this job
             </Button>
+            <RateButtons jobId={job.id} initial={job.rating ?? null} />
+            <select aria-label="Correct the job type" className="h-8 rounded-full border bg-transparent px-3 text-xs text-muted-foreground"
+                    defaultValue={job.category ?? "other"} onChange={(e) => void sendFeedback(job.id, { category: e.target.value })}>
+              <option value="manual">Manual testing</option><option value="automation">Automation testing</option>
+              <option value="qa">QA (general)</option><option value="other">Other role</option>
+            </select>
           </div>
         </div>
       </div>
@@ -292,6 +300,7 @@ function JobsView({ onMsg, manual = false }: { onMsg: (m: Msg) => void; manual?:
             <Select value={f.sort} onChange={(e) => set("sort", e.target.value)}>
               <option value="score">Best match</option><option value="recent">Recently posted</option>
               <option value="new">Newly found</option><option value="company">Company A–Z</option>
+              <option value="learned">Saige picks (learned from you)</option>
             </Select>
           </Field>
           <Field label="Country">
@@ -537,7 +546,7 @@ export default function CareersPage() {
         description="Openings for your roles, read straight from 170+ company career pages, including Razorpay, Paytm, InMobi and other Indian startups: FAANG, big tech, IT services (HCLTech, Wipro, Capgemini, Accenture, PwC, EY), banks, AI labs, fintech, SaaS, pharma and Indian product companies. Each job shows how well you fit and what to change in your resume."
       />
       <div className="mb-6 inline-flex rounded-full border bg-muted/50 p-1 text-sm" role="tablist">
-        {([["jobs", "Jobs"], ["manual", "Manual testing"], ["companies", "Companies"], ["settings", "Daily email"]] as [View, string][]).map(([k, label]) => (
+        {([["jobs", "Jobs"], ["manual", "Manual testing"], ["learning", "Saige learning"], ["companies", "Companies"], ["settings", "Daily email"]] as [View, string][]).map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)}
                   className={cn("rounded-full px-4 py-1.5", view === k ? "bg-background font-medium shadow-sm" : "text-muted-foreground")}>
             {label}
@@ -547,6 +556,7 @@ export default function CareersPage() {
       {msg && <div className="mb-4"><Notice tone={msg.tone}>{msg.text}</Notice></div>}
       {view === "jobs" && <JobsView onMsg={setMsg} />}
       {view === "manual" && <JobsView key="manual" onMsg={setMsg} manual />}
+      {view === "learning" && <LearningView />}
       {view === "companies" && <CompaniesView />}
       {view === "settings" && <SettingsView onMsg={setMsg} />}
     </div>
