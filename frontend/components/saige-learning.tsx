@@ -40,6 +40,16 @@ export function RateButtons({ jobId, initial, onRated }: { jobId: string; initia
   );
 }
 
+const SOURCES: [string, string, string][] = [
+  ["feedback", "Your ratings", "👍 / 👎 on jobs (strongest)"],
+  ["outcome", "Application outcomes", "Interview or offer = like, rejection = skip"],
+  ["resume", "Resumes you built", "ATS resume for a job = like"],
+  ["saved", "Jobs you saved", "Saved to Jobs = like"],
+  ["analyzed", "JDs you analysed", "Analysed a career job = mild like"],
+  ["opened", "Jobs you opened", "Opened fit & resume changes = weak like"],
+  ["auto", "Starter labels", "Very strong / very weak matches, fading as your data grows"],
+];
+
 const pct = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v * 100)}%`);
 
 export function LearningView() {
@@ -118,6 +128,28 @@ export function LearningView() {
             )}
           <div className="mt-3 flex justify-end"><Button variant="ghost" size="sm" onClick={() => { setDone(new Set()); void tasks.reload(); }}>New tasks</Button></div>
         </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>What Saige learns from</CardTitle>
+          <CardDescription>The learning agent collects these by itself and retrains every few hours while live watch runs, and daily.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {SOURCES.map(([k, label, hint]) => (
+            <div key={k} className="rounded-2xl border p-3">
+              <p className="text-xl font-semibold">{k === "auto" ? rel.auto_labels : rel.sources?.[k] ?? 0}</p>
+              <p className="text-sm font-medium">{label}</p>
+              <p className="text-xs text-muted-foreground">{hint}</p>
+            </div>
+          ))}
+        </CardContent>
+        {rel.trained && (
+          <CardContent className="pt-0 text-xs text-muted-foreground">
+            Model v{rel.version} weighs {rel.features} signals (skills, title words, description words, company, city, experience, pay, fit).
+            {rel.metrics?.bootstrapped ? " Accuracy is still measured on starter labels: rate a few more jobs and it switches to your own signals." : ""}
+          </CardContent>
+        )}
       </Card>
 
       {rel.trained && (

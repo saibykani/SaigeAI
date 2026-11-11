@@ -72,6 +72,18 @@ def _headline(profile) -> str | None:
     return " · ".join(x for x in (role, f"{yrs} experience" if yrs else None) if x) or None
 
 
+async def _learn(db: AsyncIOMotorDatabase, uid: str, career_job_id: str | None, kind: str) -> None:
+    """Analysing or building a resume for a Career portals job tells Saige learning you want jobs like it."""
+    if not career_job_id:
+        return
+    from app.careers import service as careers
+
+    try:
+        await careers._learn(db, uid, await careers.get_owned(db, uid, career_job_id), kind)
+    except HTTPException:
+        return
+
+
 @router.get("/templates")
 async def templates():
     return {"templates": [{"id": t.id, "name": t.name, "description": t.description} for t in render.TEMPLATES.values()],
@@ -85,6 +97,7 @@ async def analyze(body: JDIn, user: dict = Depends(get_current_user), db: AsyncI
     uid = user["_id"]
     text, title, company = await _jd_source(db, uid, body)
     out = analyzer.analyze(await get_profile(db, uid), text, title, company)
+    await _learn(db, uid, body.career_job_id, "analyzed")
     out["company_detected"] = bool(company) and not body.company.strip() and not body.career_job_id
     await log_action(db, user_id=uid, action="studio.jd_analyzed", entity="jd",
                      details={"title": out["title"], "company": company, "score": out["score"], "verdict": out["verdict"]["key"]})
@@ -134,6 +147,7 @@ async def generate(body: ResumeIn, user: dict = Depends(get_current_user), db: A
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": bad})
     # Repair import artefacts (split skills, broken bullets, repeated sentences) in the user's own content, then score it.
     parsed = polish.polish(parsed)
+    await _learn(db, uid, body.career_job_id, "resume")
     report = tailor.ats_report(parsed, jd)
     analysis = analyzer.analyze(profile, text, title, company)
     template = body.template if body.template in render.TEMPLATES else "modern"
@@ -184,6 +198,25 @@ async def get_resume(resume_id: str, template: str | None = None, user: dict = D
     t = render.TEMPLATES.get(template or d.get("template") or "modern", render.TEMPLATES["modern"])
     return {**_out(d), "ats": d.get("ats"), "resume": parsed.model_dump(), "headline": d.get("headline"),
             "html": render.to_html(parsed, t, d.get("headline"))}
+
+
+@router.get("/resumes/{resume_id}/previews")
+async def previews(resume_id: str, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """The same resume rendered in every template, for the template gallery."""
+    d, parsed = await _parsed(db, user["_id"], resume_id)
+    return {"templates": [{"id": t.id, "name": t.name, "description": t.description, "html": render.to_html(parsed, t, d.get("headline"))}
+                          for t in render.TEMPLATES.values()]}
+
+
+@router.post("/resumes/{resume_id}/template")
+async def set_template(resume_id: str, body: dict, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Remember the template picked in the gallery (used by default for downloads)."""
+    tid = str(body.get("template") or "")
+    if tid not in render.TEMPLATES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unknown template")
+    await resumes.get_owned(db, user["_id"], resume_id)
+    await db[c.RESUMES].update_one({"_id": resume_id, "user_id": user["_id"]}, {"$set": {"template": tid, "updated_at": utcnow()}})
+    return {"template": tid}
 
 
 @router.get("/resumes/{resume_id}/download")

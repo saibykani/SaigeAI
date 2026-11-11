@@ -1044,7 +1044,8 @@ export interface StudioGenerated {
 
 export interface MlStatus {
   relevance: {
-    trained: boolean; version: number | null; metrics: { accuracy: number; auc: number | null; folds: number } | null; samples: number | null;
+    trained: boolean; version: number | null; metrics: { accuracy: number; auc: number | null; folds: number; bootstrapped?: boolean } | null; samples: number | null;
+    auto_labels: number; sources: Record<string, number>; features: number;
     trained_at: string | null; top_positive: [string, number][]; top_negative: [string, number][]; labels_since: number; retrain_every: number; min_samples: number;
   };
   job_type: { trained: boolean; samples: number; min_samples: number };

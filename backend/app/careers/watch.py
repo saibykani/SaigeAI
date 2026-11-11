@@ -48,6 +48,7 @@ async def tick(db: AsyncIOMotorDatabase, uid: str, *, force: bool = False) -> di
         from app.ml import service as ml
 
         await ml.score_all(db, uid, only_missing=True)  # new postings get the learned relevance
+        await ml.maybe_retrain(db, uid)  # the learning agent retrains every few hours on the newest data
     except Exception:  # noqa: BLE001 - learned scores are best effort
         log.warning("learned scoring failed for %s", uid, exc_info=True)
     try:

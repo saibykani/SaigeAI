@@ -66,3 +66,33 @@ async def test_feedback_trains_ranks_and_suggests_tasks(client, auth, db, career
     assert fix.status_code == 200
     assert (await db[c.CAREER_JOBS].find_one({"_id": jobs[0]["_id"]}))["category_src"] == "user"
     assert await db[c.AGENT_RUNS].count_documents({"agent_name": "saige_learning"}) >= 2
+
+
+async def test_behaviour_signals_and_starter_labels_feed_the_model(client, auth, db, careers):  # noqa: F811
+    from app.ml import service as ml
+
+    await _setup(client, auth)
+    await client.post("/api/careers/scan", headers=auth, json={})
+    me = await db[c.USERS].find_one({"email": "asha@example.com"})
+    jobs = await db[c.CAREER_JOBS].find({}).to_list(None)
+    # opening a job is a weak positive; a rating outranks it and is never overwritten by a weaker signal
+    await client.get(f"/api/careers/jobs/{jobs[0]['_id']}", headers=auth)
+    s = await db[c.ML_SAMPLES].find_one({"job_id": jobs[0]["_id"]})
+    assert s["source"] == "opened" and s["label"] == 1 and s["weight"] == 0.3
+    await client.post("/api/ml/feedback", headers=auth, json={"job_id": jobs[0]["_id"], "rating": "down"})
+    await ml.record_implicit(db, me["_id"], jobs[0], "opened")
+    s = await db[c.ML_SAMPLES].find_one({"job_id": jobs[0]["_id"]})
+    assert s["source"] == "feedback" and s["label"] == 0
+    # building a resume for a job is a strong positive
+    r = await client.post("/api/studio/resume", headers=auth, json={"career_job_id": jobs[1]["_id"]})
+    assert r.status_code == 201, r.text
+    assert (await db[c.ML_SAMPLES].find_one({"job_id": jobs[1]["_id"]}))["source"] == "resume"
+    # starter labels from very strong / very weak matches bootstrap the model
+    for i in range(8):
+        await db[c.CAREER_JOBS].insert_one({**jobs[2], "_id": f"seed{i}", "item_id": f"seed{i}", "score": 90 if i % 2 else 20,
+                                            "title": "Manual QA Tester" if i % 2 else "Sales Manager"})
+    out = await ml.train(db, me["_id"], trigger="manual")
+    assert out["status"] == "trained" and out["auto_labels"] >= 8 and out["sources"]["feedback"] == 1
+    st = (await client.get("/api/ml/status", headers=auth)).json()
+    assert st["relevance"]["features"] > 10 and st["relevance"]["sources"]["resume"] == 1
+    assert "bootstrapped" in st["relevance"]["metrics"]

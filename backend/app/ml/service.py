@@ -13,6 +13,7 @@ cross-validation and recorded (agent run, audit log, history), so the user sees 
 """
 
 import math
+from datetime import timedelta
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import DESCENDING, UpdateOne
@@ -21,7 +22,7 @@ from app.database import collections as c
 from app.ml.models import LogisticModel, NaiveBayes, evaluate, tokens
 from app.services.agent_runs import agent_run
 from app.services.audit import log_action
-from app.utils import new_id, utcnow
+from app.utils import as_utc, new_id, utcnow
 
 MIN_SAMPLES = 6          # with both classes present
 MIN_TYPE_SAMPLES = 6
@@ -49,6 +50,16 @@ def features(d: dict) -> dict[str, float]:
         x["remote"] = 1.0
     if d.get("city"):
         x[f"city:{d['city'].lower()}"] = 1.0
+    # which of your skills the job wants, which gaps it has, and the words its description uses
+    for s in (d.get("matched_skills") or [])[:8]:
+        x[f"skill:{s.lower()}"] = 1.0
+    for s in (d.get("missing_skills") or [])[:6]:
+        x[f"gap:{s.lower()}"] = 1.0
+    seen: set[str] = set()
+    for w in tokens(d.get("description") or d.get("snippet") or "", 2500):
+        if w not in seen and len(seen) < 40:
+            seen.add(w)
+            x[f"w:{w}"] = 0.3
     return x
 
 
@@ -63,7 +74,22 @@ def label_name(k: str) -> str:
     if not v:
         return names.get(k, k)
     return {"title": f"“{v}” in title", "company": f"Company: {v}", "group": f"Group: {v.replace('_', ' ')}", "type": f"Job type: {v}",
-            "fit": f"Fit: {v}", "where": f"Where: {v}", "exp": f"Experience {v} yrs", "city": f"City: {v.title()}"}.get(kind, k)
+            "fit": f"Fit: {v}", "where": f"Where: {v}", "exp": f"Experience {v} yrs", "city": f"City: {v.title()}",
+            "skill": f"Wants your skill: {v}", "gap": f"Needs a skill you lack: {v}", "w": f"“{v}” in description"}.get(kind, k)
+
+
+# Stronger evidence wins: a rating beats an outcome, which beats a resume built, a save, an open, an automatic label.
+PRIORITY = {"feedback": 6, "outcome": 5, "resume": 4, "saved": 3, "analyzed": 2, "opened": 1}
+IMPLICIT = {"resume": (1, 1.0), "analyzed": (1, 0.6), "opened": (1, 0.3)}
+
+
+async def record_implicit(db: AsyncIOMotorDatabase, uid: str, job: dict, kind: str) -> None:
+    """What you do teaches Saige too: opening a job, analysing it or building a resume for it are positive signals."""
+    label, weight = IMPLICIT[kind]
+    prev = await db[c.ML_SAMPLES].find_one({"_id": f"{uid}:{job['_id']}"}, {"source": 1})
+    if prev and PRIORITY.get(prev.get("source") or "", 0) >= PRIORITY[kind]:
+        return
+    await record(db, uid, job, label=label, source=kind, weight=weight)
 
 
 # ------------------------------------------------------------------ labels
@@ -123,19 +149,27 @@ async def train(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual") 
     async with agent_run(db, "saige_learning", uid, {"trigger": trigger}) as run:
         harvested = await _harvest_outcomes(db, uid)
         samples = await db[c.ML_SAMPLES].find({"user_id": uid}).to_list(5000)
-        rel = [s for s in samples if s.get("label") is not None]
+        real = [s for s in samples if s.get("label") is not None]
+        auto = await _auto_labels(db, uid, {s["job_id"] for s in real}, len(real))
+        rel = real + auto
         X, y, sw = [s["features"] for s in rel], [s["label"] for s in rel], [s.get("weight", 1.0) for s in rel]
-        out: dict = {"trigger": trigger, "samples": len(rel), "positives": sum(y), "negatives": len(y) - sum(y), "harvested": harvested,
-                     "trained_at": utcnow()}
+        out: dict = {"trigger": trigger, "samples": len(real), "auto_labels": len(auto), "positives": sum(y), "negatives": len(y) - sum(y),
+                     "harvested": harvested, "trained_at": utcnow(), "sources": _sources(real)}
         prev = await db[c.ML_MODELS].find_one({"_id": f"{uid}:relevance"}) or {}
         if len(rel) >= MIN_SAMPLES and 0 < sum(y) < len(y):
-            metrics = evaluate(X, y, sw)
+            # judge the model only on your own signals once there are enough; until then it is bootstrapped from match scores
+            ry = [s["label"] for s in real]
+            if len(real) >= MIN_SAMPLES and 0 < sum(ry) < len(ry):
+                metrics = {**evaluate([s["features"] for s in real], ry, [s.get("weight", 1.0) for s in real]), "bootstrapped": False}
+            else:
+                metrics = {**evaluate(X, y, sw), "bootstrapped": True}
             model = LogisticModel().fit(X, y, sw)
             version = (prev.get("version") or 0) + 1
             pos, neg = model.top()
             await db[c.ML_MODELS].replace_one({"_id": f"{uid}:relevance"}, {
                 "_id": f"{uid}:relevance", "user_id": uid, "kind": "relevance", "weights": model.w, "version": version, "metrics": metrics,
-                "samples": len(rel), "positives": sum(y), "trained_at": out["trained_at"], "labels_since": 0,
+                "samples": len(real), "auto_labels": len(auto), "sources": out["sources"], "positives": sum(y),
+                "trained_at": out["trained_at"], "labels_since": 0,
                 "top_positive": [[label_name(k), v] for k, v in pos], "top_negative": [[label_name(k), v] for k, v in neg]}, upsert=True)
             out.update(status="trained", version=version, metrics=metrics, previous=prev.get("metrics"))
             out["scored"] = await score_all(db, uid)
@@ -151,6 +185,46 @@ async def train(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual") 
     await log_action(db, user_id=uid, action="ml.trained", entity="ml_model",
                      details={"status": out["status"], "samples": out["samples"], "metrics": out.get("metrics"), "trigger": trigger})
     return out
+
+
+AGENT_EVERY = timedelta(hours=4)
+
+
+async def maybe_retrain(db: AsyncIOMotorDatabase, uid: str) -> dict | None:
+    """Learning agent: retrain when there is new data and the last run is a few hours old (called from live watch)."""
+    m = await db[c.ML_MODELS].find_one({"_id": f"{uid}:relevance"}, {"trained_at": 1, "labels_since": 1}) or {}
+    last = m.get("trained_at")
+    new_jobs = await db[c.CAREER_JOBS].count_documents({"user_id": uid, "active": True, "ai_version": None})
+    if last and utcnow() - as_utc(last) < AGENT_EVERY:
+        return None
+    if last and not m.get("labels_since") and not new_jobs:
+        return None
+    return await train(db, uid, trigger="agent")
+
+
+AUTO_MAX = 400
+AUTO_WEIGHT = 0.15
+
+
+async def _auto_labels(db: AsyncIOMotorDatabase, uid: str, labelled: set[str], n_real: int) -> list[dict]:
+    """Starter data so the model works from day one: very strong matches count as weak likes and very poor ones as
+    weak skips. Their weight is small and shrinks as your own signals grow, so your behaviour takes over."""
+    weight = round(AUTO_WEIGHT * max(0.2, 1 - n_real / 60), 3)
+    out = []
+    q = {"user_id": uid, "active": True, "$or": [{"score": {"$gte": 85}}, {"score": {"$lte": 40}}]}
+    async for d in db[c.CAREER_JOBS].find(q, {"description": 0}).sort("first_seen", DESCENDING).limit(AUTO_MAX):
+        if d["_id"] in labelled:
+            continue
+        out.append({"job_id": d["_id"], "features": features(d), "label": int(d["score"] >= 85), "weight": weight, "source": "auto"})
+    return out
+
+
+def _sources(real: list[dict]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for s in real:
+        k = s.get("source") or "feedback"
+        counts[k] = counts.get(k, 0) + 1
+    return counts
 
 
 async def _train_types(db: AsyncIOMotorDatabase, uid: str, samples: list[dict]) -> dict:
@@ -225,7 +299,9 @@ async def status(db: AsyncIOMotorDatabase, uid: str) -> dict:
         "relevance": {"trained": "weights" in rel, "version": rel.get("version"), "metrics": rel.get("metrics"), "samples": rel.get("samples"),
                       "trained_at": rel["trained_at"].isoformat() if rel.get("trained_at") else None,
                       "top_positive": rel.get("top_positive", []), "top_negative": rel.get("top_negative", []),
-                      "labels_since": rel.get("labels_since", 0), "retrain_every": RETRAIN_EVERY, "min_samples": MIN_SAMPLES},
+                      "labels_since": rel.get("labels_since", 0), "retrain_every": RETRAIN_EVERY, "min_samples": MIN_SAMPLES,
+                      "auto_labels": rel.get("auto_labels", 0), "sources": rel.get("sources", {}),
+                      "features": len(rel.get("weights") or {})},
         "job_type": {"trained": "state" in typ, "samples": typ.get("samples", 0), "min_samples": MIN_TYPE_SAMPLES},
         "labels": counts,
         "history": [{"trained_at": r["trained_at"].isoformat(), "status": r["status"], "samples": r["samples"], "trigger": r.get("trigger"),

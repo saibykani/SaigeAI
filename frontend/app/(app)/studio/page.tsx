@@ -19,6 +19,17 @@ import { timeAgo } from "@/utils/format";
 
 const PREFILL_KEY = "saige:studio-prefill";
 type Msg = { tone: "success" | "error" | "warning" | "info"; text: string } | null;
+type Gallery = { id: string; name: string; description: string; html: string };
+
+/** A live, scaled-down page of the resume in one template. */
+function Thumb({ html, active }: { html: string; active: boolean }) {
+  return (
+    <div className={cn("relative h-[212px] w-[150px] overflow-hidden rounded-xl border bg-white", active && "ring-2 ring-foreground")}>
+      <iframe title="Template thumbnail" srcDoc={html} sandbox="" tabIndex={-1} aria-hidden
+              className="pointer-events-none absolute left-0 top-0 h-[1060px] w-[750px] origin-top-left scale-[0.2]" />
+    </div>
+  );
+}
 
 function localDate() {
   const d = new Date();
@@ -42,6 +53,7 @@ function Builder() {
   const [msg, setMsg] = useState<Msg>(null);
   const [result, setResult] = useState<StudioGenerated | null>(null);
   const [preview, setPreview] = useState<string>("");
+  const [gallery, setGallery] = useState<Gallery[]>([]);
   const started = useRef(false);
 
   async function generate(over?: { career_job_id?: string; jd_text?: string; title?: string; company?: string }) {
@@ -91,12 +103,24 @@ function Builder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Every template rendered with this resume, for the gallery under the result.
+  useEffect(() => {
+    if (!result?.id) return;
+    let live = true;
+    request<{ templates: Gallery[] }>(`/studio/resumes/${result.id}/previews`)
+      .then((r) => { if (live) setGallery(r.templates); })
+      .catch(() => { if (live) setGallery([]); });
+    return () => { live = false; };
+  }, [result?.id]);
+
   async function switchTemplate(id: string) {
     setTemplate(id);
     if (!result) return;
+    const ready = gallery.find((g) => g.id === id);
+    if (ready) setPreview(ready.html);
     try {
-      const r = await request<{ html: string }>(`/studio/resumes/${result.id}?template=${id}`);
-      setPreview(r.html);
+      if (!ready) setPreview((await request<{ html: string }>(`/studio/resumes/${result.id}?template=${id}`)).html);
+      await request(`/studio/resumes/${result.id}/template`, { method: "POST", body: { template: id } });
     } catch {
       /* keep the current preview */
     }
@@ -162,6 +186,26 @@ function Builder() {
       </Card>
 
       {busy && !result && <div className="py-10"><Loader3D label="Building your resume" /></div>}
+
+      {result && gallery.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Choose a template</CardTitle>
+            <CardDescription>Your resume in all {gallery.length} designs. Click one to preview it large; downloads use the one you pick. Every design is single column and ATS-readable.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {gallery.map((g) => (
+                <button key={g.id} type="button" aria-pressed={template === g.id} onClick={() => void switchTemplate(g.id)}
+                        className="shrink-0 text-left" title={g.description}>
+                  <Thumb html={g.html} active={template === g.id} />
+                  <p className={cn("mt-2 text-sm", template === g.id ? "font-semibold" : "text-muted-foreground")}>{g.name}</p>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {result && ats && (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">

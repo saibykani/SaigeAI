@@ -486,12 +486,23 @@ async def enrich_batch(db: AsyncIOMotorDatabase, uid: str, limit: int = 15) -> i
     return await enrich(db, uid, docs, timeout=8.0)
 
 
+async def _learn(db: AsyncIOMotorDatabase, uid: str, job: dict, kind: str) -> None:
+    """Feed Saige learning a behaviour signal; never let it break the request."""
+    try:
+        from app.ml import service as ml
+
+        await ml.record_implicit(db, uid, job, kind)
+    except Exception:  # noqa: BLE001
+        logger.warning("learning signal %s failed", kind, exc_info=True)
+
+
 async def detail(db: AsyncIOMotorDatabase, uid: str, job_id: str) -> dict:
     d = await get_owned(db, uid, job_id)
     if not d.get("has_description"):
         # First time this posting is opened: read its full description from the career site and rescore on it.
         if await enrich(db, uid, [d]):
             d = await get_owned(db, uid, job_id)
+    await _learn(db, uid, d, "opened")
     profile, weights = await get_profile(db, uid), await get_weights(db, uid)
     jd = analyze_jd(d["title"], d.get("description") or d["title"])
     match = compute_match(profile, {"title": d["title"], "company": d["company"], "location": d.get("location"),
