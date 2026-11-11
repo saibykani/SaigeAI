@@ -51,3 +51,16 @@ async def test_apply_by_email_asks_drafts_and_sends(client, auth, db, monkeypatc
     # a made-up claim in an edited email is blocked by the truth guard
     bad = {**send, "body": d["body"] + "\nI also have 15 years of Kubernetes and Rust experience at Google."}
     assert (await client.post("/api/studio/apply/send", headers=auth, json=bad)).status_code == 422
+
+
+async def test_confirmed_skills_raise_the_ats_score(client, auth):
+    assert (await client.put("/api/profile", headers=auth, json=PROFILE)).status_code == 200
+    first = (await client.post("/api/studio/resume", headers=auth, json={"jd_text": SDET_JD, "title": "SDET", "company": "Acme"})).json()
+    missing = first["ats"]["missing_required"] + first["ats"]["missing_preferred"]
+    assert all(k in first["resume"]["skills"] for k in first["ats"]["matched_keywords"] if k not in missing)
+    if not missing:
+        return
+    r = await client.post("/api/studio/skills/confirm", headers=auth, json={"skills": missing})
+    assert r.status_code == 200 and r.json()["added"]
+    again = (await client.post("/api/studio/resume", headers=auth, json={"jd_text": SDET_JD, "title": "SDET", "company": "Acme"})).json()
+    assert again["ats"]["required_coverage"] == 100 and again["ats"]["score"] > first["ats"]["score"]

@@ -149,6 +149,7 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": bad})
     # Repair import artefacts (split skills, broken bullets, repeated sentences) in the user's own content, then score it.
     parsed = polish.polish(parsed)
+    parsed = _surface_verified(parsed, profile, jd)
     await _learn(db, uid, body.career_job_id, "resume")
     report = tailor.ats_report(parsed, jd)
     analysis = analyzer.analyze(profile, text, title, company)
@@ -171,6 +172,46 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
             "verdict": analysis["verdict"], "headline": headline, "experience_years": profile.personal.total_experience_years,
             "company_detected": bool(company) and not body.company.strip() and not body.career_job_id,
             "html": render.to_html(parsed, render.TEMPLATES[template], headline)}
+
+
+def _surface_verified(parsed: ParsedResume, profile, jd) -> ParsedResume:
+    """Every JD keyword that is in the verified profile goes on the resume, spelled the way the JD spells it."""
+    from app.jobs.matching import _skill_key as normalize_key
+    from app.jobs.matching import candidate_skills
+
+    have = candidate_skills(profile)
+    on = {normalize_key(x): i for i, x in enumerate(parsed.skills)}
+    skills = list(parsed.skills)
+    for kw in list(dict.fromkeys(jd.required_skills + jd.preferred_skills)):
+        k = normalize_key(kw)
+        if k not in have:
+            continue
+        if k in on:
+            skills[on[k]] = kw  # use the JD's spelling so the ATS matches it exactly
+        else:
+            skills.insert(0, kw)
+            on[k] = 0
+    return parsed.model_copy(update={"skills": list(dict.fromkeys(skills))})
+
+
+class ConfirmSkillsIn(BaseModel):
+    skills: list[str] = Field(min_length=1, max_length=40)
+
+
+@router.post("/skills/confirm")
+async def confirm_skills(body: ConfirmSkillsIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Skills you confirm you really have are added to your verified profile, so the next resume can use them."""
+    from app.profiles.service import update_profile
+    from app.schemas.profile import ProfileUpdate
+
+    uid = user["_id"]
+    profile = await get_profile(db, uid)
+    have = {x.lower() for x in profile.skills.all()}
+    new = [x.strip()[:60] for x in body.skills if x.strip() and x.strip().lower() not in have]
+    if new:
+        await update_profile(db, uid, ProfileUpdate.model_validate({"skills": {"secondary": profile.skills.secondary + new}}), source="user")
+        await log_action(db, user_id=uid, action="studio.skills_confirmed", entity="profile", details={"skills": new})
+    return {"added": new}
 
 
 def _out(d: dict) -> dict:

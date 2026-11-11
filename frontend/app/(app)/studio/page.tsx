@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/form";
 import { useApi } from "@/hooks/use-api";
+import { SkillConfirm } from "@/components/skill-confirm";
 import { downloadFile, request } from "@/services/api";
 import type { StudioGenerated, StudioResumeRow, StudioTemplates } from "@/types/api";
 import { cn } from "@/utils/cn";
@@ -236,12 +237,7 @@ function Builder() {
               <CardHeader><CardTitle>Keywords</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-1.5">{ats.matched_keywords.map((k) => <Badge key={k} variant="success">{k}</Badge>)}</div>
-                {ats.missing_required.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Required but not in your profile (not added)</p>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">{ats.missing_required.map((k) => <Badge key={k} variant="outline">{k}</Badge>)}</div>
-                  </div>
-                )}
+                <SkillConfirm required={ats.missing_required} preferred={ats.missing_preferred} onConfirmed={() => generate()} />
                 <ul className="space-y-1 text-sm">
                   {ats.checks.map((c) => (
                     <li key={c.check} className="flex items-center gap-2">

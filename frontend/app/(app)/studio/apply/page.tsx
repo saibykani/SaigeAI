@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/form";
+import { SkillConfirm } from "@/components/skill-confirm";
 import { downloadFile, request } from "@/services/api";
 import type { ApplyDraft } from "@/types/api";
 
@@ -156,6 +157,7 @@ export default function ApplyByEmailPage() {
                 </Button>
                 <Link href="/studio"><Button variant="ghost" size="sm">Change template in Resume builder</Button></Link>
               </div>
+              <SkillConfirm required={draft.ats.missing_required} preferred={draft.ats.missing_preferred} onConfirmed={() => makeDraft()} />
               {draft.improve.length > 0 && <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">{draft.improve.slice(0, 3).map((t) => <li key={t}>{t}</li>)}</ul>}
             </CardContent>
           </Card>
