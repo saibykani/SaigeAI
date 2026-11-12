@@ -704,3 +704,17 @@ body {
 .thumb-frame { width: 1280px; height: 2600px; transform: scale(var(--s, .28)); translate: 0 0; transition: translate 6s cubic-bezier(.45, .05, .35, 1); }
 .group:hover .thumb .thumb-frame { translate: 0 calc(-2600px * var(--s, .28) + 11rem); }
 @media (prefers-reduced-motion: reduce) { .group:hover .thumb .thumb-frame { translate: 0 0; } }
+
+/* Help video tour */
+@keyframes tour-kb { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.12) translate(-2%, -3%); } }
+.tour-kb { animation: tour-kb 14s ease-out forwards; }
+@keyframes tour-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.tour-in { animation: tour-in .6s cubic-bezier(.2,.8,.2,1) both; }
+
+/* Help → Download PDF guide (browser print to PDF) */
+@media print {
+  aside, header, nav, .no-print, [data-assistant-orb] { display: none !important; }
+  html, body { background: #fff !important; color: #000 !important; }
+  section, .card, details { break-inside: avoid; }
+  details > *:not(summary) { display: block !important; }
+}

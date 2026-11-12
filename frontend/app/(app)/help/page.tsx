@@ -1,12 +1,15 @@
 "use client";
 
-import { ArrowRight, LifeBuoy, Rocket, Search, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, FileDown, Info, LifeBuoy, PlayCircle, Rocket, Search, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { PageHeader } from "@/components/app-shell";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { VideoTour } from "@/components/video-tour";
+import { CONTACT_EMAIL } from "@/components/legal";
 import { Input } from "@/components/ui/form";
 
 import { FAQ, MANUAL, QUICK_START, type ManualSection } from "./manual";
@@ -68,14 +71,18 @@ export default function HelpPage() {
     <>
       <PageHeader title="Help & Guide" description="Step-by-step guides (get started, search jobs, apply, 100% ATS resume, extension) and the manual for every screen, with screenshots." />
 
-      <div className="relative mb-8 max-w-xl">
+      <div className="no-print mb-8 flex flex-wrap items-center gap-3">
+      <div className="relative max-w-xl flex-1">
         <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the manual…" className="h-12 rounded-full pl-11" />
+      </div>
+        <Button variant="outline" size="lg" onClick={() => window.print()}><FileDown /> Download PDF guide</Button>
       </div>
 
       <div className="grid gap-8 xl:grid-cols-[15rem_1fr]">
         <nav aria-label="Manual contents" className="hidden xl:block">
           <div className="sticky top-24 flex flex-col gap-0.5 text-sm">
+            <a href="#video-tour" className="rounded-lg px-3 py-1.5 font-medium hover:bg-muted">Video tour</a>
             <a href="#quick-start" className="rounded-lg px-3 py-1.5 font-medium hover:bg-muted">Quick start</a>
             {MANUAL.map((s) => (
               <a key={s.id} href={`#${s.id}`} className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
@@ -83,10 +90,18 @@ export default function HelpPage() {
               </a>
             ))}
             <a href="#faq" className="rounded-lg px-3 py-1.5 font-medium hover:bg-muted">FAQ</a>
+            <a href="#about" className="rounded-lg px-3 py-1.5 font-medium hover:bg-muted">About Saige AI</a>
           </div>
         </nav>
 
         <div className="flex min-w-0 flex-col gap-8">
+          {!needle && (
+            <section id="video-tour" className="no-print scroll-mt-24">
+              <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight"><PlayCircle className="size-5 text-primary" /> Video tour with voice</h2>
+              <p className="mb-4 text-sm text-muted-foreground">A 3-minute narrated walkthrough of setup and every main feature. Choose English, Telugu, Hindi, Tamil, Kannada or Malayalam. Press Record video to save it as a file you can share.</p>
+              <VideoTour />
+            </section>
+          )}
           {!needle && (
             <Card id="quick-start" className="scroll-mt-24 p-6" style={{ borderColor: "color-mix(in srgb, var(--tone-green) 30%, transparent)", backgroundImage: "radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--tone-green) 12%, transparent), transparent 60%)" }}>
               <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight"><Rocket className="size-5" style={{ color: "var(--tone-green)" }} /> Quick start: set up in 3 minutes</h2>
@@ -115,6 +130,20 @@ export default function HelpPage() {
               {!faq.length && !sections.length && <p className="text-sm text-muted-foreground">Nothing matches “{q}”.</p>}
             </div>
           </section>
+
+          <Card id="about" className="scroll-mt-24 p-6">
+            <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight"><Info className="size-5 text-primary" /> About Saige AI</h2>
+            <p className="mt-3 text-sm text-muted-foreground">Saige AI is a truthful career assistant for one job seeker at a time. It finds jobs, matches them to your verified profile, builds ATS resumes and cover letters, tracks applications and recruiter mail, and builds your portfolio website. It does the repetitive work so you can focus on interviews.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[["Truthful", "Every claim is checked against your own profile. Numbers come only from you."],
+                ["You approve", "Applications, emails and messages wait for your OK unless you turn on an auto mode."],
+                ["Private", "Your data is visible only to your account. Export or delete it any time in Settings."],
+                ["No scraping", "Official APIs, OAuth and your own clicks only. We never log in to LinkedIn or Naukri for you."]].map(([t, d]) => (
+                <div key={t} className="rounded-2xl border p-4"><p className="font-medium">{t}</p><p className="mt-1 text-xs text-muted-foreground">{d}</p></div>
+              ))}
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">Languages: English, తెలుగు, हिन्दी, தமிழ், ಕನ್ನಡ, മലയാളം (video tour). Contact: <a className="text-primary underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>
+          </Card>
 
           <Card className="flex flex-wrap items-center gap-4 p-5">
             <ShieldCheck className="size-6" style={{ color: "var(--tone-green)" }} />
