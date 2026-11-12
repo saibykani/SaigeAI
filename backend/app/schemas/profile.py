@@ -64,6 +64,7 @@ class Preferences(_Model):
     excluded_companies: list[Str] = []
     preferred_locations: list[Str] = []
     excluded_locations: list[Str] = []
+    excluded_title_words: list[Str] = []  # e.g. "manual": jobs whose title has these words are hidden
     remote_preference: bool | None = None
     hybrid_preference: bool | None = None
     relocation: bool | None = None

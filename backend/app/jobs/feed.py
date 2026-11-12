@@ -266,8 +266,11 @@ async def build(db: AsyncIOMotorDatabase, uid: str, *, profile: Profile | None =
     settings = await get_settings_doc(db, uid)
     seen: set[str] = set()
     items: list[dict] = []
+    hide = [w.lower() for w in profile.preferences.excluded_title_words if w.strip()]
     for it in raw:
         if not it.get("title") or is_blocked(settings, it.get("company")):
+            continue
+        if any(w in it["title"].lower() for w in hide):
             continue
         from_alert = it.get("source") in alerts.PORTALS
         if not from_alert and it.get("source") != "adzuna" and not any(discover.title_matches(it["title"], r) for r in roles):

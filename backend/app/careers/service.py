@@ -296,6 +296,9 @@ async def query(db: AsyncIOMotorDatabase, uid: str, f: dict) -> dict:
     await backfill(db, uid)
     page, size = max(1, int(f.get("page") or 1)), min(100, max(5, int(f.get("page_size") or 25)))
     q = _filter(uid, f)
+    hide = [w for w in (await get_profile(db, uid)).preferences.excluded_title_words if w.strip()]
+    if hide:  # e.g. an SDET hides "manual" testing roles
+        q["title"] = {"$not": re.compile("|".join(re.escape(w) for w in hide), re.I)}
     sort = SORTS.get(f.get("sort") or "score", SORTS["score"])
     total = await db[c.CAREER_JOBS].count_documents(q)
     # Postings from the last 24 hours always come first, then the chosen order.

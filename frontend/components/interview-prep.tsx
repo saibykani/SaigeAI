@@ -14,13 +14,14 @@ type Prep = {
   research: { label: string; url: string }[];
   prepare_first: string[];
   pitch: string;
+  projects?: { name: string; uses: string[]; story: string[]; questions: string[] }[];
 };
 
 /** Interview prep for this job: likely questions, your own stories to answer with, and what to ask. */
 export function InterviewPrep({ jobId }: { jobId: string }) {
   const [data, setData] = useState<Prep | null>(null);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"tech" | "star" | "ask">("tech");
+  const [tab, setTab] = useState<"tech" | "projects" | "star" | "ask">("tech");
   async function load() {
     setBusy(true);
     try { setData(await request<Prep>(`/jobs/${jobId}/interview-prep`)); } finally { setBusy(false); }
@@ -49,7 +50,7 @@ export function InterviewPrep({ jobId }: { jobId: string }) {
             </p>
           )}
           <div className="inline-flex w-fit rounded-full border bg-muted/50 p-1 text-sm">
-            {([["tech", "Technical"], ["star", "Behavioural (STAR)"], ["ask", "Ask them"]] as const).map(([id, label]) => (
+            {([["tech", "Technical"], ["projects", "Your projects"], ["star", "Behavioural (STAR)"], ["ask", "Ask them"]] as const).map(([id, label]) => (
               <button key={id} type="button" onClick={() => setTab(id)} className="rounded-full px-3.5 py-1"
                 style={tab === id ? { background: "var(--tone-red)", color: "#0b0b0c", fontWeight: 600 } : undefined}>{label}</button>
             ))}
@@ -63,6 +64,19 @@ export function InterviewPrep({ jobId }: { jobId: string }) {
                     {t.skill}
                   </p>
                   <ul className="list-disc space-y-1 pl-5 text-muted-foreground">{t.questions.map((q) => <li key={q}>{q}</li>)}</ul>
+                </li>
+              ))}
+            </ul>
+          )}
+          {tab === "projects" && (
+            <ul className="flex flex-col gap-2">
+              {!data.projects?.length && <li className="text-sm text-muted-foreground">Add projects to your Profile (or Profile → Update profile from resume) to prepare project stories.</li>}
+              {data.projects?.map((p) => (
+                <li key={p.name} className="rounded-2xl border p-3 text-sm">
+                  <p className="font-medium">{p.name}</p>
+                  {p.uses.length > 0 && <p className="mt-1 text-xs text-primary">Matches this job: {p.uses.join(" · ")}</p>}
+                  {p.story.length > 0 && <ul className="mt-1.5 list-disc rounded-xl bg-muted/60 p-2 pl-6 text-muted-foreground">{p.story.map((s) => <li key={s}>{s}</li>)}</ul>}
+                  <ul className="mt-1.5 space-y-0.5">{p.questions.map((q) => <li key={q}>Q: {q}</li>)}</ul>
                 </li>
               ))}
             </ul>

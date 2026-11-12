@@ -355,6 +355,7 @@ async def interview_prep(job_id: str, user: dict = Depends(get_current_user), db
     from app.jobs import interview_prep as prep
 
     job = await service.get_owned(db, user["_id"], job_id)
+    await log_action(db, user_id=user["_id"], action="job.interview_prep", entity="job", entity_id=job_id)
     return prep.build(await get_profile(db, user["_id"]), job)
 
 

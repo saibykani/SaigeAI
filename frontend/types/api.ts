@@ -53,6 +53,7 @@ export type Skills = Record<SkillCategory, string[]>;
 
 export interface Preferences {
   target_roles: string[];
+  excluded_title_words?: string[];
   target_industries: string[];
   target_companies: string[];
   excluded_companies: string[];

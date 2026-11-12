@@ -71,8 +71,19 @@ def build(profile: Profile, job: dict) -> dict:
         {"label": "People at the company (LinkedIn)", "url": f"https://www.linkedin.com/search/results/people/?keywords={quote(company + ' QA')}"},
     ]
     gaps = [t["skill"] for t in technical if not t["you_have_it"]]
+    wanted = {normalize_key(canonical(s)) for s in skills}
+    projects = []
+    for pr in profile.knowledge.projects:
+        overlap = [canonical(x) for x in pr.technologies if normalize_key(canonical(x)) in wanted]
+        text = " ".join([pr.name, pr.description or "", *pr.highlights]).lower()
+        overlap += [canonical(s) for s in skills if canonical(s).lower() in text and canonical(s) not in overlap]
+        projects.append({"name": pr.name, "uses": overlap[:6], "story": pr.highlights[:3] or ([pr.description] if pr.description else []),
+                         "questions": [f"Walk me through {pr.name}: what was your role and the hardest problem you solved?",
+                                       f"How did you use {overlap[0]} in {pr.name}, and what would you do differently?" if overlap
+                                       else f"What did you measure to know {pr.name} succeeded?"]})
+    projects.sort(key=lambda x: -len(x["uses"]))
     return {"job": {"title": job.get("title"), "company": company}, "technical": technical, "behavioural": behavioural,
-            "ask_them": ASK, "research": research,
+            "ask_them": ASK, "research": research, "projects": projects[:5],
             "prepare_first": gaps[:5],
             "pitch": _pitch(profile, job, [t["skill"] for t in technical if t["you_have_it"]][:3])}
 

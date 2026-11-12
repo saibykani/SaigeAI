@@ -4,6 +4,7 @@ import { FileUp, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { RolePicker } from "@/components/growth";
 import { TagInput } from "@/components/tag-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -257,7 +258,11 @@ export default function ProfilePage() {
       {tab === "Preferences" && (
         <Card>
           <CardContent className="grid gap-4 pt-5 md:grid-cols-2">
-            {PREF_LISTS.map(([k, label]) => (
+            <Field label="Target roles (pick as many as you like)" className="md:col-span-2">
+              <RolePicker value={form.preferences.target_roles} onChange={(v) => setPrefs({ target_roles: v })}
+                hidden={form.preferences.excluded_title_words ?? []} onHiddenChange={(v) => setPrefs({ excluded_title_words: v })} />
+            </Field>
+            {PREF_LISTS.filter(([k]) => k !== "target_roles").map(([k, label]) => (
               <Field key={k} label={label} htmlFor={`pref-${k}`}>
                 <TagInput id={`pref-${k}`} value={form.preferences[k] as string[]} onChange={(v) => setPrefs({ [k]: v })} />
               </Field>

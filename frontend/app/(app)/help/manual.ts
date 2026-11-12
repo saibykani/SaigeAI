@@ -19,7 +19,7 @@ export const QUICK_START = [
   "Tell Saige the roles and cities you want. Jobs for you starts filling up right away.",
   "Connect Gmail (Settings → Integrations) and install the Chrome extension.",
   "Jobs → open a good match → Tailor resume or Apply. Applications waits for your approval before anything is sent.",
-  "Resumes → ATS coach: type any role to see your weak spots and build a 100% ATS-fit resume from verified facts.",
+  "Resume & ATS → My resumes & ATS coach: type any role to see your weak spots and build a 100% ATS-fit resume from verified facts.",
 ];
 
 export const MANUAL: ManualSection[] = [
@@ -61,7 +61,7 @@ export const MANUAL: ManualSection[] = [
     id: "guide-ats", title: "Guide: make your resume 100% ATS-fit", href: "/resumes", tone: "teal", image: "/help/ats-coach.jpg",
     purpose: "The ATS coach agent shows, for any role, where your resume is weak and what to add, then builds the fitted resume.",
     steps: [
-      "Resumes → ATS coach: choose your resume and type any target role (or paste a job description).",
+      "Resume & ATS → My resumes & ATS coach: choose your resume and type any target role (or paste a job description).",
       "Press “Find weak spots”. Each section shows ✓ or ✗: keywords, summary, experience bullets, projects and ATS checks, with the fix.",
       "“Add now” keywords are already proven in your profile. “Confirm or learn” keywords: tick only those you have really used.",
       "Press “Build my … resume”. Download it as PDF or Word, or open it in ATS Studio to change the template.",
@@ -94,6 +94,32 @@ export const MANUAL: ManualSection[] = [
     id: "history", title: "History (Dashboard)", href: "/", tone: "green", image: "/help/history.jpg",
     purpose: "Everything Saige did for you: every agent run and action, with time, details and status.",
     steps: ["Scroll to History on the Dashboard.", "Switch between Today, Yesterday and 7 days.", "Failed runs show in red; open the matching page to retry."],
+  },
+  {
+    id: "goals", title: "Weekly goals (Dashboard)", href: "/goals", tone: "green", image: "/help/goals.jpg",
+    purpose: "Set weekly targets and watch progress rings fill as you work.",
+    steps: ["Dashboard → Weekly goals → Set goals: applications, recruiters contacted, tailored resumes, interview preps.",
+            "Progress counts what you really did this week (Monday to Sunday) and resets each Monday."],
+  },
+  {
+    id: "salary", title: "Salary insights (Find jobs)", href: "/salary", tone: "orange", image: "/help/salary.jpg",
+    purpose: "Pay ranges for your role from postings that list a salary, compared with your expected CTC.",
+    steps: ["Find jobs → Salary insights. Type a role or keep your target role.",
+            "See lowest, median and highest pay (LPA), where your expected CTC sits, and a table by company.",
+            "AmbitionBox and Glassdoor links open each company's salary page. Those sites don't let apps read their data, so you open them yourself."],
+  },
+  {
+    id: "followups", title: "Follow-ups (Track applications)", href: "/followups", tone: "yellow", image: "/help/followups.jpg",
+    purpose: "Applications with no reply for 10 days or more, so none go quiet without a follow-up.",
+    steps: ["Track applications → Follow-ups lists silent applications, longest first.",
+            "Press Draft follow-up, review the message and approve it. Saige also reminds you every Monday and Thursday."],
+  },
+  {
+    id: "roles", title: "Target roles & hiding manual testing jobs", href: "/profile", tone: "mint", image: "/help/roles.jpg",
+    purpose: "Pick several roles. Saige suggests related roles and the exact titles companies use, and hides titles you don't want.",
+    steps: ["Profile → Preferences → Target roles: add as many roles as you like.",
+            "Click a suggestion chip to add it (related roles and real titles from career portals).",
+            "Automation or SDET? Tick “Hide jobs with manual in the title” and manual testing roles disappear from Jobs for you and Career portals."],
   },
   {
     id: "profile", title: "Profile (last item in the sidebar)", href: "/profile", tone: "mint", image: "/help/profile.jpg",

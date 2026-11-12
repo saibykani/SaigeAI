@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Search, FileText, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
+import { Briefcase, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -30,21 +30,26 @@ type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone; grou
 
 // Pages that show the same kind of data share one sidebar entry and switch with tabs at the top.
 const NAV: NavItem[] = [
-  { group: "Workspace", href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green", tabs: [{ href: "/", label: "Overview" }, { href: "/analytics", label: "Analytics" }] },
-  { group: "Workspace", href: "/jobs", label: "Jobs", icon: Briefcase, tone: "orange", tabs: [{ href: "/jobs", label: "Jobs" }, { href: "/careers", label: "Career portals" }] },
-  { group: "Workspace", href: "/applications", label: "Applications", icon: Send, tone: "yellow", tabs: [{ href: "/applications", label: "Applications" }, { href: "/interviews", label: "Interviews" }] },
-  { group: "Workspace", href: "/resumes", label: "Resumes", icon: FileText, tone: "purple" },
-  { group: "Workspace", href: "/studio", label: "ATS Studio", icon: ScanText, tone: "teal", tabs: [{ href: "/studio", label: "Resume builder" }, { href: "/studio/analyze", label: "JD analyzer" }, { href: "/studio/apply", label: "Apply by email" }] },
+  { group: "Home", href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green", tabs: [
+    { href: "/", label: "Overview" }, { href: "/goals", label: "Weekly goals" }, { href: "/analytics", label: "Analytics" }, { href: "/activity", label: "Activity log" }] },
+  { group: "Job search", href: "/jobs", label: "Find jobs", icon: Briefcase, tone: "orange", tabs: [
+    { href: "/jobs", label: "Jobs for you" }, { href: "/careers", label: "Career portals" }, { href: "/salary", label: "Salary insights" }] },
+  { group: "Job search", href: "/applications", label: "Track applications", icon: Send, tone: "yellow", tabs: [
+    { href: "/applications", label: "Applications" }, { href: "/followups", label: "Follow-ups" }, { href: "/interviews", label: "Interviews" }] },
+  { group: "Resume & ATS", href: "/resumes", label: "Resume & ATS", icon: ScanText, tone: "purple", tabs: [
+    { href: "/resumes", label: "My resumes & ATS coach" }, { href: "/studio", label: "Resume builder" }, { href: "/studio/analyze", label: "JD analyzer" },
+    { href: "/studio/apply", label: "Apply by email" }] },
   { group: "Network", href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
   { group: "Network", href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
-  { group: "Network", href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [{ href: "/profiles", label: "LinkedIn & Naukri" }, { href: "/linkedin", label: "Daily posts" }, { href: "/profile-sync", label: "Resume sync" }] },
+  { group: "Network", href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [
+    { href: "/profiles", label: "Profile suggestions" }, { href: "/linkedin", label: "Daily posts" }, { href: "/profile-sync", label: "Resume sync" }] },
   { group: "Account", href: "/profile", label: "Profile", icon: UserRound, tone: "mint" },
+  { group: "Account", href: "/integrations", label: "Integrations", icon: Plug, tone: "orange" },
   { group: "Account", href: "/alerts", label: "Settings", icon: Settings, tone: "red", tabs: [
-    { href: "/alerts", label: "Alerts & templates" }, { href: "/integrations", label: "Integrations" },
-    { href: "/agent", label: "Agent" }, { href: "/settings", label: "Automation & privacy" }] },
+    { href: "/alerts", label: "Alerts & templates" }, { href: "/agent", label: "Agent" }, { href: "/settings", label: "Automation & privacy" }] },
   { group: "Account", href: "/help", label: "Help & Guide", icon: LifeBuoy, tone: "green" },
 ];
-const GROUPS = ["Workspace", "Network", "Account"];
+const GROUPS = ["Home", "Job search", "Resume & ATS", "Network", "Account"];
 
 const matches = (href: string, pathname: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
@@ -54,22 +59,35 @@ function sectionFor(pathname: string): NavItem | undefined {
   return all.sort((a, b) => b.href.length - a.href.length).find(({ href }) => matches(href, pathname))?.n;
 }
 
-/** Tabs across the top of merged sections (e.g. Applications · Interviews). */
-function SectionTabs({ pathname }: { pathname: string }) {
+/** Sub-pages of a section as a side menu inside the page (a strip of links on small screens). */
+function SubNav({ pathname, children }: { pathname: string; children: React.ReactNode }) {
   const { t } = useT();
   const section = sectionFor(pathname);
-  if (!section?.tabs) return null;
-  const current = [...section.tabs].sort((a, b) => b.href.length - a.href.length).find((x) => matches(x.href, pathname));
-  if (!current || pathname !== current.href) return null; // detail pages (e.g. /applications/123) keep their own header
+  const current = section?.tabs && [...section.tabs].sort((a, b) => b.href.length - a.href.length).find((x) => matches(x.href, pathname));
+  if (!section?.tabs || !current || pathname !== current.href) return <>{children}</>; // detail pages keep their own header
   return (
-    <nav aria-label={t(section.label)} className="mb-6 inline-flex rounded-full border bg-card p-1 text-sm">
-      {section.tabs.map((tab) => (
-        <Link key={tab.href} href={tab.href} aria-current={tab.href === current.href ? "page" : undefined}
-          className={cn("rounded-full px-4 py-1.5 transition-colors", tab.href === current.href ? "bg-primary font-medium text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
-          {t(tab.label)}
-        </Link>
-      ))}
-    </nav>
+    <div className="lg:grid lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-8">
+      <nav aria-label={t(section.label)} className="mb-6 lg:mb-0">
+        <div className="lg:sticky lg:top-24">
+          <p className="mb-2 hidden px-3 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground lg:block">{t(section.label)}</p>
+          <ul className="flex gap-2 overflow-x-auto lg:flex-col lg:gap-1">
+            {section.tabs.map((tab) => {
+              const on = tab.href === current.href;
+              return (
+                <li key={tab.href} className="shrink-0">
+                  <Link href={tab.href} aria-current={on ? "page" : undefined}
+                    className={cn("block rounded-xl px-3.5 py-2 text-sm",
+                      on ? "bg-accent font-medium text-primary shadow-[inset_3px_0_0_var(--primary)]" : "text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground lg:ring-0")}>
+                    {t(tab.label)}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </nav>
+      <div className="min-w-0">{children}</div>
+    </div>
   );
 }
 
@@ -141,6 +159,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
           {GROUPS.map((g) => (
             <div key={g}>
+              <p className="px-4 pb-1 pt-3 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/70">{t(g)}</p>
               
               <ul className="flex flex-col gap-1">
                 {NAV.filter((n) => n.group === g).map(({ href, label, icon: Icon }) => {
@@ -213,8 +232,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         {/* key on pathname replays the entrance animation on every navigation */}
         <main id="main" tabIndex={-1} key={pathname} className="animate-rise relative outline-none mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-10 md:py-10">
-          <SectionTabs pathname={pathname} />
-          {children}
+          <SubNav pathname={pathname}>{children}</SubNav>
         </main>
         {pathname !== "/assistant" && <AssistantBubble />}
         <Celebrate />

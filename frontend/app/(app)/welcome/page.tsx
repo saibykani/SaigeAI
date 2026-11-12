@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Notice } from "@/components/app-shell";
+import { RolePicker } from "@/components/growth";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/form";
 import { request } from "@/services/api";
@@ -34,6 +35,7 @@ export default function WelcomePage() {
   const [roles, setRoles] = useState("");
   const [places, setPlaces] = useState("");
   const [remote, setRemote] = useState(false);
+  const [hide, setHide] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function loadProfile() {
@@ -44,6 +46,7 @@ export default function WelcomePage() {
     setRoles((p.preferences.target_roles ?? []).join(", "));
     setPlaces((p.preferences.preferred_locations ?? []).join(", "));
     setRemote(Boolean(p.preferences.remote_preference));
+    setHide(p.preferences.excluded_title_words ?? []);
   }
   useEffect(() => { void loadProfile(); }, []);
 
@@ -86,7 +89,7 @@ export default function WelcomePage() {
     const personal = Object.fromEntries(Object.entries(basics).filter(([, v]) => v.trim() !== "").map(([k, v]) => [k, NUM.has(k) ? Number(v) : v.trim()]));
     return save({ personal });
   };
-  const savePrefs = () => save({ preferences: { target_roles: list(roles), preferred_locations: list(places), remote_preference: remote } });
+  const savePrefs = () => save({ preferences: { target_roles: list(roles), preferred_locations: list(places), remote_preference: remote, excluded_title_words: hide } });
 
   async function finish() {
     try { localStorage.setItem("saige-welcome-done", "1"); } catch { /* private mode */ }
@@ -154,7 +157,7 @@ export default function WelcomePage() {
         {step === 2 && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Saige uses these to find and rank jobs every day.</p>
-            <Field label="Roles (comma separated)"><Input value={roles} onChange={(e) => setRoles(e.target.value)} placeholder="QA Engineer, SDET, Automation Tester" /></Field>
+            <Field label="Roles you want (add several)"><RolePicker value={list(roles)} onChange={(v) => setRoles(v.join(", "))} hidden={hide} onHiddenChange={setHide} /></Field>
             <Field label="Cities (comma separated)"><Input value={places} onChange={(e) => setPlaces(e.target.value)} placeholder="Hyderabad, Bengaluru" /></Field>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={remote} onChange={(e) => setRemote(e.target.checked)} className="size-4 accent-[var(--primary)]" /> Open to remote jobs</label>
             <div className="flex justify-between"><Button variant="ghost" onClick={next}>Skip</Button><Button onClick={() => void savePrefs()} disabled={busy}>Save &amp; continue</Button></div>

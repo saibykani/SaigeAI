@@ -31,6 +31,7 @@ import { useState } from "react";
 
 import { Notice } from "@/components/app-shell";
 import { CoachCard, HistoryTable } from "@/components/coach-history";
+import { GhostingList, GoalsCard } from "@/components/growth";
 import { FunnelChart } from "@/components/funnel-chart";
 import { InsightsGrid } from "@/components/insights";
 import { CountKpi, RateKpi, TrendKpi } from "@/components/kpi";
@@ -178,6 +179,11 @@ export default function DashboardPage() {
           </Link>
         ))}
       </section>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <GoalsCard compact />
+        <GhostingList limit={4} />
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
         <CoachCard />

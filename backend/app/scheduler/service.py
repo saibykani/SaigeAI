@@ -275,7 +275,12 @@ async def _followups(db: AsyncIOMotorDatabase, uid: str, now: datetime) -> dict:
     if due.modified_count:
         await notify(db, user_id=uid, kind="followup_due", title=f"{n} follow-up(s) due today",
                      body="A short, polite check-in keeps your application top of mind.", link="/applications")
-    return {"newly_due": due.modified_count, "due": n}
+    ghosted = 0
+    if now.weekday() in (0, 3):  # Monday and Thursday: applications with no reply for 10+ days
+        from app.growth.router import notify_ghosting
+
+        ghosted = await notify_ghosting(db, uid)
+    return {"newly_due": due.modified_count, "due": n, "ghosted": ghosted}
 
 
 async def _morning_report(db: AsyncIOMotorDatabase, uid: str, run_date: date) -> dict:

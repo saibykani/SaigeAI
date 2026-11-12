@@ -73,6 +73,8 @@ backend/app/
                           # never moves application status); auto_reply.py (reply drafts to recruiter mail from verified profile facts)
   linkedin_posts/          # daily LinkedIn posting agent: content.py (series from verified skills), render.py (Pillow card / PDF
                           # carousel), client.py (official OAuth + Posts API, w_member_social), service.py, router.py (/api/linkedin/*)
+  growth/router.py        # /api/growth: ghosting (10+ days silent, Mon/Thu notify via scheduler followups), weekly goals (goals coll.),
+                          # salary insight (INR postings only + AmbitionBox/Glassdoor links, no scraping), role suggestions + hide words
   suggestions/router.py   # Resume & profile coach agent (/api/suggestions, /run): ranked truthful fixes; dashboard CoachCard
   activity/router.py      # /activity/history (agent runs + actions, dashboard History table) + /activity timeline (audit log) + /activity/referrals (outreach grouped per job); page kept at /activity (not in the sidebar)
   assistant/router.py     # Saige AI chat: Claude (llm.chat) grounded in a summary of the user's records, or a built-in answerer without a key
@@ -148,9 +150,8 @@ Never commit env files.
 - The 3D loader is `components/loader3d.tsx`. Use it for full-page and route loading.
 - Every page uses `PageHeader` and `Notice` from `components/app-shell.tsx`. Update the `NAV` and
   `UPCOMING` arrays there when a phase lands.
-- The sidebar is kept short. Pages with related data share one entry and switch with `tabs` in `NAV`
-  (Dashboard·Analytics, Applications·Interviews, LinkedIn & Naukri·Resume sync, Settings = Alerts & templates·
-  Integrations·Agent·Automation & privacy). Profile is the last sidebar entry.
+- The sidebar is grouped (Home, Job search, Resume & ATS, Network, Account). Related pages share one entry and are listed
+  in `tabs` in `NAV`; they render as a side menu inside the page (`SubNav` in app-shell), not as top tabs. Integrations has its own entry.
 - While the app is open, `useLiveSync` (hooks/use-api.ts) calls `POST /api/live/tick` every minute (Gmail + portal
   mail when the last sync is ~1 min old, job feed when >5 min old) and fires `saige:refresh` so `useApi` pages reload.
 - The Saige AI assistant is a sidebar page (/assistant) and a floating orb (components/assistant.tsx) on every page.
