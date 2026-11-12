@@ -11,6 +11,7 @@ import {
   FileText,
   Flame,
   Gauge,
+  MapPin,
   MailCheck,
   Pause,
   Play,
@@ -18,8 +19,10 @@ import {
   Search,
   Send,
   Sparkles,
+  Star,
   Target,
   Trophy,
+  UserRound,
   Video,
   Wand2,
 } from "lucide-react";
@@ -104,70 +107,65 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl border p-7 text-white shadow-[var(--shadow-lift)] md:p-9"
-        style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--tone-green) 62%, #021a0f) 0%, color-mix(in srgb, var(--tone-green) 30%, #01100a) 55%, #010a06 100%)" }}>
-        <div aria-hidden className="animate-float pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-white/10 blur-3xl" />
-        {/* Slowly turning 3D rings behind the banner */}
-        <div aria-hidden className="hero-rings pointer-events-none absolute -right-10 top-1/2 size-[420px] -translate-y-1/2 opacity-40 [perspective:900px]">
-          <span className="hero-ring absolute inset-0 rounded-full border border-white/30" />
-          <span className="hero-ring hero-ring-2 absolute inset-10 rounded-full border border-white/25" />
-          <span className="hero-ring hero-ring-3 absolute inset-24 rounded-full border border-white/20" />
-          <span className="hero-moon absolute left-1/2 top-1/2 size-3 rounded-full bg-white shadow-[0_0_18px_rgba(255,255,255,0.9)]" />
-        </div>
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:linear-gradient(to_left,black,transparent_70%)]" />
-        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-2xl">
-            <p className="text-sm font-medium text-white/70">{greeting()}{firstName ? `, ${firstName}` : ""}</p>
-            <h1 className="mt-1.5 text-3xl font-semibold tracking-tight md:text-[40px] md:leading-tight">Dashboard</h1>
-            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/75">
-              <span><b className="text-lg font-semibold text-white"><CountUp value={data.totals.jobs} /></b> jobs tracked</span>
-              <span><b className="text-lg font-semibold text-white"><CountUp value={data.totals.applications} /></b> applications</span>
-              <span><b className="text-lg font-semibold text-white"><CountUp value={data.totals.interviews} /></b> interviews</span>
-              <span><b className="text-lg font-semibold text-white"><CountUp value={data.totals.resumes} /></b> resumes</span>
-            </div>
-
-            {/* Scheduler & Streak Status Badge */}
-            <div className="mt-4 flex flex-wrap items-center gap-2.5">
-              <Link
-                href="/profiles?tab=schedule"
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/90 backdrop-blur-sm transition-colors hover:bg-white/20"
-              >
-                <Clock className="size-3.5" />
-                <span>
-                  Next profile refresh <b>{refreshTime} {tzLabel}</b> · last ran {lastRan}
-                </span>
+      {/* Greeting */}
+      <section className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-4xl font-light tracking-[-0.03em] md:text-[52px] md:leading-[1.05]">{greeting()}{firstName ? `, ${firstName}` : ""}</h1>
+          <p className="mt-2 text-[15px] text-muted-foreground">
+            Next profile refresh {refreshTime} {tzLabel} · last ran {lastRan}{sched && sched.naukri_streak > 0 ? ` · Naukri streak ${sched.naukri_streak}d` : ""}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            {[["Jobs for you", "/jobs"], ["Career portals", "/careers"], ["Apply by email", "/studio/apply"], ["Recruiters", "/recruiters"], ["Optimize profiles", "/profiles"]].map(([l, h], i) => (
+              <Link key={h} href={h} className="inline-flex items-center gap-1.5 rounded-full border bg-card px-4 py-2 text-sm hover:bg-muted">
+                {i === 0 && <MapPin className="size-4 text-primary" />}{l}
               </Link>
-              {sched && sched.naukri_streak > 0 && (
-                <Link
-                  href="/profiles?tab=naukri"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/90 backdrop-blur-sm transition-colors hover:bg-white/20"
-                >
-                  <Flame className="size-3.5 text-[var(--tone-orange)]" />
-                  <span>Naukri streak: <b>{sched.naukri_streak}d</b></span>
-                </Link>
-              )}
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Link href="/jobs" className={buttonVariants({ className: "bg-white text-black hover:bg-white/90" })}>Find jobs <ArrowRight /></Link>
-              <Link href="/profiles" className={buttonVariants({ className: "border border-white/25 bg-white/10 text-white hover:bg-white/15" })}><Sparkles /> Optimize profiles</Link>
-              <Button onClick={togglePause} disabled={toggling} className={cn("border border-white/25 bg-transparent text-white hover:bg-white/10", paused && "bg-white/20")}>
-                {paused ? <Play /> : <Pause />} {paused ? "Resume automation" : "Pause all automation"}
-              </Button>
-            </div>
-          </div>
-          <div className="flex items-center gap-5 rounded-2xl border border-white/15 bg-white/[0.06] p-5 backdrop-blur-md">
-            <ProgressRing value={data.profile.completeness} size={108} stroke={9} trackClass="stroke-white/15" barClass="stroke-white">
-              <span className="text-[28px] font-semibold"><CountUp value={data.profile.completeness} suffix="%" /></span>
-            </ProgressRing>
-            <div>
-              <p className="text-sm font-medium">Profile readiness</p>
-              <p className="mt-1 max-w-[13rem] text-xs text-white/65">AI outputs use only what your verified profile contains.</p>
-              <Link href="/profile" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-white underline-offset-4 hover:underline">Complete profile <ArrowRight className="size-3" /></Link>
-            </div>
+            ))}
           </div>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={togglePause} disabled={toggling}>{paused ? <Play /> : <Pause />} {paused ? "Resume" : "Pause"}</Button>
+          <Link href="/jobs" className={buttonVariants({ size: "lg" })}><Search /> Find jobs</Link>
+        </div>
+      </section>
+
+      {/* Next step */}
+      {(() => {
+        const top = data.high_match_jobs[0];
+        const a = data.action_required;
+        const step = a.applications_need_approval ? { t: `Approve ${a.applications_need_approval} application${a.applications_need_approval > 1 ? "s" : ""}`, d: "Prepared and waiting for your OK.", h: "/applications", b: "Review" }
+          : top ? { t: "Apply to your best match", d: `${top.title} at ${top.company} matches ${top.score}%. It takes one tap.`, h: `/jobs/${top.id}`, b: "View and apply" }
+          : { t: "Find your next job", d: "Saige scans portals and career pages daily.", h: "/jobs", b: "Find jobs" };
+        return (
+          <section className="flex flex-col gap-4 rounded-3xl border bg-card p-5 sm:flex-row sm:items-center">
+            <span className="grid size-14 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"><ArrowRight /></span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-primary">Your next step</p>
+              <p className="text-xl">{step.t}</p>
+              <p className="text-sm text-muted-foreground">{step.d}</p>
+            </div>
+            <Link href={step.h} className={buttonVariants({ size: "lg" })}>{step.b}</Link>
+          </section>
+        );
+      })()}
+
+      {/* Headline numbers */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Link href="/jobs" className="rounded-3xl bg-primary p-5 text-primary-foreground">
+          <p className="flex items-center gap-2 text-sm"><Briefcase className="size-5" /> Jobs tracked</p>
+          <p className="mt-4 text-5xl font-light"><CountUp value={data.totals.jobs} /></p>
+          <p className="mt-2 text-sm opacity-90">{data.high_match_jobs.length} strong matches</p>
+        </Link>
+        {[
+          { l: "Applications sent", v: data.totals.applications, s: "Tracked across portals", h: "/applications", I: FileText },
+          { l: "Interviews", v: data.totals.interviews, s: "Scheduled or completed", h: "/interviews", I: Star },
+          { l: "Profile strength", v: data.profile.completeness, s: `${data.profile.unknown_fields.length} parts to finish`, h: "/profile", I: UserRound, pct: true },
+        ].map(({ l, v, s, h, I, pct }) => (
+          <Link key={l} href={h} className="rounded-3xl border bg-card p-5">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground"><I className="size-5 text-primary" /> {l}</p>
+            <p className="mt-4 text-5xl font-light text-primary"><CountUp value={v} suffix={pct ? "%" : ""} /></p>
+            <p className="mt-2 text-sm text-muted-foreground">{s}</p>
+          </Link>
+        ))}
       </section>
 
       {paused && <Notice tone="warning">All automation is paused. No agent will discover, apply, email or update anything until you resume.</Notice>}

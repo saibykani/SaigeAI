@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, FileText, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
+import { Briefcase, Search, FileText, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -61,11 +61,10 @@ function SectionTabs({ pathname }: { pathname: string }) {
   const current = [...section.tabs].sort((a, b) => b.href.length - a.href.length).find((x) => matches(x.href, pathname));
   if (!current || pathname !== current.href) return null; // detail pages (e.g. /applications/123) keep their own header
   return (
-    <nav aria-label={t(section.label)} className="mb-6 inline-flex rounded-full border bg-muted/50 p-1 text-sm">
+    <nav aria-label={t(section.label)} className="mb-6 inline-flex rounded-full border bg-card p-1 text-sm">
       {section.tabs.map((tab) => (
         <Link key={tab.href} href={tab.href} aria-current={tab.href === current.href ? "page" : undefined}
-          className={cn("rounded-full px-4 py-1.5 transition-colors", tab.href === current.href ? "font-medium text-[#0b0b0c] shadow-sm" : "text-muted-foreground hover:text-foreground")}
-          style={tab.href === current.href ? { background: `var(--tone-${section.tone})` } : undefined}>
+          className={cn("rounded-full px-4 py-1.5 transition-colors", tab.href === current.href ? "bg-primary font-medium text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
           {t(tab.label)}
         </Link>
       ))}
@@ -116,7 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </a>
       <aside
         className={cn(
-          "glass fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col border-r transition-transform duration-300 md:sticky md:top-0 md:h-screen md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col border-r bg-card transition-transform duration-300 md:sticky md:top-0 md:h-screen md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -129,28 +128,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-2">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
           {GROUPS.map((g) => (
             <div key={g}>
-              <p className="px-4 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70">{t(g)}</p>
+              
               <ul className="flex flex-col gap-1">
-                {NAV.filter((n) => n.group === g).map(({ href, label, icon: Icon, tone }) => {
+                {NAV.filter((n) => n.group === g).map(({ href, label, icon: Icon }) => {
                   const active = sectionFor(pathname)?.href === href;
                   return (
                     <li key={href}>
                       <Link
                         href={href}
                         className={cn(
-                          "group relative flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-all duration-200",
-                          active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                          "group relative flex items-center gap-3.5 rounded-xl px-4 py-2.5 text-[15px] transition-colors",
+                          active ? "bg-primary font-medium text-primary-foreground" : "text-foreground/80 hover:bg-muted hover:text-foreground",
                         )}
                       >
-                        <span
-                          className={cn("grid size-7 place-items-center rounded-lg transition-all duration-300", active && "text-[#0b0b0c] shadow-sm")}
-                          style={active ? { background: `var(--tone-${tone})`, boxShadow: `0 4px 14px -4px var(--tone-${tone})` } : { color: `var(--tone-${tone})` }}
-                        >
-                          <Icon className="size-4" aria-hidden />
-                        </span>
+                        <Icon className="size-5 shrink-0" aria-hidden />
                         {t(label)}
                       </Link>
                     </li>
@@ -174,19 +168,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </nav>
-
+        <Link href="/profile" className="m-3 flex items-center gap-3 rounded-2xl border p-3 hover:bg-muted">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
+            {(user.name || user.email || "?").charAt(0).toUpperCase()}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm">{user.name || "My profile"}</span>
+            <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+          </span>
+        </Link>
       </aside>
       {open && <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden" onClick={() => setOpen(false)} />}
 
       <div className="relative flex min-w-0 flex-col">
-        {/* One soft glow in the current section's colour (never mixed colours). */}
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[420px] transition-colors duration-700"
-          style={{ background: `radial-gradient(60% 100% at 30% 0%, color-mix(in srgb, var(--tone-${sectionFor(pathname)?.tone ?? "green"}) 16%, transparent), transparent 70%)` }} />
-        <header className="glass sticky top-0 z-20 flex h-16 items-center gap-3 border-b px-4 md:px-10">
+        <header className="sticky top-0 z-20 flex h-[72px] items-center gap-3 bg-background/95 px-4 backdrop-blur md:px-10">
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
             <Menu />
           </Button>
-          <div className="ml-auto" />
+          <span className="hidden text-xl lg:inline">{t(sectionFor(pathname)?.label ?? "Saige AI")}</span>
+          <form className="ml-auto hidden w-full max-w-md md:block" onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q"); router.push(`/jobs${q ? `?q=${encodeURIComponent(String(q))}` : ""}`); }}>
+            <label className="flex h-11 items-center gap-2.5 rounded-xl border bg-card px-4 text-sm">
+              <Search className="size-5 text-muted-foreground" aria-hidden />
+              <input name="q" placeholder={t("Search jobs, e.g. QA engineer in Hyderabad")} className="w-full bg-transparent outline-none placeholder:text-muted-foreground" />
+            </label>
+          </form>
+          <div className="ml-auto md:hidden" />
           <Link href="/assistant" className="saige-cta group flex items-center gap-2 rounded-full border py-1 pl-1 pr-3.5 text-sm font-medium transition-colors hover:bg-muted"
             style={{ borderColor: "color-mix(in srgb, #ffc98a 40%, transparent)" }}>
             <Orb size={28} />
@@ -208,13 +214,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
-  const pathname = usePathname();
-  const tone = sectionFor(pathname)?.tone ?? "green";
   return (
     <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <span aria-hidden className="animate-grow-x mb-3 block h-1 w-10 rounded-full" style={{ background: `var(--tone-${tone})`, boxShadow: `0 0 16px var(--tone-${tone})` }} />
-        <h1 className="text-3xl font-semibold tracking-tight md:text-[34px]">{title}</h1>
+        <h1 className="text-3xl font-light tracking-[-0.03em] md:text-[44px] md:leading-tight">{title}</h1>
         {description && <p className="mt-2 max-w-2xl text-[15px] text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
