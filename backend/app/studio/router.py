@@ -64,12 +64,10 @@ async def _jd_source(db: AsyncIOMotorDatabase, uid: str, body: JDIn) -> tuple[st
 
 
 def _headline(profile) -> str | None:
-    """Current role and exact experience from the role dates, e.g. "SDET · 3.4 years experience · since July 2023"."""
+    """The line under your name: your current role."""
     p, roles = profile.personal, profile.knowledge.experience
     role = p.current_designation or next((e.title for e in roles if e.is_current), None) or (roles[0].title if roles else None)
-    exp = tailor.experience_phrase(profile)
-    exp = exp.replace(" of experience (since ", " experience · since ").rstrip(")") if exp else None
-    return " · ".join(x for x in (role, exp) if x) or None
+    return role or None  # experience is in the summary; the line under the name is the role only
 
 
 async def _learn(db: AsyncIOMotorDatabase, uid: str, career_job_id: str | None, kind: str) -> None:
@@ -224,6 +222,11 @@ async def confirm_skills(body: ConfirmSkillsIn, user: dict = Depends(get_current
     return {"added": new}
 
 
+def _hl(d: dict) -> str | None:
+    """Saved resumes from before: keep only the role (drop the old "· N years experience" part)."""
+    return (d.get("headline") or "").split(" · ")[0] or None
+
+
 def _out(d: dict) -> dict:
     return {"id": d["_id"], "name": d["name"], "company": d.get("company"), "title": d.get("target_title"), "template": d.get("template"),
             "ats_score": (d.get("ats") or {}).get("score"), "created_at": d["created_at"].isoformat()}
@@ -249,15 +252,15 @@ async def get_resume(resume_id: str, template: str | None = None, user: dict = D
                      db: AsyncIOMotorDatabase = Depends(db_dep)):
     d, parsed = await _parsed(db, user["_id"], resume_id)
     t = render.TEMPLATES.get(template or d.get("template") or "modern", render.TEMPLATES["modern"])
-    return {**_out(d), "ats": d.get("ats"), "resume": parsed.model_dump(), "headline": d.get("headline"),
-            "html": render.to_html(parsed, t, d.get("headline"))}
+    return {**_out(d), "ats": d.get("ats"), "resume": parsed.model_dump(), "headline": _hl(d),
+            "html": render.to_html(parsed, t, _hl(d))}
 
 
 @router.get("/resumes/{resume_id}/previews")
 async def previews(resume_id: str, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     """The same resume rendered in every template, for the template gallery."""
     d, parsed = await _parsed(db, user["_id"], resume_id)
-    return {"templates": [{"id": t.id, "name": t.name, "description": t.description, "html": render.to_html(parsed, t, d.get("headline"))}
+    return {"templates": [{"id": t.id, "name": t.name, "description": t.description, "html": render.to_html(parsed, t, _hl(d))}
                           for t in render.TEMPLATES.values()]}
 
 
@@ -279,7 +282,7 @@ async def download(resume_id: str, format: str = Query("pdf", pattern="^(pdf|doc
     """The file is named First_Last_YYYY-MM-DD_Company.<ext> (`on` is the date in your timezone)."""
     d, parsed = await _parsed(db, user["_id"], resume_id)
     tid = template if template in render.TEMPLATES else d.get("template") or "modern"
-    data = render.render(parsed, tid, format, d.get("headline"))
+    data = render.render(parsed, tid, format, _hl(d))
     profile = await get_profile(db, user["_id"])
     name = profile.personal.name or parsed.name
     fname = render.filename(name, d.get("company"), on or date.today().isoformat(), format)
@@ -368,7 +371,7 @@ async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), 
             v.model_dump() if hasattr(v, "model_dump") else v for v in check.violations]})
     d, parsed = await _parsed(db, uid, body.resume_id)
     tid = body.template if body.template in render.TEMPLATES else d.get("template") or "modern"
-    data = render.render(parsed, tid, body.format, d.get("headline"))
+    data = render.render(parsed, tid, body.format, _hl(d))
     fname = render.filename(profile.personal.name or parsed.name, d.get("company"), body.on or date.today().isoformat(), body.format)
     async with agent_run(db, "apply_by_email", uid, {"resume_id": body.resume_id, "to": body.to}) as run:
         try:

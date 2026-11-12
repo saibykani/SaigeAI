@@ -77,7 +77,7 @@ async def test_company_is_read_from_the_jd_and_experience_counts_from_dates(clie
     months = (t.year - 2023) * 12 + t.month - 7 + 1
     assert g["experience_years"] == round(months / 12, 1)
     assert "QA Engineer" in g["headline"] or "Senior QA Engineer" in g["headline"]
-    assert "years experience · since" in g["headline"] and g["headline"] in g["html"]
+    assert "years" not in g["headline"] and g["headline"] in g["html"]
     d = await client.get(f"/api/studio/resumes/{g['id']}/download?format=pdf&on=2026-11-11", headers=auth)
     assert "Asha_Rao_2026-11-11_Razorpay.pdf" in d.headers["content-disposition"]
     a = (await client.post("/api/studio/analyze", headers=auth, json={"jd_text": jd})).json()

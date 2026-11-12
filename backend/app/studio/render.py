@@ -382,7 +382,8 @@ def to_html(r: ParsedResume, t: Template, headline: str | None = None) -> str:
     head = [f"<h1>{e(r.name or 'Your Name')}</h1>"]
     if headline:
         head.append(f"<p class='headline'>{e(headline)}</p>")
-    head.append(f"<p class='contact'>{'<span>•</span>'.join(e(x) for x in _contact(r))}</p>")
+    items = "<span>•</span>".join("<span style='white-space:nowrap'>" + e(x) + "</span>" for x in _contact(r))
+    head.append(f"<p class='contact'>{items}</p>")
     body = [f"<header class='{'band' if t.band else ''}'>{''.join(head)}</header>"]
     for title, rows in sections(r, t):
         body.append(f"<section><h2>{e(title)}</h2>")
