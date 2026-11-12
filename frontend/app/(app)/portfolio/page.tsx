@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { ScanLoader } from "@/components/scan-loader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,7 +92,8 @@ export default function PortfolioPage() {
               </div>
             </div>
             <div className="flex justify-center bg-muted/40 p-4">
-              <iframe title="Portfolio preview" srcDoc={html} sandbox="allow-popups" className={cn("h-[640px] rounded-xl border bg-white shadow-sm transition-all", device === "desktop" ? "w-full" : "w-[390px]")} />
+              {!html ? <ScanLoader title="Building your website" messages={["Reading your profile…", "Laying out your story…", "Adding animations…", "Styling the template…"]} /> :
+              <iframe title="Portfolio preview" srcDoc={html} sandbox="allow-scripts allow-popups" className={cn("h-[640px] rounded-xl border bg-white shadow-sm transition-all", device === "desktop" ? "w-full" : "w-[390px]")} />}
             </div>
           </Card>
 

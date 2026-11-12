@@ -70,16 +70,55 @@ def _sub(d: dict) -> str:
     return h(d["tagline"] or " · ".join(x for x in (d["role"], d["experience_text"], d["location"]) if x))
 
 
-def page(d: dict, css: str, body: str, fonts: str = "Inter:wght@300;400;600;800") -> str:
+# Motion layer shared by every template: scroll reveal, a typing line after the name, cursor glow, 3D tilt on cards,
+# count-up numbers, scroll progress bar. Uses the CSS `translate` property so it never fights a template's own transforms.
+MOTION_CSS = (".rv{opacity:0;translate:0 26px;transition:opacity .8s cubic-bezier(.2,.7,.2,1),translate .8s cubic-bezier(.2,.7,.2,1)}"
+              ".rv.in{opacity:1;translate:0 0}.sg-prog{position:fixed;top:0;left:0;height:3px;width:0;z-index:99;background:currentColor;"
+              "opacity:.85;transition:width .1s}.sg-glow{position:fixed;left:0;top:0;width:400px;height:400px;border-radius:50%;pointer-events:none;"
+              "z-index:0;background:radial-gradient(circle,rgba(255,255,255,.10),transparent 60%);mix-blend-mode:screen;transition:transform .12s ease-out}"
+              ".sg-typer{min-height:1.5em;font-size:1.15em;opacity:.9;margin:6px 0}.sg-typer:after{content:'';display:inline-block;width:.55ch;"
+              "height:1em;vertical-align:-.12em;margin-left:2px;background:currentColor;animation:sgb 1s steps(2) infinite}@keyframes sgb{50%{opacity:0}}"
+              ".sg-tilt{transition:transform .25s ease-out;will-change:transform}")
+MOTION_JS = """(()=>{const R=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const els=[...document.querySelectorAll('section,article,.job,.proj,.c,.win,.frame,.card,.stop,.el,.tr,.alb,.m,.box,.quest,.loot,.sg-r')];
+els.forEach((e,i)=>{e.classList.add('rv');e.style.transitionDelay=(i%5)*70+'ms'});
+if(R||!('IntersectionObserver'in window)){els.forEach(e=>e.classList.add('in'))}else{const io=new IntersectionObserver(es=>es.forEach(x=>{if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}}),{threshold:.08});els.forEach(e=>io.observe(e))}
+const bar=document.createElement('div');bar.className='sg-prog';document.body.appendChild(bar);
+addEventListener('scroll',()=>{const h=document.documentElement,m=h.scrollHeight-h.clientHeight;bar.style.width=(m>0?h.scrollTop/m*100:0)+'%'},{passive:true});
+const W=JSON.parse(document.getElementById('sg-words').textContent||'[]'),h1=document.querySelector('h1');
+if(h1&&W.length&&!document.querySelector('[data-type]')){const t=document.createElement('div');t.className='sg-typer';t.dataset.type='1';h1.after(t);
+ if(R){t.textContent=W[0]}else{let i=0,j=0,del=false;const k=()=>{const s=W[i];t.textContent=s.slice(0,j);if(!del&&j<s.length)j++;else if(del&&j>0)j--;else{del=!del;if(!del)i=(i+1)%W.length;setTimeout(k,del?1600:350);return}setTimeout(k,del?28:62)};k()}}
+document.querySelectorAll('[data-count]').forEach(el=>{const n=parseFloat(el.dataset.count),dec=(String(n).split('.')[1]||'').length;if(R||!n){el.textContent=el.dataset.count;return}
+ const io2=new IntersectionObserver(es=>{if(!es[0].isIntersecting)return;io2.disconnect();const t0=performance.now();const f=t=>{const p=Math.min(1,(t-t0)/1400),v=n*(1-Math.pow(1-p,3));el.textContent=v.toFixed(dec)+(el.dataset.suffix||'');if(p<1)requestAnimationFrame(f)};requestAnimationFrame(f)});io2.observe(el)});
+if(!R&&matchMedia('(pointer:fine)').matches){const g=document.createElement('div');g.className='sg-glow';document.body.prepend(g);
+ addEventListener('pointermove',e=>{g.style.transform=`translate(${e.clientX-200}px,${e.clientY-200}px)`},{passive:true});
+ document.querySelectorAll('.proj,.c,.frame,.card,.pcard').forEach(c=>{c.classList.add('sg-tilt');c.addEventListener('pointermove',e=>{const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;c.style.transform=`perspective(900px) rotateY(${x*7}deg) rotateX(${-y*7}deg)`});c.addEventListener('pointerleave',()=>{c.style.transform=''})})}
+})();"""
+
+
+def _words(d: dict) -> list[str]:
+    """Lines for the typing effect, all from the profile."""
+    w = [d["tagline"]] if d["tagline"] else []
+    w += [d["role"]] if d["role"] else []
+    w += [f"{d['experience_text']}"] if d["experience_text"] else []
+    w += [f"{a} · {b}" for a, b in zip(d["skills"][0:6:2], d["skills"][1:6:2], strict=False)]
+    return [x for x in w if x][:6]
+
+
+def page(d: dict, css: str, body: str, fonts: str = "Inter:wght@300;400;600;800", script: str = "") -> str:
+    import json
+
     desc = h((d["summary"] or d["role"])[:160])
+    words = json.dumps(_words(d)).replace("<", "\\u003c")
     return ("<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{h(d['name'])} · {h(d['role'])}</title><meta name='description' content='{desc}'>"
             f"<meta property='og:title' content='{h(d['name'])} · {h(d['role'])}'><meta property='og:description' content='{desc}'>"
             f"<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin><link rel='stylesheet' href='{FONTS.format(fonts)}'>"
             "<style>*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0}img{max-width:100%}a{color:inherit}"
-            ".tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}ul{padding-left:1.1em}"
+            ".tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}ul{padding-left:1.1em}" + MOTION_CSS +
             "@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}" + css + "</style></head>"
-            f"<body>{body}<footer class='made'>Built with Saige AI · facts from a verified profile</footer></body></html>")
+            f"<body>{body}<footer class='made'>Built with Saige AI · facts from a verified profile</footer>"
+            f"<script type='application/json' id='sg-words'>{words}</script><script>{MOTION_JS}{script}</script></body></html>")
 
 
 # ------------------------------------------------------------------ the 25 templates
@@ -566,7 +605,210 @@ def zen(d):
                         f"{_badge(d)}{_sections(d)}</div>", "Noto+Serif+JP:wght@300;500&family=Inter")
 
 
+# ------------------------------------------------------------------ flagship animated templates
+
+
+def _stats(d: dict) -> str:
+    items = []
+    if d["years"]:
+        items.append((d["years"], "+", "Years of experience"))
+    items += [(str(len(d["projects"])), "", "Projects shipped")] if d["projects"] else []
+    items += [(str(len(d["skills"])), "+", "Tools & skills")] if d["skills"] else []
+    items += [(str(len(d["experience"])), "", "Companies")] if d["experience"] else []
+    return "".join(f"<div class='stat sg-r'><b data-count='{h(n)}' data-suffix='{s}'>{h(n)}{s}</b><span>{h(lbl)}</span></div>" for n, s, lbl in items[:4])
+
+
+def _marquee(d: dict) -> str:
+    row = "".join(f"<span>{h(s)}</span><i>✦</i>" for s in d["skills"][:20])
+    return f"<div class='mq'><div class='mqi'>{row}{row}</div></div>" if row else ""
+
+
+def _timeline(d: dict) -> str:
+    return "<div class='tl'>" + "".join(
+        f"<div class='tli sg-r'><span class='dot'></span><div class='when'>{h(e['dates'])}</div><h3>{h(e['title'])}</h3>"
+        f"<div class='at'>{h(e['company'])}{' · ' + h(e['location']) if e['location'] else ''}</div>{_bul(e['bullets'][:4])}"
+        f"<div class='tags'>{_chips(e['tech'], 'tag')}</div></div>" for e in d["experience"]) + "</div>"
+
+
+def _pcards(d: dict) -> str:
+    out = []
+    for i, p in enumerate(d["projects"]):
+        link = f"<a class='go' href='{h(p['url'])}' target='_blank' rel='noopener'>View project ↗</a>" if p["url"] else ""
+        out.append(f"<article class='pcard'><div class='pno'>{i + 1:02d}</div><h3>{h(p['name'])}</h3><p>{h(p['description'] or (p['highlights'] or [''])[0])}</p>"
+                   f"{_bul(p['highlights'][1:3] if p['description'] else p['highlights'][1:3])}<div class='tags'>{_chips(p['tech'], 'tag')}</div>{link}</article>")
+    return "".join(out)
+
+
+def _nav(d: dict) -> str:
+    links = [("about", "About", d["summary"]), ("work", "Experience", d["experience"]), ("projects", "Projects", d["projects"]),
+             ("skills", "Skills", d["skills"]), ("contact", "Contact", True)]
+    return "".join(f"<a href='#{i}'>{n}</a>" for i, n, ok in links if ok)
+
+
+def _contact_block(d: dict, title: str = "Let's build something together") -> str:
+    mail = f"<a class='cta' href='mailto:{h(d['email'])}'>Say hello →</a>" if d["email"] else ""
+    return f"<section id='contact' class='contact'><h2>{h(title)}</h2><p>{_contact(d, ' · ')}</p>{mail}</section>"
+
+
+def dev_pro(d):
+    css = ("body{font-family:'Plus Jakarta Sans';background:#07070b;color:#e9e9f1;overflow-x:hidden}.blob{position:fixed;width:620px;height:620px;"
+           "border-radius:50%;filter:blur(90px);opacity:.55;z-index:-1;animation:float 14s ease-in-out infinite alternate}.b1{background:#6d28d9;top:-200px;left:-160px}"
+           ".b2{background:#0ea5e9;bottom:-260px;right:-200px;animation-delay:-6s}@keyframes float{to{transform:translate(120px,80px) scale(1.15)}}"
+           "nav{position:sticky;top:14px;z-index:20;margin:14px auto;max-width:860px;display:flex;justify-content:space-between;align-items:center;gap:10px;"
+           "padding:10px 14px 10px 20px;border-radius:99px;background:#ffffff0d;border:1px solid #ffffff1a;backdrop-filter:blur(16px)}nav b{font-weight:800}"
+           "nav .ln a{color:#b8b8c8;text-decoration:none;margin:0 10px;font-size:14px}nav .ln a:hover{color:#fff}nav .hire{background:#fff;color:#07070b;"
+           "padding:8px 16px;border-radius:99px;text-decoration:none;font-weight:700;font-size:14px}.hero{max-width:1100px;margin:0 auto;padding:120px 24px 60px}"
+           ".hi{color:#a78bfa;font-weight:600}.hero h1{font-size:clamp(46px,9vw,112px);line-height:.95;margin:14px 0;font-weight:800;letter-spacing:-.04em;"
+           "background:linear-gradient(90deg,#fff,#c4b5fd,#7dd3fc,#fff);background-size:300%;-webkit-background-clip:text;color:transparent;animation:sh 8s linear infinite}"
+           "@keyframes sh{to{background-position:300%}}.sg-typer{color:#7dd3fc;font-size:clamp(18px,2.4vw,26px)}.lead2{max-width:720px;color:#b8b8c8;font-size:18px;line-height:1.7}"
+           ".btns{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}.btns a{padding:14px 22px;border-radius:14px;text-decoration:none;font-weight:700}"
+           ".p1{background:linear-gradient(135deg,#8b5cf6,#0ea5e9);color:#fff;box-shadow:0 10px 40px #8b5cf655}.p2{border:1px solid #ffffff33}"
+           ".stats{max-width:1100px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}"
+           ".stat{background:#ffffff08;border:1px solid #ffffff14;border-radius:22px;padding:22px}.stat b{display:block;font-size:44px;font-weight:800}"
+           ".stat span{color:#9a9ab0;font-size:14px}.mq{overflow:hidden;margin:70px 0;border-block:1px solid #ffffff14;padding:18px 0;mask:linear-gradient(90deg,"
+           "transparent,#000 10%,#000 90%,transparent)}.mqi{display:inline-flex;gap:26px;white-space:nowrap;animation:mq 30s linear infinite;font-size:26px;"
+           "font-weight:700;color:#d8d8e6}.mqi i{color:#8b5cf6;font-style:normal}@keyframes mq{to{transform:translateX(-50%)}}main{max-width:1100px;margin:0 auto;"
+           "padding:0 24px}section{margin:90px 0}h2{font-size:clamp(30px,4vw,48px);margin:0 0 30px;letter-spacing:-.02em}h2 small{display:block;font-size:14px;"
+           "color:#a78bfa;letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px}.tl{position:relative;padding-left:34px;border-left:2px solid #ffffff1a}"
+           ".tli{position:relative;padding:0 0 34px}.dot{position:absolute;left:-43px;top:6px;width:16px;height:16px;border-radius:50%;background:#8b5cf6;"
+           "box-shadow:0 0 0 6px #8b5cf633,0 0 24px #8b5cf6}.tli h3{margin:4px 0;font-size:22px}.when{color:#7dd3fc;font-size:13px;font-weight:600}.at{color:#9a9ab0}"
+           ".pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:18px}.pcard{background:linear-gradient(160deg,#ffffff10,#ffffff04);"
+           "border:1px solid #ffffff1a;border-radius:26px;padding:26px;position:relative;overflow:hidden}.pcard:before{content:'';position:absolute;inset:-1px;"
+           "border-radius:26px;padding:1px;background:linear-gradient(135deg,#8b5cf6,transparent 40%,#0ea5e9);-webkit-mask:linear-gradient(#000 0 0) content-box,"
+           "linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:.3s}.pcard:hover:before{opacity:1}.pno{font-size:14px;"
+           "color:#a78bfa;font-weight:700}.pcard h3{font-size:24px;margin:8px 0}.pcard p{color:#b8b8c8;line-height:1.6}.go{color:#7dd3fc;text-decoration:none;font-weight:700;"
+           "display:inline-block;margin-top:12px}.chip,.tag{display:inline-block;background:#ffffff10;border:1px solid #ffffff1a;padding:6px 12px;border-radius:99px;"
+           "margin:4px;font-size:13px}.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.grp{background:#ffffff08;border-radius:20px;"
+           "padding:18px}.grp b{display:block;margin-bottom:8px;color:#c4b5fd}.contact{text-align:center;padding:70px 20px;border-radius:34px;background:"
+           "radial-gradient(80% 120% at 50% 0%,#8b5cf633,transparent),#ffffff06;border:1px solid #ffffff14}.contact h2{font-size:clamp(32px,5vw,60px)}"
+           ".cta{display:inline-block;margin-top:18px;padding:16px 28px;border-radius:16px;background:#fff;color:#07070b;font-weight:800;text-decoration:none}"
+           ".otw{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:99px;background:#22c55e1a;color:#4ade80;font-size:14px}"
+           ".edu{list-style:none;padding:0}.edu li{padding:12px 0;border-bottom:1px solid #ffffff14}.made{text-align:center;color:#55556a;font-size:12px;padding:30px}"
+           "@media(max-width:700px){nav .ln{display:none}}")
+    groups = "".join(f"<div class='grp sg-r'><b>{h(g)}</b>{_chips(items)}</div>" for g, items in d["skill_groups"]) or _chips(d["skills"])
+    body = (f"<div class='blob b1'></div><div class='blob b2'></div><nav><b>{h(d['initials'])}.</b><span class='ln'>{_nav(d)}</span>"
+            + (f"<a class='hire' href='mailto:{h(d['email'])}'>Hire me</a>" if d["email"] else "") + "</nav>"
+            f"<header class='hero'>{_badge(d)}<div class='hi' style='margin-top:18px'>Hi, I'm</div><h1>{h(d['name'])}</h1>"
+            + (f"<p class='lead2'>{h(d['summary'])}</p>" if d["summary"] else "")
+            + "<div class='btns'>" + ("<a class='p1' href='#projects'>View my work</a>" if d["projects"] else "")
+            + "<a class='p2' href='#contact'>Get in touch</a></div></header>"
+            f"<div class='stats'>{_stats(d)}</div>{_marquee(d)}<main>"
+            + (f"<section id='work'><h2><small>Career</small>Where I've worked</h2>{_timeline(d)}</section>" if d["experience"] else "")
+            + (f"<section id='projects'><h2><small>Selected work</small>Projects</h2><div class='pgrid'>{_pcards(d)}</div></section>" if d["projects"] else "")
+            + (f"<section id='skills'><h2><small>Toolbox</small>Skills</h2><div class='groups'>{groups}</div></section>" if d["skills"] else "")
+            + (f"<section id='edu'><h2><small>Learning</small>Education & certifications</h2>{_edu(d)}</section>" if d["education"] or d["certifications"] else "")
+            + f"{_contact_block(d)}</main>")
+    return page(d, css, body, "Plus+Jakarta+Sans:wght@400;600;700;800")
+
+
+PARTICLES_JS = """(()=>{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;const c=document.getElementById('net'),x=c.getContext('2d');let W,H,P=[],m={x:-999,y:-999};
+const rs=()=>{W=c.width=innerWidth;H=c.height=innerHeight;P=Array.from({length:Math.min(110,Math.floor(W*H/14000))},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.5,vy:(Math.random()-.5)*.5}))};
+rs();addEventListener('resize',rs);addEventListener('pointermove',e=>{m.x=e.clientX;m.y=e.clientY});
+const col=getComputedStyle(document.body).getPropertyValue('--net').trim()||'120,220,255';
+(function f(){x.clearRect(0,0,W,H);for(const p of P){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;const dm=Math.hypot(p.x-m.x,p.y-m.y);if(dm<140){p.x+=(p.x-m.x)/dm;p.y+=(p.y-m.y)/dm}
+x.fillStyle=`rgba(${col},.8)`;x.beginPath();x.arc(p.x,p.y,1.6,0,7);x.fill()}
+for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){const a=P[i],b=P[j],d=Math.hypot(a.x-b.x,a.y-b.y);if(d<120){x.strokeStyle=`rgba(${col},${1-d/120})`;x.lineWidth=.6;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke()}}
+requestAnimationFrame(f)})()})();"""
+
+
+def particles(d):
+    css = ("body{--net:120,220,255;font-family:'Inter';background:#030712;color:#e5e7eb}#net{position:fixed;inset:0;z-index:-1}.hero{min-height:100vh;display:grid;"
+           "place-items:center;text-align:center;padding:24px}.hero h1{font-size:clamp(44px,9vw,110px);margin:0;font-weight:800;letter-spacing:-.04em;text-shadow:0 0 40px #38bdf855}"
+           ".sg-typer{color:#7dd3fc;font-family:'JetBrains Mono';font-size:clamp(16px,2.2vw,24px)}.scroll{margin-top:40px;color:#64748b;font-size:13px;animation:bob 2s infinite}"
+           "@keyframes bob{50%{transform:translateY(8px)}}main{max-width:1050px;margin:0 auto;padding:0 24px}section{background:#0b1220cc;border:1px solid #1e293b;"
+           "border-radius:24px;padding:30px;margin:30px 0;backdrop-filter:blur(8px)}h2{color:#7dd3fc;font-family:'JetBrains Mono';font-size:15px;letter-spacing:.2em;"
+           "text-transform:uppercase}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;max-width:1050px;margin:0 auto 30px;padding:0 24px}"
+           ".stat{background:#0b1220cc;border:1px solid #1e293b;border-radius:18px;padding:18px;text-align:center}.stat b{display:block;font-size:40px;color:#fff}"
+           ".stat span{color:#94a3b8;font-size:13px}.chip,.tag{display:inline-block;border:1px solid #334155;background:#0f172a;border-radius:10px;padding:5px 11px;margin:3px;"
+           "font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}.proj{background:#0f172a;border:1px solid #1e293b;"
+           "border-radius:18px;padding:18px}.when{color:#7dd3fc;font-size:13px}.at{color:#94a3b8;font-weight:400}a{color:#7dd3fc}.otw{color:#4ade80}"
+           ".contact{text-align:center}.cta{display:inline-block;margin-top:14px;padding:14px 26px;border-radius:14px;background:#38bdf8;color:#030712;font-weight:800;"
+           "text-decoration:none}.made{text-align:center;color:#475569;font-size:12px;padding:24px}")
+    return page(d, css, f"<canvas id='net'></canvas><header class='hero'><div>{_badge(d)}<h1>{h(d['name'])}</h1><p>{_contact(d)}</p>"
+                        f"<div class='scroll'>scroll ↓</div></div></header><div class='stats'>{_stats(d)}</div><main>{_sections(d)}{_contact_block(d)}</main>",
+                "Inter:wght@400;600;800&family=JetBrains+Mono", PARTICLES_JS)
+
+
+def scroll_story(d):
+    css = ("body{font-family:'Syne';background:#f1efe9;color:#0b0b0b}.hero{min-height:94vh;padding:40px;display:flex;flex-direction:column;justify-content:flex-end}"
+           ".hero h1{font-size:clamp(60px,15vw,220px);line-height:.82;margin:0;font-weight:800;letter-spacing:-.05em}.sg-typer{font-size:clamp(20px,3vw,34px);"
+           "font-family:Inter;font-weight:300}.lime{background:#c6f432;display:inline-block;padding:0 12px}.mq{overflow:hidden;background:#0b0b0b;color:#c6f432;"
+           "padding:16px 0}.mqi{display:inline-flex;gap:30px;white-space:nowrap;animation:mq 26s linear infinite;font-size:38px;font-weight:800}.mqi i{font-style:normal}"
+           "@keyframes mq{to{transform:translateX(-50%)}}.ch{display:grid;grid-template-columns:minmax(200px,30%) 1fr;gap:40px;padding:90px 40px;border-bottom:1px solid #0b0b0b22}"
+           ".ch .num{position:sticky;top:30px;align-self:start}.ch .num b{display:block;font-size:clamp(70px,10vw,150px);line-height:.8;-webkit-text-stroke:2px #0b0b0b;"
+           "color:transparent}.ch .num span{font-size:20px;text-transform:uppercase;letter-spacing:.1em}.ch p,.ch li{font-family:Inter;font-size:18px;line-height:1.7}"
+           ".job,.pcard{border-top:2px solid #0b0b0b;padding:22px 0}.job h3,.pcard h3{font-size:30px;margin:6px 0}.when,.pno{font-family:Inter;font-size:13px;letter-spacing:.15em;"
+           "text-transform:uppercase}.at{font-weight:400;color:#666}.chip,.tag{display:inline-block;font-family:Inter;border:1.5px solid #0b0b0b;border-radius:99px;padding:6px 14px;"
+           "margin:4px;font-size:14px}.chip:hover{background:#c6f432}.go{font-family:Inter;font-weight:700;color:#0b0b0b}.contact{background:#0b0b0b;color:#f1efe9;"
+           "padding:100px 40px;text-align:center}.contact h2{font-size:clamp(40px,8vw,110px);margin:0}.contact a{color:#c6f432}.cta{display:inline-block;margin-top:20px;"
+           "background:#c6f432;color:#0b0b0b!important;padding:18px 32px;border-radius:99px;font-weight:800;text-decoration:none}.otw{font-family:Inter}"
+           ".edu{list-style:none;padding:0}.made{text-align:center;font-family:Inter;font-size:12px;padding:20px}@media(max-width:760px){.ch{grid-template-columns:1fr}.ch .num{position:static}}")
+    chapters = [(d["summary"], "About", f"<p>{h(d['summary'])}</p>"), (d["experience"], "Experience", _exp(d)), (d["projects"], "Projects", _pcards(d)),
+                (d["skills"], "Skills", _chips(d["skills"])), (d["education"] or d["certifications"], "Education", _edu(d))]
+    chs = "".join(f"<div class='ch sg-r' id='{t.lower()}'><div class='num'><b>{i + 1:02d}</b><span>{t}</span></div><div>{c}</div></div>"
+                  for i, (_, t, c) in enumerate([x for x in chapters if x[0]]))
+    return page(d, css, f"<header class='hero'>{_badge(d)}<h1>{h(d['name'])}</h1><div><span class='lime'>{h(d['role'])}</span></div></header>"
+                        f"{_marquee(d)}{chs}{_contact_block(d, 'Got a project?')}", "Syne:wght@600;800&family=Inter:wght@300;400;700")
+
+
+def quality_report(d):
+    suites = "".join(f"<details class='suite sg-r' open><summary><span class='ok'>✓ PASSED</span> {h(e['title'])} — {h(e['company'])}<em>{h(e['dates'])}</em></summary>"
+                     + "".join(f"<div class='case'><span class='ok'>✓</span> {h(b)}</div>" for b in e["bullets"]) + "</details>" for e in d["experience"])
+    tests = "".join(f"<div class='case sg-r'><span class='ok'>✓</span> should know <b>{h(s)}</b><em>{12 + (i * 37) % 180}ms</em></div>" for i, s in enumerate(d["skills"][:24]))
+    reports = "".join(f"<article class='pcard'><div class='pno'>REPORT #{i + 1:03d}</div><h3>{h(p['name'])}</h3><p>{h(p['description'] or (p['highlights'] or [''])[0])}</p>"
+                      f"<div class='tags'>{_chips(p['tech'], 'tag')}</div>" + (f"<a class='go' href='{h(p['url'])}' target='_blank' rel='noopener'>Open ↗</a>" if p['url'] else "")
+                      + "</article>" for i, p in enumerate(d["projects"]))
+    n = len(d["skills"][:24]) + sum(len(e["bullets"]) for e in d["experience"])
+    css = ("body{font-family:'IBM Plex Sans';background:#0d1117;color:#c9d1d9}.top{background:#161b22;border-bottom:1px solid #30363d;padding:16px 28px;display:flex;"
+           "justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}.top b{font-family:'IBM Plex Mono'}.run{font-family:'IBM Plex Mono';color:#3fb950}"
+           ".wrap{max-width:1100px;margin:0 auto;padding:40px 24px}h1{font-size:clamp(38px,7vw,76px);margin:0;color:#f0f6fc}.sg-typer{font-family:'IBM Plex Mono';color:#58a6ff}"
+           ".sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:30px 0}.stat{background:#161b22;border:1px solid #30363d;border-radius:12px;"
+           "padding:18px}.stat b{display:block;font-size:36px;color:#3fb950;font-family:'IBM Plex Mono'}.stat span{color:#8b949e;font-size:13px}.prog{height:12px;border-radius:99px;"
+           "background:#21262d;overflow:hidden;margin:20px 0}.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#238636,#3fb950);animation:fill 2.4s 0.3s "
+           "cubic-bezier(.2,.7,.2,1) forwards}@keyframes fill{to{width:100%}}h2{font-family:'IBM Plex Mono';color:#58a6ff;font-size:15px;margin:40px 0 12px}h2:before{content:'$ '}"
+           ".suite{background:#161b22;border:1px solid #30363d;border-radius:12px;margin:10px 0;padding:6px 16px}.suite summary{cursor:pointer;padding:10px 0;font-weight:600;color:#f0f6fc}"
+           ".suite em,.case em{float:right;color:#8b949e;font-style:normal;font-family:'IBM Plex Mono';font-size:12px}.case{font-family:'IBM Plex Mono';font-size:13px;padding:7px 0;"
+           "border-top:1px solid #21262d}.ok{color:#3fb950;font-family:'IBM Plex Mono';margin-right:6px}.tests{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:6px 16px}"
+           ".pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.pcard{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:18px}"
+           ".pno{font-family:'IBM Plex Mono';color:#d29922;font-size:12px}.tag,.chip{display:inline-block;background:#1f6feb22;color:#58a6ff;border-radius:99px;padding:2px 10px;margin:3px;font-size:12px}"
+           "a{color:#58a6ff}.go{font-weight:600}.otw{color:#3fb950;font-family:'IBM Plex Mono'}.contact{background:#161b22;border:1px solid #238636;border-radius:14px;padding:30px;margin-top:40px}"
+           ".cta{display:inline-block;margin-top:12px;background:#238636;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600}section{margin:0}"
+           ".made{text-align:center;color:#484f58;font-size:12px;padding:24px}.edu{list-style:none;padding:0}")
+    return page(d, css, f"<div class='top'><b>{h(d['first'].lower())}-portfolio · CI</b><span class='run'>● {n} checks passed · 0 failed</span></div>"
+                        f"<div class='wrap'>{_badge(d)}<h1>{h(d['name'])}</h1><p>{_contact(d)}</p><div class='prog'><i></i></div><div class='sum'>{_stats(d)}</div>"
+                        + (f"<h2>cat about.txt</h2><p>{h(d['summary'])}</p>" if d['summary'] else "")
+                        + (f"<h2>run --suite experience</h2>{suites}" if suites else "") + (f"<h2>run --suite skills</h2><div class='tests'>{tests}</div>" if tests else "")
+                        + (f"<h2>open reports/</h2><div class='pgrid'>{reports}</div>" if reports else "")
+                        + (f"<h2>cat education.txt</h2>{_edu(d)}" if d['education'] or d['certifications'] else "") + f"{_contact_block(d, 'Ready to merge into your team')}</div>",
+                "IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono")
+
+
+def glitch(d):
+    css = ("body{font-family:'Rajdhani';background:#050505;color:#eaeaea;overflow-x:hidden}body:after{content:'';position:fixed;inset:0;pointer-events:none;"
+           "background:repeating-linear-gradient(0deg,#ffffff06 0 1px,transparent 1px 3px);z-index:50}.hero{min-height:92vh;display:grid;place-items:center;text-align:center;padding:24px}"
+           ".g{position:relative;font-size:clamp(50px,11vw,150px);font-weight:700;margin:0;text-transform:uppercase;letter-spacing:.02em}.g:before,.g:after{content:attr(data-t);"
+           "position:absolute;inset:0;background:#050505}.g:before{color:#0ff;animation:g1 2.6s infinite linear alternate-reverse;clip-path:inset(0 0 60% 0);left:3px}"
+           ".g:after{color:#f0f;animation:g2 2s infinite linear alternate-reverse;clip-path:inset(55% 0 0 0);left:-3px}@keyframes g1{0%{clip-path:inset(10% 0 70% 0)}25%{clip-path:"
+           "inset(40% 0 30% 0)}50%{clip-path:inset(75% 0 5% 0)}75%{clip-path:inset(20% 0 60% 0)}100%{clip-path:inset(60% 0 20% 0)}}@keyframes g2{0%{clip-path:inset(65% 0 10% 0)}"
+           "33%{clip-path:inset(5% 0 80% 0)}66%{clip-path:inset(45% 0 35% 0)}100%{clip-path:inset(85% 0 2% 0)}}.sg-typer{color:#0ff;font-size:24px;letter-spacing:.15em;text-transform:uppercase}"
+           "main{max-width:1050px;margin:0 auto;padding:0 24px}section{border-left:3px solid #f0f;padding:10px 0 10px 24px;margin:60px 0}h2{font-size:40px;margin:0 0 14px;"
+           "text-transform:uppercase;color:#fff}h2:before{content:'// ';color:#0ff}.chip,.tag{display:inline-block;border:1px solid #0ff;color:#0ff;padding:4px 12px;margin:4px;"
+           "clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.proj{background:#0d0d0d;"
+           "border:1px solid #222;padding:20px}.proj:hover{border-color:#f0f;box-shadow:0 0 30px #f0f3}.when{color:#f0f;letter-spacing:.1em}.at{color:#888;font-weight:400}"
+           "p,li{font-size:18px;line-height:1.6}a{color:#0ff}.otw{color:#0f0;letter-spacing:.2em;text-transform:uppercase}.contact{text-align:center;border:none}"
+           ".cta{display:inline-block;margin-top:14px;padding:14px 28px;border:2px solid #0ff;color:#0ff;text-decoration:none;font-weight:700;letter-spacing:.2em}"
+           ".cta:hover{background:#0ff;color:#050505}.made{text-align:center;color:#444;padding:24px;font-size:12px}")
+    return page(d, css, f"<header class='hero'><div>{_badge(d)}<h1 class='g' data-t='{h(d['name'])}'>{h(d['name'])}</h1><p>{_contact(d)}</p></div></header>"
+                        f"<main>{_sections(d)}{_contact_block(d, 'Initiate contact')}</main>", "Rajdhani:wght@400;700")
+
+
 TEMPLATES = {
+    "dev_pro": ("Developer Pro ★", "Animated hero, typing role, counters, skill marquee, glowing timeline, tilting project cards", dev_pro,
+                ["#07070b", "#8b5cf6", "#0ea5e9"]),
+    "particles": ("Particle Network ★", "Interactive node network that reacts to your cursor", particles, ["#030712", "#38bdf8", "#1e293b"]),
+    "scroll_story": ("Scroll Story ★", "Giant chapters, sticky numbers, lime marquee: an award-style site", scroll_story, ["#f1efe9", "#0b0b0b", "#c6f432"]),
+    "quality_report": ("Quality Report ★", "Your career as a green CI run: suites, test cases, reports", quality_report, ["#0d1117", "#3fb950", "#58a6ff"]),
+    "glitch": ("Cyber Glitch ★", "RGB-split glitch title, scanlines and neon chips", glitch, ["#050505", "#00ffff", "#ff00ff"]),
     "aurora_glass": ("Aurora Glass", "Floating glass panels over a slowly drifting aurora", aurora_glass, ["#05050a", "#7c3aed", "#06b6d4"]),
     "terminal": ("Hacker Terminal", "Your career as a live zsh session with a blinking cursor", terminal, ["#0b0f0c", "#39ff88", "#facc15"]),
     "brutalist": ("Neo-Brutalist", "Loud yellow, hard shadows, zero apologies", brutalist, ["#fffb00", "#000000", "#ff5ef7"]),
@@ -594,7 +836,7 @@ TEMPLATES = {
     "holo_card": ("Holo ID Card", "An iridescent holographic ID that shimmers", holo_card, ["#0a0a0f", "#ff6ec7", "#7873f5"]),
     "zen": ("Zen Garden", "Calm paper, an ensō brush circle and lots of air", zen, ["#f7f3ec", "#2f2a24", "#a0522d"]),
 }
-DEFAULT = "aurora_glass"
+DEFAULT = "dev_pro"
 
 
 def render(template_id: str, d: dict) -> str:

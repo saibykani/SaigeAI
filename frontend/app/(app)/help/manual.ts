@@ -133,10 +133,10 @@ export const MANUAL: ManualSection[] = [
   },
   {
     id: "portfolio", title: "Portfolio website", href: "/portfolio", tone: "purple", image: "/help/portfolio.jpg",
-    purpose: "Turn your verified profile into a personal website with one of 26 templates and publish it to your own link.",
+    purpose: "Turn your verified profile into a personal website with one of 31 templates (5 fully animated) and publish it to your own link.",
     steps: [
       "Resume & ATS → Portfolio. The preview shows YOUR profile in the selected template (switch desktop / mobile at the top).",
-      "Pick any template: Hacker Terminal, Code Editor, Retro OS 95, RPG Character Sheet, Career Playlist, Chat Interview, Boarding Pass, Metro Map and more.",
+      "Pick any template. The ★ ones are fully animated (Developer Pro, Particle Network, Scroll Story, Quality Report, Cyber Glitch). Every template has scroll animations, a typing role line and a cursor glow. Others: Hacker Terminal, Code Editor, Retro OS 95, RPG Character Sheet, Career Playlist, Chat Interview, Boarding Pass, Metro Map and more.",
       "Choose your link (e.g. /p/asha-rao), add an optional tagline, and decide whether to show your email or phone.",
       "Press “Publish my portfolio”. Copy the link for LinkedIn, your resume and email signature. The site updates whenever your Profile changes.",
       "Unpublish any time, or Download HTML to host it yourself (GitHub Pages, Netlify).",

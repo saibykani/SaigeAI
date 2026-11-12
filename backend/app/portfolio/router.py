@@ -1,4 +1,4 @@
-"""Portfolio website builder (/api/portfolio): pick one of 26 templates, preview it with YOUR OWN profile, publish it
+"""Portfolio website builder (/api/portfolio): pick one of 31 templates, preview it with YOUR OWN profile, publish it
 to a public URL (/p/<slug>). The public page renders live from the signed-in owner's verified profile, so it
 updates when the profile changes. Email is shown only if allowed; phone is hidden unless the owner opts in."""
 
@@ -100,7 +100,8 @@ async def unpublish(user: dict = Depends(get_current_user), db: AsyncIOMotorData
 
 def _html(html: str) -> HTMLResponse:
     return HTMLResponse(html, headers={"X-Frame-Options": "SAMEORIGIN", "Cache-Control": "no-store",
-                                       "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; "
+                                       "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; "
+                                                                  "style-src 'unsafe-inline' https://fonts.googleapis.com; "
                                                                   "font-src https://fonts.gstatic.com; img-src data: https:; frame-ancestors 'self'"})
 
 

@@ -680,3 +680,22 @@ body {
 [data-theme="crimson"] h1 { font-weight: 400; letter-spacing: -0.03em; }
 [data-theme="crimson"] :is(.rounded-3xl) { border-radius: 18px; }
 [data-theme="crimson"] :is(.glass, .bg-card-solid) { backdrop-filter: none; box-shadow: none; border: 1px solid var(--border); }
+
+/* Resume scan loader (components/scan-loader.tsx) */
+.scan-stage { animation: scan-bob 6s ease-in-out infinite; }
+@keyframes scan-bob { 50% { transform: translateY(-6px) rotate(-1deg); } }
+.scan-doc { animation: scan-scroll 9s ease-in-out infinite alternate; }
+@keyframes scan-scroll { to { transform: translateY(-50%); } }
+.scan-line { animation: scan-read 2.3s ease-in-out infinite; }
+@keyframes scan-read { 0%, 70%, 100% { background-color: rgb(212 212 212); } 35% { background-color: color-mix(in srgb, var(--primary) 70%, white); } }
+.scan-laser {
+  top: 0;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--primary) 35%, transparent) 45%, var(--primary) 50%, color-mix(in srgb, var(--primary) 35%, transparent) 55%, transparent);
+  filter: drop-shadow(0 0 10px var(--primary));
+  animation: scan-sweep 2.3s ease-in-out infinite alternate;
+}
+@keyframes scan-sweep { from { top: -12%; } to { top: 92%; } }
+.scan-corner { position: absolute; width: 18px; height: 18px; border-color: var(--primary); border-radius: 3px; }
+.scan-word { animation: scan-fade 1.6s ease both; }
+@keyframes scan-fade { 0% { opacity: 0; transform: translateY(6px); } 15%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .scan-stage, .scan-doc, .scan-line, .scan-laser, .scan-word { animation: none; } }

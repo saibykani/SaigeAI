@@ -4,6 +4,7 @@ import { Download, Mail, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { ScanLoader } from "@/components/scan-loader";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { ProgressRing } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +88,8 @@ export default function ApplyByEmailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {busy === "draft" && <ScanLoader title="Preparing your application" messages={["Reading the post…", "Finding the email to apply to…", "Building a resume for this role…", "Writing your email…", "Checking every claim…"]} />}
 
       {draft?.status === "needs_details" && (
         <Card>

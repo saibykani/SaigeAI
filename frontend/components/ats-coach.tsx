@@ -3,6 +3,7 @@
 import { Check, Download, Sparkles, Target, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { ScanLoader } from "@/components/scan-loader";
 import { Notice } from "@/components/app-shell";
 import { ProgressRing } from "@/components/motion";
 import { SkillConfirm } from "@/components/skill-confirm";
@@ -82,7 +83,10 @@ export function AtsCoach({ resumes }: { resumes: Resume[] }) {
         </details>
         {err && <Notice tone="error">{err}</Notice>}
 
-        {out && (
+        {busy && <ScanLoader title={busy === "coach" ? `Scanning for ${role || "the role"}` : "Building your resume"} messages={busy === "coach"
+          ? ["Reading your resume…", "Collecting what this role asks for…", "Comparing keywords…", "Checking bullets and sections…", "Finding what your profile already proves…"]
+          : ["Picking verified skills…", "Writing your summary…", "Ordering your best bullets…", "Running the ATS check…"]} />}
+        {out && !busy && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-6 rounded-2xl border p-4">
               <div className="flex items-center gap-3">

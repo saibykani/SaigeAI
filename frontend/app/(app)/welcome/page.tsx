@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { ScanLoader } from "@/components/scan-loader";
 import { Notice } from "@/components/app-shell";
 import { RolePicker } from "@/components/growth";
 import { Button } from "@/components/ui/button";
@@ -126,13 +127,14 @@ export default function WelcomePage() {
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Saige reads your resume and fills your profile: experience, skills, projects, education. Nothing is invented; you can edit everything.</p>
             <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }} />
+            {busy ? <ScanLoader title="Reading your resume" messages={["Opening your file…", "Finding your name and contact details…", "Reading roles and dates…", "Extracting skills and tools…", "Collecting your projects…", "Filling your profile…"]} /> : (
             <button onClick={() => fileRef.current?.click()} disabled={busy}
               onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void upload(f); }}
               className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-10 text-center hover:bg-muted/50">
               <FileUp className="size-8 text-primary" />
               <span className="font-medium">{busy ? "Reading your resume…" : "Drop your resume here or click to choose"}</span>
               <span className="text-xs text-muted-foreground">PDF, Word or TXT, up to 5 MB</span>
-            </button>
+            </button>)}
             <div className="flex justify-end"><Button variant="ghost" onClick={next}>I don&apos;t have one now</Button></div>
           </div>
         )}

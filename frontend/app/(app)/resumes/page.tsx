@@ -4,6 +4,7 @@ import { FileText, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
+import { ScanLoader } from "@/components/scan-loader";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { AtsCoach } from "@/components/ats-coach";
 import { AtsScorer, ResumeHealth } from "@/components/ats-scorer";
@@ -89,6 +90,7 @@ export default function ResumesPage() {
               <Upload /> {busy ? "Parsing…" : "Upload"}
             </Button>
           </form>
+          {busy && <ScanLoader compact title="Scanning your resume" messages={["Reading the file…", "Finding sections…", "Extracting roles and skills…", "Updating your profile…"]} />}
           {message && (
             <div className="mt-4">
               <Notice tone={message.tone}>{message.text}</Notice>

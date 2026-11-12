@@ -18,7 +18,9 @@ def test_every_template_renders_escaped(tid):
     for prof in (FULL, EMPTY):
         html = tpl.render(tid, pdata.build(prof, {"show_phone": False}))
         assert html.startswith("<!doctype html>") and "</html>" in html
-        assert "<script>" not in html
+        assert "<script>alert" not in html  # the user's name is escaped; only Saige's own scripts run
+        if prof is FULL:
+            assert "&lt;script&gt;" in html
     assert "VCIP" in tpl.render(tid, pdata.build(FULL, {}))
 
 
