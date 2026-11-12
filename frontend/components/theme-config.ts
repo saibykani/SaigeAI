@@ -1,5 +1,6 @@
 // Theme constants live in a plain module so server components (the root layout) can use them.
 export const THEMES = [
+  { id: "crimson", name: "Crimson", note: "Warm white · crimson · clean cards", swatch: ["#fbf6f6", "#b8102e", "#ffffff", "#f0dfe1"] },
   { id: "graphite", name: "Graphite", note: "Pure black · silver", swatch: ["#000000", "#ffffff", "#a1a1aa", "#e4e4e7"] },
   { id: "obsidian", name: "Obsidian", note: "Warm black · gold", swatch: ["#070604", "#fde68a", "#f5b73b", "#d6a04a"] },
   { id: "aurora", name: "Aurora", note: "Polar night · emerald", swatch: ["#030b0a", "#34d399", "#22d3ee", "#a3e635"] },
@@ -15,7 +16,7 @@ export const THEMES = [
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];
-export const DEFAULT_THEME: ThemeId = "graphite";
+export const DEFAULT_THEME: ThemeId = "crimson";
 export const THEME_KEY = "saige-theme";
 
 /** Inline script run before paint so the saved theme applies without a flash. */

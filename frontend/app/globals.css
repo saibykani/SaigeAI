@@ -661,3 +661,22 @@ body {
 [data-theme="crystal"] :is(.border) { border-color: rgba(255, 255, 255, 0.75); }
 [data-theme="crystal"] :is(.rounded-3xl) { border-radius: 30px; }
 [data-theme="crystal"] :is(.rounded-2xl) { border-radius: 22px; }
+
+/* Crimson: warm white, one crimson accent, clean outlined cards (job-portal style) */
+[data-theme="crimson"] {
+  color-scheme: light;
+  --background: #fbf6f6; --foreground: #1f1a1b; --card: #ffffff; --card-solid: #ffffff; --card-foreground: #1f1a1b;
+  --muted: #f6eeef; --muted-foreground: #6b5f61; --border: #f0dfe1; --input: #ead6d9;
+  --primary: #b8102e; --primary-foreground: #ffffff; --secondary: #ffffff; --secondary-foreground: #1f1a1b;
+  --accent: #fbeaec; --accent-foreground: #b8102e; --ring: #b8102e; --destructive: #b8102e;
+  --brand-1: #b8102e; --brand-2: #b8102e; --brand-3: #b8102e;
+  --shadow-card: 0 1px 2px rgba(80, 20, 30, 0.04); --shadow-lift: 0 6px 18px -8px rgba(80, 20, 30, 0.18);
+  --hero-gradient: #b8102e;
+  --tone-green: #b8102e; --tone-orange: #b8102e; --tone-yellow: #b8102e; --tone-purple: #b8102e;
+  --tone-red: #b8102e; --tone-mint: #b8102e; --tone-teal: #b8102e; --tone-lime: #b8102e;
+  --grid: #f0e4e5;
+}
+[data-theme="crimson"] body { background: #fbf6f6; font-weight: 300; }
+[data-theme="crimson"] h1 { font-weight: 400; letter-spacing: -0.03em; }
+[data-theme="crimson"] :is(.rounded-3xl) { border-radius: 18px; }
+[data-theme="crimson"] :is(.glass, .bg-card-solid) { backdrop-filter: none; box-shadow: none; border: 1px solid var(--border); }
