@@ -166,7 +166,46 @@ async def resume_health(resume_id: str, user: dict = Depends(get_current_user), 
     v = await db[c.RESUME_VERSIONS].find_one({"_id": resume.get("current_version_id"), "resume_id": resume["_id"]})
     if not v:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume version not found")
-    return {**tailor.health_report(ParsedResume.model_validate(v["parsed"])), "resume": resume["name"]}
+    from app.resumes import health
+
+    return {**health.report(ParsedResume.model_validate(v["parsed"])), "resume": resume["name"]}
+
+
+class HealthFixIn(BaseModel):
+    edits: dict[str, str] = Field(default_factory=dict)  # bullet -> the user's own rewrite (e.g. with a real number)
+    verbs: bool = True
+    split: bool = True
+    trim_skills: bool = False
+
+
+@router.post("/resumes/{resume_id}/health/fix")
+async def resume_health_fix(resume_id: str, body: HealthFixIn, user: dict = Depends(get_current_user),
+                            db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Apply wording fixes and the user's own rewrites as a new version of this resume, then re-score it."""
+    from app.resumes import health
+    from app.services.agent_runs import agent_run
+
+    uid = user["_id"]
+    resume = await resumes.get_owned(db, uid, resume_id)
+    v = await db[c.RESUME_VERSIONS].find_one({"_id": resume.get("current_version_id"), "resume_id": resume["_id"]})
+    if not v:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume version not found")
+    before = ParsedResume.model_validate(v["parsed"])
+    edits = {k[:2000]: val[:600] for k, val in list(body.edits.items())[:40] if val and val.strip()}
+    async with agent_run(db, "resume_health_fix", uid, {"resume_id": resume_id, "edits": len(edits)}) as run:
+        after, changes = health.apply_fixes(before, edits, verbs=body.verbs, split=body.split, trim_skills=body.trim_skills)
+        if not changes:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Nothing to change: write a rewrite or pick a fix first.")
+        # Wording fixes can't add claims; the user's own rewrites must not add skills/employers missing from the profile.
+        profile = await get_profile(db, uid)
+        old = {str(x.get("value", "")).lower() for x in tailor.validate_resume(before, profile)["violations"]}
+        new = [x for x in tailor.validate_resume(after, profile)["violations"] if str(x.get("value", "")).lower() not in old]
+        if new:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": new})
+        await resumes.add_version(db, resume, parsed=after, raw_text=tailor.resume_text(after), source="health_fix", changes=changes)
+        run.output = {"changes": len(changes)}
+    await log_action(db, user_id=uid, action="resume.health_fixed", entity="resume", entity_id=resume_id, details={"changes": len(changes)})
+    return {"changes": changes, "before": health.report(before)["score"], **health.report(after), "resume": resume["name"]}
 
 
 @router.post("/resumes/ats-optimize", status_code=201)

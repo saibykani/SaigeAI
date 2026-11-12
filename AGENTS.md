@@ -54,7 +54,7 @@ backend/app/
   database/mongo.py       # lazy client, 8 s server-selection timeout, index creation
   auth/                   # register/login/refresh/logout, Google OAuth (+ Gmail link branch in callback)
   profiles/               # master profile (service._deep_merge), optimizer, LinkedIn/Naukri sync
-  resumes/                # parser, import-to-profile, tailor/ATS/cover letter, DOCX export, coach.py (ATS coach agent for any role: /resumes/ats-coach)
+  resumes/                # parser, import-to-profile, tailor/ATS/cover letter, DOCX export, coach.py (ATS coach agent for any role: /resumes/ats-coach), health.py (line-by-line health + /health/fix new version)
   jobs/                   # jd_parser, 9-dimension matching, dedupe, ATS board sources, discover.py (job APIs + role-family title filter),
                           # feed.py (Jobs for you: country/remote scope, walk-ins, HR emails; cached in job_feed), alerts.py (portal job-alert emails),
                           # auto_apply.py (daily prepare + approve_many: email applications via SMTP with resume attached)
@@ -73,6 +73,7 @@ backend/app/
                           # never moves application status); auto_reply.py (reply drafts to recruiter mail from verified profile facts)
   linkedin_posts/          # daily LinkedIn posting agent: content.py (series from verified skills), render.py (Pillow card / PDF
                           # carousel), client.py (official OAuth + Posts API, w_member_social), service.py, router.py (/api/linkedin/*)
+  connectors/router.py    # calendar feed (/connectors/calendar + public /calendar/{token}.ics, calendar_feeds coll.) + GitHub public repos -> projects
   growth/router.py        # /api/growth: ghosting (10+ days silent, Mon/Thu notify via scheduler followups), weekly goals (goals coll.),
                           # salary insight (INR postings only + AmbitionBox/Glassdoor links, no scraping), role suggestions + hide words
   suggestions/router.py   # Resume & profile coach agent (/api/suggestions, /run): ranked truthful fixes; dashboard CoachCard

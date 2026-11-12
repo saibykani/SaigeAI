@@ -44,10 +44,10 @@ const NAV: NavItem[] = [
   { group: "Network", href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [
     { href: "/profiles", label: "Profile suggestions" }, { href: "/linkedin", label: "Daily posts" }, { href: "/profile-sync", label: "Resume sync" }] },
   { group: "Account", href: "/profile", label: "Profile", icon: UserRound, tone: "mint" },
-  { group: "Account", href: "/integrations", label: "Integrations", icon: Plug, tone: "orange" },
   { group: "Account", href: "/alerts", label: "Settings", icon: Settings, tone: "red", tabs: [
     { href: "/alerts", label: "Alerts & templates" }, { href: "/agent", label: "Agent" }, { href: "/settings", label: "Automation & privacy" }] },
   { group: "Account", href: "/help", label: "Help & Guide", icon: LifeBuoy, tone: "green" },
+  { group: "Account", href: "/integrations", label: "Integrations", icon: Plug, tone: "orange" },
 ];
 const GROUPS = ["Home", "Job search", "Resume & ATS", "Network", "Account"];
 
@@ -66,7 +66,7 @@ function SubNav({ pathname, children }: { pathname: string; children: React.Reac
   const current = section?.tabs && [...section.tabs].sort((a, b) => b.href.length - a.href.length).find((x) => matches(x.href, pathname));
   if (!section?.tabs || !current || pathname !== current.href) return <>{children}</>; // detail pages keep their own header
   return (
-    <div className="lg:grid lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-8">
+    <div className="lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:gap-6">
       <nav aria-label={t(section.label)} className="mb-6 lg:mb-0">
         <div className="lg:sticky lg:top-24">
           <p className="mb-2 hidden px-3 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground lg:block">{t(section.label)}</p>
@@ -210,7 +210,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {open && <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden" onClick={() => setOpen(false)} />}
 
       <div className="relative flex min-w-0 flex-col">
-        <header className="sticky top-0 z-20 flex h-[72px] items-center gap-3 bg-background/95 px-4 backdrop-blur md:px-10">
+        <header className="sticky top-0 z-20 flex h-[72px] items-center gap-3 bg-background/95 px-4 backdrop-blur md:px-8">
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
             <Menu />
           </Button>
@@ -231,7 +231,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <UserMenu />
         </header>
         {/* key on pathname replays the entrance animation on every navigation */}
-        <main id="main" tabIndex={-1} key={pathname} className="animate-rise relative outline-none mx-auto w-full max-w-7xl flex-1 px-4 py-8 md:px-10 md:py-10">
+        <main id="main" tabIndex={-1} key={pathname} className="animate-rise relative outline-none w-full max-w-[1440px] flex-1 px-4 py-6 md:px-8 md:py-8">
           <SubNav pathname={pathname}>{children}</SubNav>
         </main>
         {pathname !== "/assistant" && <AssistantBubble />}

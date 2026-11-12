@@ -122,6 +122,16 @@ export const MANUAL: ManualSection[] = [
             "Automation or SDET? Tick “Hide jobs with manual in the title” and manual testing roles disappear from Jobs for you and Career portals."],
   },
   {
+    id: "calendar-github", title: "Integrations: calendar feed & GitHub projects", href: "/integrations", tone: "orange", image: "/help/integrations.jpg",
+    purpose: "Two password-free integrations: your interviews in your own calendar, and your GitHub repositories as profile projects.",
+    steps: [
+      "Integrations → Calendar: Copy link, then in Google Calendar choose Other calendars → + → From URL and paste it (Outlook: Subscribe from web). Interviews and follow-up dates appear automatically.",
+      "Use “New link” if you shared the link by mistake; the old one stops working.",
+      "Integrations → GitHub projects: press “Show my repositories” (uses the GitHub URL in your Profile, or type a username), tick the repos, then “Add to my Profile”.",
+      "Imported projects feed your resumes, the ATS coach and interview prep. Forks and archived repos are skipped.",
+    ],
+  },
+  {
     id: "profile", title: "Profile (last item in the sidebar)", href: "/profile", tone: "mint", image: "/help/profile.jpg",
     purpose: "Your verified career facts. Every resume, answer and message Saige writes uses only what's here, so nothing is ever invented.",
     steps: [
@@ -164,12 +174,13 @@ export const MANUAL: ManualSection[] = [
     ],
   },
   {
-    id: "health", title: "Resume health", href: "/resumes#health", tone: "purple", image: "/help/health.jpg",
+    id: "health", title: "Resume health (fix line by line)", href: "/resumes#health", tone: "purple", image: "/help/health.jpg",
     purpose: "A health report for any resume, no job needed: quantified impact, repetition, bullet length, strong verbs, contact details, summary, skills and length.",
     steps: [
-      "Resumes → “Resume health”, then pick a resume.",
-      "Red items show exactly what to change; green items are fine.",
-      "Fix the resume, upload the new version, and check the score again.",
+      "Resume & ATS → My resumes → Resume health, then pick a resume.",
+      "Each red item lists the exact bullets: weak verbs with the rewrite, long bullets with the split, repeated words with alternatives, and the skills to keep.",
+      "Bullets without a number show a question (e.g. “How many test cases?”). Type your rewrite with a real figure in the box under it.",
+      "Tick the automatic fixes you want and press “Apply fixes”. Saige saves a new version and shows the new score; nothing is invented.",
     ],
   },
   {

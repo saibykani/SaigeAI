@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
 import { GmailConnectCard } from "@/components/gmail-app-password";
+import { CalendarFeedCard, GithubCard } from "@/components/connectors";
 import { HiringPortalsCard } from "@/components/hiring-portals";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -142,7 +143,8 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      <HiringPortalsCard />
+      <CalendarFeedCard />
+      <GithubCard />
 
       <Card className="animate-rise mb-6 overflow-hidden">
         <CardHeader>
@@ -182,6 +184,8 @@ export default function IntegrationsPage() {
           </Card>
         ))}
       </div>
+
+      <div className="mt-6"><HiringPortalsCard /></div>
     </>
   );
 }

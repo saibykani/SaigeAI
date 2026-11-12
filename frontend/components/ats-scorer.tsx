@@ -143,50 +143,106 @@ export function AtsScorer({ resumes }: { resumes: Resume[] }) {
   );
 }
 
-type Health = { score: number; label: string; resume: string; bullets: number; quantified: number; words: number;
-  sections: { area: string; ok: boolean; tip: string }[] };
+type HealthItem = { before: string; after?: string; ask?: string; edit?: boolean };
+type HealthSection = { area: string; ok: boolean; tip: string; items: HealthItem[]; fixable: boolean };
+type Health = { score: number; label: string; resume: string; bullets: number; quantified: number; words: number; sections: HealthSection[] };
+type FixOut = Health & { before: number; changes: string[] };
 
-/** Resume health report: how a recruiter and an ATS see this resume, without any job. */
 export function ResumeHealth({ resumes }: { resumes: Resume[] }) {
   const [rid, setRid] = useState("");
-  const id = rid || resumes[0]?.id || "";
-  const { data, loading } = useApi<Health>(id ? `/resumes/${id}/health` : null);
+  const id = rid || (resumes.find((r) => r.kind !== "ATS Resume") ?? resumes[0])?.id || "";
+  const { data, loading, reload } = useApi<Health>(id ? `/resumes/${id}/health` : null);
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [opts, setOpts] = useState({ verbs: true, split: true, trim_skills: false });
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<FixOut | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   const tone = !data ? "purple" : data.score >= 80 ? "green" : data.score >= 55 ? "yellow" : "red";
+  const fixable = (area: string) => data?.sections.find((s) => s.area === area && !s.ok && s.fixable);
+  const typed = Object.values(edits).filter((v) => v.trim()).length;
+
+  async function fix() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await request<FixOut>(`/resumes/${id}/health/fix`, { method: "POST", body: { edits, verbs: opts.verbs && !!fixable("Strong verbs"),
+        split: opts.split && !!fixable("Bullet length"), trim_skills: opts.trim_skills && !!fixable("Skills") } });
+      setResult(r);
+      setEdits({});
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't apply the fixes.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Card id="health" className="animate-rise mb-6 scroll-mt-24" style={{ borderColor: `color-mix(in srgb, var(--tone-${tone}) 32%, transparent)` }}>
+    <Card id="health" className="animate-rise mb-6 scroll-mt-24">
       <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <span className="grid size-8 place-items-center rounded-lg text-[#0b0b0c]" style={{ background: `var(--tone-${tone})` }}><Check className="size-4" /></span>
-            Resume health
-          </CardTitle>
-          <CardDescription>Impact, repetition, bullet length, contact details and structure. No job needed.</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-lg">Resume health</CardTitle>
+          <CardDescription>What to change, line by line. Saige rewrites wording only; numbers come from you.</CardDescription>
         </div>
-        <Select className="w-64" value={id} onChange={(e) => setRid(e.target.value)} aria-label="Resume">
+        <Select className="w-64" value={id} onChange={(e) => { setRid(e.target.value); setResult(null); setEdits({}); }} aria-label="Resume">
           {resumes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
         </Select>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-5">
         {loading && !data ? <div className="skeleton h-40 rounded-2xl" /> : data && (
-          <div className="grid gap-5 md:grid-cols-[auto_1fr]">
-            <div className="flex flex-col items-center gap-2">
+          <>
+            <div className="flex flex-wrap items-center gap-5">
               <span style={{ color: `var(--tone-${tone})` }}>
-                <ProgressRing value={data.score} size={96} stroke={9} trackClass="stroke-muted" barClass="stroke-current">
+                <ProgressRing value={data.score} size={88} stroke={8} trackClass="stroke-muted" barClass="stroke-current">
                   <span className="text-2xl font-semibold text-foreground">{data.score}</span>
                 </ProgressRing>
               </span>
-              <span className="text-sm font-medium" style={{ color: `var(--tone-${tone})` }}>{data.label}</span>
-              <span className="text-xs text-muted-foreground">{data.quantified}/{data.bullets} bullets with numbers · {data.words} words</span>
+              <div className="text-sm">
+                <p className="font-medium">{data.label}</p>
+                <p className="text-muted-foreground">{data.quantified}/{data.bullets} bullets with numbers · {data.words} words · {data.sections.filter((s) => !s.ok).length} to fix</p>
+              </div>
             </div>
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {data.sections.map((s) => (
-                <li key={s.area} className="flex items-start gap-2 rounded-xl border p-2.5 text-sm" style={{ borderColor: `color-mix(in srgb, var(--tone-${s.ok ? "green" : "red"}) 30%, transparent)` }}>
-                  {s.ok ? <Check className="mt-0.5 size-4 shrink-0" style={{ color: "var(--tone-green)" }} /> : <X className="mt-0.5 size-4 shrink-0" style={{ color: "var(--tone-red)" }} />}
-                  <span><span className="block font-medium">{s.area}</span><span className="text-xs text-muted-foreground">{s.tip}</span></span>
+            {result && (
+              <Notice tone="success">
+                Saved as a new version: score {result.before} → {result.score}. {result.changes.slice(0, 4).join(" · ")}{result.changes.length > 4 ? ` · +${result.changes.length - 4} more` : ""}
+              </Notice>
+            )}
+            {err && <Notice tone="error">{err}</Notice>}
+            <ul className="divide-y rounded-2xl border">
+              {[...data.sections].sort((a, b) => Number(a.ok) - Number(b.ok)).map((s) => (
+                <li key={s.area} className="p-4 text-sm">
+                  <p className="flex items-start gap-2">
+                    {s.ok ? <Check className="mt-0.5 size-4 shrink-0" style={{ color: "var(--tone-green)" }} /> : <X className="mt-0.5 size-4 shrink-0 text-primary" />}
+                    <span><b className="font-medium">{s.area}</b> <span className="text-muted-foreground">· {s.tip}</span></span>
+                  </p>
+                  {!s.ok && s.items.length > 0 && (
+                    <ul className="mt-3 space-y-2 pl-6">
+                      {s.items.map((it) => (
+                        <li key={it.before} className="rounded-xl bg-muted/50 p-3">
+                          <p className={it.after ? "text-muted-foreground line-through decoration-muted-foreground/40" : ""}>{it.before}</p>
+                          {it.after && <p className="mt-1">→ {it.after}</p>}
+                          {it.ask && <p className="mt-1 text-xs text-primary">{it.ask}</p>}
+                          {it.edit && (
+                            <Input className="mt-2" placeholder="Rewrite with a real result, e.g. … covering 320 test cases, cutting runs from 3 days to 6 hours"
+                              value={edits[it.before] ?? ""} onChange={(e) => setEdits((x) => ({ ...x, [it.before]: e.target.value }))} />
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               ))}
             </ul>
-          </div>
+            <div className="flex flex-wrap items-center gap-4 rounded-2xl border p-4 text-sm">
+              {fixable("Strong verbs") && <label className="flex items-center gap-2"><input type="checkbox" className="size-4 accent-[var(--primary)]" checked={opts.verbs} onChange={(e) => setOpts({ ...opts, verbs: e.target.checked })} /> Use action verbs</label>}
+              {fixable("Bullet length") && <label className="flex items-center gap-2"><input type="checkbox" className="size-4 accent-[var(--primary)]" checked={opts.split} onChange={(e) => setOpts({ ...opts, split: e.target.checked })} /> Split long bullets</label>}
+              {fixable("Skills") && <label className="flex items-center gap-2"><input type="checkbox" className="size-4 accent-[var(--primary)]" checked={opts.trim_skills} onChange={(e) => setOpts({ ...opts, trim_skills: e.target.checked })} /> Keep only skills my experience shows</label>}
+              <Button className="ml-auto" onClick={() => void fix()} disabled={busy || (typed === 0 && !fixable("Strong verbs") && !fixable("Bullet length") && !(opts.trim_skills && fixable("Skills")))}>
+                {busy ? <Loader2 className="animate-spin" /> : <Check />} {busy ? "Saving…" : `Apply fixes${typed ? ` + ${typed} rewrite(s)` : ""}`}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Fixes are saved as a new version of this resume, so you can always go back. Skills or employers you type that aren&apos;t in your profile are blocked by the truth guard.</p>
+          </>
         )}
       </CardContent>
     </Card>

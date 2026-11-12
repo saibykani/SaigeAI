@@ -16,6 +16,7 @@ from app.auth.router import router as auth_router
 from app.automation.router import router as automation_router
 from app.careers.router import router as careers_router
 from app.config import get_settings
+from app.connectors.router import router as connectors_router
 from app.database import mongo
 from app.email.router import router as email_router
 from app.extension.router import router as extension_router
@@ -133,7 +134,7 @@ def create_app() -> FastAPI:
               ml_router,
               applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router, linkedin_posts_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
-              recruiters_router, extension_router, suggestions_router, growth_router):
+              recruiters_router, extension_router, suggestions_router, growth_router, connectors_router):
         api.include_router(r)
     app.include_router(api)
     return app
