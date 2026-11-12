@@ -28,7 +28,6 @@ interface Report {
 }
 interface SessionRow { id: string; role: string; company: string | null; interview_type: string; status: string; questions: number; score: number | null; created_at: string }
 
-const LANGS = [["en", "English"], ["hi", "हिन्दी"], ["te", "తెలుగు"], ["ta", "தமிழ்"], ["kn", "ಕನ್ನಡ"], ["ml", "മലയാളം"]] as const;
 const SECONDS = 120;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -112,10 +111,6 @@ function Setup({ onStart, onOpen }: { onStart: (s: Session) => void; onOpen: (s:
                 </Select></label>
               <label className="space-y-1.5 text-sm"><span className="font-medium">Questions: {form.num_questions}</span>
                 <input type="range" min={5} max={15} value={form.num_questions} onChange={(e) => set("num_questions", Number(e.target.value))} className="w-full accent-[var(--tone-orange)]" /></label>
-              <label className="space-y-1.5 text-sm"><span className="font-medium">Language</span>
-                <Select value={form.language} onChange={(e) => set("language", e.target.value)}>
-                  {LANGS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                </Select></label>
             </div>
             <Button size="lg" onClick={start} disabled={busy || (source === "app" ? !form.application_id : !form.role.trim() && !form.jd_text.trim())}>
               <Sparkles /> {busy ? "Preparing questions…" : "Start interview"}

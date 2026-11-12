@@ -4,6 +4,7 @@ import { CalendarCheck, CalendarClock, CalendarPlus, Check, Video, X } from "luc
 import Link from "next/link";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { InterviewEmails } from "@/components/interview-emails";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,7 @@ export default function InterviewsPage() {
   return (
     <>
       <PageHeader title="Interviews" description="Upcoming, completed, rescheduled and cancelled interviews — added by you or detected from Gmail. One click adds any interview to your calendar." />
+      <InterviewEmails />
       {error && <Notice tone="error">{error}</Notice>}
       {!data ? (
         <div className="skeleton h-72 rounded-3xl" />

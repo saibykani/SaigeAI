@@ -161,6 +161,48 @@ async def sync_emails(user: dict = Depends(get_current_user), db: AsyncIOMotorDa
     return await run_sync(db, uid, integ)
 
 
+INTERVIEW_CATEGORIES = ["Interview Invitation", "Interview Reschedule", "Coding Test", "Assessment"]
+INTERVIEW_QUERY = ('newer_than:180d (interview OR "next round" OR "schedule a call" OR calendly OR shortlisted OR hackerrank OR codility '
+                   'OR "coding test" OR assessment OR "meet the team" OR "teams.microsoft.com" OR "meet.google.com" OR zoom.us)')
+
+
+@router.get("/emails/interviews")
+async def interview_emails(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Interview-related mail (invites, reschedules, coding tests, assessments) with the extracted date, round and link."""
+    q = {"user_id": user["_id"], "hidden": {"$ne": True}, "category": {"$in": INTERVIEW_CATEGORIES}}
+    docs = await db[c.EMAILS].find(q).sort("received_at", DESCENDING).to_list(200)
+    return [svc.email_out(e) for e in docs]
+
+
+@router.post("/emails/sync-interviews")
+async def sync_interview_emails(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Deep search of the connected mailbox (last 6 months) for interview mail, then the regular sync."""
+    uid = user["_id"]
+    integ = await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "gmail"})
+    if not integ:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Connect Gmail first (Integrations)")
+    if not await is_allowed(db, uid, "gmail_sync"):
+        raise HTTPException(status.HTTP_423_LOCKED, "Gmail sync is paused. Resume it in Automation settings.")
+    stats: dict = {}
+    async with agent_run(db, "gmail_interview_scan", uid, {"provider": "gmail"}) as run:
+        known = {e["gmail_id"] async for e in db[c.EMAILS].find({"user_id": uid, "gmail_id": {"$ne": None}}, {"gmail_id": 1})}
+        try:
+            msgs = await _fetch(integ, INTERVIEW_QUERY, 100, known, stats)
+        except gmail.GmailError as exc:
+            run.errors.append(str(exc))
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+        found = 0
+        for m in msgs:
+            doc = await svc.ingest(db, uid, m, source="gmail")
+            found += int(not doc.get("hidden") and doc["category"] in INTERVIEW_CATEGORIES)
+        run.output = {"scanned": len(msgs), "interview_emails": found}
+    await db[c.INTEGRATIONS].update_one({"_id": integ["_id"]}, {"$set": {"last_sync_at": utcnow()}})
+    await log_action(db, user_id=uid, action="email.interview_scan", entity="email", details=run.output)
+    if found:
+        await notify(db, user_id=uid, kind="gmail_sync", title=f"Found {found} interview email(s)", link="/interviews")
+    return {**run.output, "emails": await interview_emails(user, db)}
+
+
 async def _fetch(integ: dict, query: str, limit: int, skip: set[str], stats: dict) -> list[dict]:
     if integ.get("method") == "app_password":
         return await imap.fetch_messages(integ["email"], crypto.decrypt(integ["app_password_enc"]), limit=limit, skip=skip,

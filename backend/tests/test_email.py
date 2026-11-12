@@ -193,3 +193,35 @@ async def test_disconnect_deletes_tokens_and_optionally_emails(client, db, auth,
 
 async def test_connect_gmail_not_configured(client, auth):
     assert (await client.post("/api/auth/connect/gmail", headers=auth)).status_code == 503
+
+
+async def test_interview_scan_finds_interview_mail(client, db, auth, monkeypatch):
+    assert (await client.post("/api/emails/sync-interviews", headers=auth)).status_code == 409
+    me = (await client.get("/api/auth/me", headers=auth)).json()
+    await db[c.INTEGRATIONS].insert_one({"_id": "i9", "user_id": me["id"], "provider": "gmail", "email": "me@gmail.com",
+                                         "refresh_token_enc": crypto.encrypt("rt"), "status": "connected"})
+    monkeypatch.setattr("app.email.gmail.get_settings", lambda: type("S", (), {
+        "google_client_id": "cid", "google_client_secret": "sec", "google_redirect_uri": "http://x"})())
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/token":
+            return httpx.Response(200, json={"access_token": "at"})
+        if request.url.path.endswith("/messages"):
+            assert "newer_than:180d" in request.url.params["q"] and "interview" in request.url.params["q"]
+            return httpx.Response(200, json={"messages": [{"id": "iv1"}]})
+        if request.url.path.endswith("/messages/iv1"):
+            body = "We would like to invite you to a technical interview on 20 November 2026 at 11:00 AM IST. Join: https://meet.google.com/abc-defg-hij"
+            return httpx.Response(200, json={
+                "id": "iv1", "threadId": "t9", "internalDate": "1790000000000", "snippet": "Interview",
+                "payload": {"headers": [{"name": "From", "value": "Talent <talent@payco.com>"},
+                                        {"name": "Subject", "value": "Interview invitation - SDET at PayCo"}],
+                            "mimeType": "text/plain", "body": {"data": _b64(body)}}})
+        return httpx.Response(404)
+
+    monkeypatch.setattr(gmail, "http_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    r = await client.post("/api/emails/sync-interviews", headers=auth)
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["interview_emails"] == 1 and out["emails"][0]["category"] == "Interview Invitation"
+    listed = (await client.get("/api/emails/interviews", headers=auth)).json()
+    assert len(listed) == 1 and listed[0]["subject"].startswith("Interview invitation")
