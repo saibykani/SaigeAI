@@ -2,7 +2,7 @@
 
 import { Check, Copy, Download, ExternalLink, Eye, Globe, Laptop, Smartphone, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
 import { ScanLoader } from "@/components/scan-loader";
@@ -16,6 +16,44 @@ import { cn } from "@/utils/cn";
 
 type Template = { id: string; name: string; vibe: string; colors: string[] };
 type Settings = { template: string; slug: string; published: boolean; tagline: string; show_email: boolean; show_phone: boolean; open_to_work: boolean; views: number; published_at: string | null };
+
+/** Live mini preview of a template with YOUR profile. Loads when the card scrolls into view; hover scrolls the whole page. */
+function TemplateThumb({ id, colors }: { id: string; colors: string[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [html, setHtml] = useState("");
+  const [scale, setScale] = useState(0.28);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setScale(el.clientWidth / 1280));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(async (es) => {
+      if (!es[0].isIntersecting) return;
+      io.disconnect();
+      try {
+        const res = await request<Response>(`/portfolio/preview?template=${id}&thumb=true`, { raw: true });
+        setHtml(await res.text());
+      } catch { /* keep the colour placeholder */ }
+    }, { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [id]);
+  return (
+    <div ref={ref} className="thumb relative h-44 overflow-hidden border-b" style={{ background: colors[0], ["--s" as string]: scale }}>
+      {html ? (
+        <iframe title={`${id} preview`} srcDoc={html} sandbox="allow-scripts" tabIndex={-1} aria-hidden loading="lazy"
+          className="thumb-frame pointer-events-none absolute left-0 top-0 origin-top-left border-0" />
+      ) : (
+        <div className="absolute inset-0 animate-pulse" style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]}33)` }} />
+      )}
+    </div>
+  );
+}
 
 export default function PortfolioPage() {
   const templates = useApi<Template[]>("/portfolio/templates");
@@ -107,11 +145,10 @@ export default function PortfolioPage() {
               {templates.data.map((t) => (
                 <button key={t.id} onClick={() => setS({ ...s, template: t.id })} aria-pressed={s.template === t.id}
                   className={cn("group overflow-hidden rounded-2xl border bg-card text-left transition-shadow hover:shadow-md", s.template === t.id && "ring-2 ring-primary")}>
-                  <div className="relative h-24" style={{ background: t.colors[0] }}>
-                    <span className="absolute left-4 top-4 h-3 w-24 rounded-full" style={{ background: t.colors[1] }} />
-                    <span className="absolute left-4 top-10 h-2 w-36 rounded-full opacity-70" style={{ background: t.colors[2] }} />
-                    <span className="absolute bottom-3 right-3 size-9 rounded-xl" style={{ background: t.colors[1] }} />
-                    {s.template === t.id && <span className="absolute right-3 top-3 grid size-6 place-items-center rounded-full bg-primary text-primary-foreground"><Check className="size-3.5" /></span>}
+                  <div className="relative">
+                    <TemplateThumb id={t.id} colors={t.colors} />
+                    {s.template === t.id && <span className="absolute right-3 top-3 grid size-7 place-items-center rounded-full bg-primary text-primary-foreground shadow"><Check className="size-4" /></span>}
+                    {t.name.includes("★") && <span className="absolute bottom-3 left-3 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">Animated</span>}
                   </div>
                   <div className="p-3">
                     <p className="font-medium">{t.name}</p>

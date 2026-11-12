@@ -699,3 +699,8 @@ body {
 .scan-word { animation: scan-fade 1.6s ease both; }
 @keyframes scan-fade { 0% { opacity: 0; transform: translateY(6px); } 15%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .scan-stage, .scan-doc, .scan-line, .scan-laser, .scan-word { animation: none; } }
+
+/* Portfolio template thumbnails: a live 1280px-wide page scaled to the card (--s); hovering scrolls down the page */
+.thumb-frame { width: 1280px; height: 2600px; transform: scale(var(--s, .28)); translate: 0 0; transition: translate 6s cubic-bezier(.45, .05, .35, 1); }
+.group:hover .thumb .thumb-frame { translate: 0 calc(-2600px * var(--s, .28) + 11rem); }
+@media (prefers-reduced-motion: reduce) { .group:hover .thumb .thumb-frame { translate: 0 0; } }

@@ -107,12 +107,16 @@ def _html(html: str) -> HTMLResponse:
 
 @router.get("/portfolio/preview", response_class=HTMLResponse)
 async def preview(template: str = Query(tpl.DEFAULT, max_length=40), tagline: str = Query("", max_length=160), show_email: bool = True,
-                  show_phone: bool = False, open_to_work: bool = True, user: dict = Depends(get_current_user),
+                  show_phone: bool = False, open_to_work: bool = True, thumb: bool = False, user: dict = Depends(get_current_user),
                   db: AsyncIOMotorDatabase = Depends(db_dep)):
     """The signed-in user's own portfolio in any template, before publishing."""
     d = pdata.build(await get_profile(db, user["_id"]), {"tagline": tagline, "show_email": show_email, "show_phone": show_phone,
                                                          "open_to_work": open_to_work})
-    return _html(tpl.render(template, d))
+    html = tpl.render(template, d)
+    if thumb:  # gallery thumbnails use a tall frame: full-window heroes would fill the whole card
+        fit = "<style>.hero,.cover{min-height:0!important;padding-top:70px!important;padding-bottom:50px!important}</style>"
+        html = html.replace("</head>", fit + "</head>", 1)
+    return _html(html)
 
 
 @router.get("/portfolio/download")
