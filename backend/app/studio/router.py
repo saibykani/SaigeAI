@@ -64,13 +64,12 @@ async def _jd_source(db: AsyncIOMotorDatabase, uid: str, body: JDIn) -> tuple[st
 
 
 def _headline(profile) -> str | None:
-    """Current role and experience counted from the role dates, e.g. "Senior QA Engineer · 3 yrs 5 mo experience"."""
-    from app.profiles.experience import describe
-
+    """Current role and exact experience from the role dates, e.g. "SDET · 3.4 years experience · since July 2023"."""
     p, roles = profile.personal, profile.knowledge.experience
     role = p.current_designation or next((e.title for e in roles if e.is_current), None) or (roles[0].title if roles else None)
-    yrs = describe(p.total_experience_years) if p.total_experience_years else None
-    return " · ".join(x for x in (role, f"{yrs} experience" if yrs else None) if x) or None
+    exp = tailor.experience_phrase(profile)
+    exp = exp.replace(" of experience (since ", " experience · since ").rstrip(")") if exp else None
+    return " · ".join(x for x in (role, exp) if x) or None
 
 
 async def _learn(db: AsyncIOMotorDatabase, uid: str, career_job_id: str | None, kind: str) -> None:

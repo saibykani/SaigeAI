@@ -66,18 +66,40 @@ def order_skills(profile: Profile, jd: JDAnalysis) -> tuple[list[str], list[str]
     return top + rest, top
 
 
+_EXP_PHRASE = re.compile(r"\b\d+(?:\.\d+)?\s*\+?\s*(?:years?|yrs?)(?=\s+(?:of\s+)?(?:[\w-]+\s+){0,2}experience)", re.I)
+
+
+def experience_phrase(profile: Profile) -> str | None:
+    """Exact experience from the role dates, e.g. "3.4 years of experience (since July 2023)"."""
+    from app.profiles.experience import parse_month
+
+    yrs = profile.personal.total_experience_years
+    if not yrs:
+        return None
+    starts = [d for d in (parse_month(e.start_date) for e in profile.knowledge.experience if e.start_date) if d]
+    import calendar
+
+    y, m = min(starts) if starts else (0, 0)
+    since = f" (since {calendar.month_name[m]} {y})" if starts else ""
+    return f"{f'{yrs:.1f}'.removesuffix('.0')} years of experience{since}"
+
+
 def template_summary(profile: Profile, job_title: str, matched: list[str]) -> str | None:
     p, kb = profile.personal, profile.knowledge
     parts: list[str] = []
-    yrs_n = p.total_experience_years
+    exp = experience_phrase(profile)
     if kb.professional_summary:
-        parts.append(kb.professional_summary.strip().rstrip(".") + ".")
-        if yrs_n and yrs_n >= 1 and not re.search(r"\b(?:years?|yrs?)\b", kb.professional_summary, re.I):
+        text = kb.professional_summary.strip().rstrip(".") + "."
+        if exp and _EXP_PHRASE.search(text):
+            # "3 years of experience" / "3+ yrs experience" -> the exact figure from the role dates
+            text = _EXP_PHRASE.sub(exp.split(" of experience")[0], text, count=1)
+            text = text.replace(f"{exp.split(' of experience')[0]} of experience", exp, 1) if "(since" in exp else text
+        parts.append(text)
+        if exp and not re.search(r"\b(?:years?|yrs?)\b", kb.professional_summary, re.I):
             role = p.current_designation or "Professional"
-            parts.insert(0, f"{role} with {int(yrs_n)}+ years of experience.")
+            parts.insert(0, f"{role} with {exp}.")
     elif p.current_designation:
-        yrs = f" with {int(p.total_experience_years)}+ years of experience" if p.total_experience_years else ""
-        parts.append(f"{p.current_designation}{yrs}.")
+        parts.append(f"{p.current_designation}{f' with {exp}' if exp else ''}.")
     # Name the job's skills the summary doesn't already mention (no repeats), and the role only when it's known.
     said = " ".join(parts).lower()
     extra = [s for s in matched if s.lower() not in said][:6]
