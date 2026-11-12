@@ -26,7 +26,7 @@ from app.utils import as_utc, new_id, utcnow
 
 MIN_SAMPLES = 6          # with both classes present
 MIN_TYPE_SAMPLES = 6
-RETRAIN_EVERY = 5        # new labels between automatic retrains
+RETRAIN_EVERY = 3        # new labels between automatic retrains (learn faster)
 POSITIVE = {"RECRUITER_REPLIED", "SCREENING", "ASSESSMENT", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "OFFER"}
 NEGATIVE = {"REJECTED"}
 TYPES = ("manual", "automation", "qa", "other")

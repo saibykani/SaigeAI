@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # Optional Adzuna job-search API (free key at developer.adzuna.com) for job discovery.
     adzuna_app_id: str | None = None
     adzuna_app_key: str | None = None
+    # Optional Jooble job-search API (free key at jooble.org/api/about) for more listings, any role.
+    jooble_api_key: str | None = None
+    # Optional Telegram bot (create one with @BotFather) for free notification alerts.
+    telegram_bot_token: str | None = None
+    telegram_bot_username: str | None = None
     adzuna_country: str = "in"
 
     # Shared secret for /api/cron/daily (Vercel Cron sends it as a Bearer token).

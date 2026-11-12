@@ -356,7 +356,10 @@ async def interview_prep(job_id: str, user: dict = Depends(get_current_user), db
 
     job = await service.get_owned(db, user["_id"], job_id)
     await log_action(db, user_id=user["_id"], action="job.interview_prep", entity="job", entity_id=job_id)
-    return prep.build(await get_profile(db, user["_id"]), job)
+    from app.connectors.router import coding_plan
+
+    coding = await db[c.INTEGRATIONS].find_one({"user_id": user["_id"], "provider": "coding"}) or {}
+    return {**prep.build(await get_profile(db, user["_id"]), job), "coding": coding_plan(coding.get("stats"))}
 
 
 @router.post("/{job_id}/match")

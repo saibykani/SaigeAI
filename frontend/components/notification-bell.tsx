@@ -105,7 +105,7 @@ export function NotificationBell() {
             <p className="text-lg font-medium">{t("Activity")}</p>
             <button onClick={readAll} disabled={!unread} className="text-sm text-primary hover:underline disabled:opacity-40">{t("Mark all read")}</button>
           </div>
-          <div className="flex gap-2 overflow-x-auto border-y px-5 py-3">
+          <div className="flex flex-wrap gap-2 border-y px-5 py-3">
             {FILTERS.map((f) => (
               <button key={f.id} onClick={() => setFilter(f.id)} aria-pressed={filter === f.id}
                 className={cn("shrink-0 rounded-full border px-3.5 py-1.5 text-sm", filter === f.id ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted")}>

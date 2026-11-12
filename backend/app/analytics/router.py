@@ -70,6 +70,8 @@ async def dashboard(user: dict = Depends(get_current_user),
     jobs = {
         "statuses": db[apps].aggregate([{"$match": {"user_id": uid}}, {"$group": {"_id": "$status", "n": {"$sum": 1}}}]).to_list(50),
         "jobs_total": count(c.JOBS),
+        "jobs_strong": count(c.JOBS, {"match.overall": {"$gte": 85}}),
+        "apps_sent": count(apps, {"applied_at": {"$ne": None}}),
         "jobs_relevant": count(c.JOBS, {"match.overall": {"$gte": 70}}),
         "profile_doc": get_profile_doc(db, uid),
         "automation": get_settings_doc(db, uid),
@@ -178,6 +180,8 @@ async def dashboard(user: dict = Depends(get_current_user),
         "totals": {
             "jobs": r["jobs_total"],
             "applications": sum(by_status.values()),
+            "applications_sent": r["apps_sent"],  # actually sent (applied_at set), not shortlisted/ready
+            "strong_matches": r["jobs_strong"],
             "interviews": r["interviews_total"],
             "resumes": r["resumes_total"],
         },

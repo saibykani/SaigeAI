@@ -15,7 +15,11 @@ const nextConfig: NextConfig = {
   // Same-origin proxy: the browser only ever talks to the Next.js origin, so the refresh-token
   // cookie stays first-party and no backend URL or secret reaches client code.
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${backend}/api/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${backend}/api/:path*` },
+      // Public portfolio websites: saige-ai.vercel.app/p/<slug>
+      { source: "/p/:slug", destination: `${backend}/api/p/:slug` },
+    ];
   },
   async headers() {
     return [

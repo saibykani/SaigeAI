@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
+import { Briefcase, Globe, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -39,6 +39,7 @@ const NAV: NavItem[] = [
   { group: "Resume & ATS", href: "/resumes", label: "Resume & ATS", icon: ScanText, tone: "purple", tabs: [
     { href: "/resumes", label: "My resumes & ATS coach" }, { href: "/studio", label: "Resume builder" }, { href: "/studio/analyze", label: "JD analyzer" },
     { href: "/studio/apply", label: "Apply by email" }] },
+  { group: "Resume & ATS", href: "/portfolio", label: "Portfolio", icon: Globe, tone: "purple" },
   { group: "Network", href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
   { group: "Network", href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
   { group: "Network", href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [
@@ -66,7 +67,7 @@ function SubNav({ pathname, children }: { pathname: string; children: React.Reac
   const current = section?.tabs && [...section.tabs].sort((a, b) => b.href.length - a.href.length).find((x) => matches(x.href, pathname));
   if (!section?.tabs || !current || pathname !== current.href) return <>{children}</>; // detail pages keep their own header
   return (
-    <div className="lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:gap-6">
+    <div className="lg:-ml-3 lg:grid lg:grid-cols-[168px_minmax(0,1fr)] lg:gap-5">
       <nav aria-label={t(section.label)} className="mb-6 lg:mb-0">
         <div className="lg:sticky lg:top-24">
           <p className="mb-2 hidden px-3 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground lg:block">{t(section.label)}</p>
@@ -231,7 +232,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <UserMenu />
         </header>
         {/* key on pathname replays the entrance animation on every navigation */}
-        <main id="main" tabIndex={-1} key={pathname} className="animate-rise relative outline-none w-full max-w-[1440px] flex-1 px-4 py-6 md:px-8 md:py-8">
+        <main id="main" tabIndex={-1} key={pathname} className="animate-rise relative outline-none w-full max-w-[1440px] flex-1 px-4 py-6 md:px-6 md:py-7">
           <SubNav pathname={pathname}>{children}</SubNav>
         </main>
         {pathname !== "/assistant" && <AssistantBubble />}

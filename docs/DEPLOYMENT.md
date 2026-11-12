@@ -146,6 +146,17 @@ scheduler job, which then runs the auto-applier (`jobs/auto_apply.py`) for users
 
 Adzuna is optional and off by default. Only set `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` if you have a working key.
 
+**Jooble (optional, any role):** get a free key at https://jooble.org/api/about and set `JOOBLE_API_KEY`. Jobs for you then also
+searches Jooble's official API.
+
+**Telegram alerts (optional):** create a bot with @BotFather, then set `TELEGRAM_BOT_TOKEN` (the token) and
+`TELEGRAM_BOT_USERNAME` (without @). Users connect from Settings → Integrations → Telegram alerts.
+
+**Google Drive backup:** the Google sign-in now also asks for `drive.file` (only files Saige creates). In Google Cloud, enable the
+**Google Drive API** and add the `.../auth/drive.file` scope under Data access. Users who already connected Gmail sign in again once.
+
+**Portfolio sites:** public pages are served at `/p/<slug>` on the frontend (a rewrite to the backend's `/api/p/<slug>`). No env var.
+
 ### WhatsApp alerts
 
 These are set up entirely in the app (Integrations → WhatsApp notifications) using the user's own

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { GmailConnectCard } from "@/components/gmail-app-password";
 import { CalendarFeedCard, GithubCard } from "@/components/connectors";
+import { CodingCard, DriveCard, TelegramCard } from "@/components/connectors-more";
 import { HiringPortalsCard } from "@/components/hiring-portals";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -143,8 +144,11 @@ export default function IntegrationsPage() {
         </div>
       )}
 
+      <TelegramCard />
       <CalendarFeedCard />
+      {data.gmail.available && <DriveCard connected={Boolean(data.gmail.drive)} onConnect={connectGmail} />}
       <GithubCard />
+      <CodingCard />
 
       <Card className="animate-rise mb-6 overflow-hidden">
         <CardHeader>

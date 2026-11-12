@@ -28,6 +28,7 @@ from app.logging_setup import configure_logging, request_id_var
 from app.ml.router import router as ml_router
 from app.notifications.router import router as notifications_router
 from app.portals.router import router as portals_router
+from app.portfolio.router import router as portfolio_router
 from app.privacy.router import audit_router
 from app.privacy.router import router as privacy_router
 from app.profiles.router import router as profile_router
@@ -37,6 +38,7 @@ from app.resumes.ai_router import router as resume_ai_router
 from app.resumes.router import router as resumes_router
 from app.scheduler.router import router as scheduler_router
 from app.services.rate_limit import client_key, write_limiter
+from app.services.telegram import router as telegram_router
 from app.studio.router import router as studio_router
 from app.suggestions.router import router as suggestions_router
 from app.utils import new_id
@@ -134,7 +136,7 @@ def create_app() -> FastAPI:
               ml_router,
               applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router, linkedin_posts_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
-              recruiters_router, extension_router, suggestions_router, growth_router, connectors_router):
+              recruiters_router, extension_router, suggestions_router, growth_router, connectors_router, portfolio_router, telegram_router):
         api.include_router(r)
     app.include_router(api)
     return app

@@ -73,7 +73,10 @@ backend/app/
                           # never moves application status); auto_reply.py (reply drafts to recruiter mail from verified profile facts)
   linkedin_posts/          # daily LinkedIn posting agent: content.py (series from verified skills), render.py (Pillow card / PDF
                           # carousel), client.py (official OAuth + Posts API, w_member_social), service.py, router.py (/api/linkedin/*)
-  connectors/router.py    # calendar feed (/connectors/calendar + public /calendar/{token}.ics, calendar_feeds coll.) + GitHub public repos -> projects
+  connectors/router.py    # LeetCode/HackerRank public stats -> coding plan in interview prep; calendar feed (/connectors/calendar + public /calendar/{token}.ics, calendar_feeds coll.) + GitHub public repos -> projects
+  portfolio/               # Portfolio builder: data.py (from the user's own verified profile), templates.py (26 standalone HTML templates),
+                          # router.py (/portfolio preview/publish/download; public /api/p/{slug}, served at frontend /p/{slug} via rewrite)
+  services/telegram.py    # Telegram alerts (Bot API, /integrations/telegram link flow; notify() mirrors); services/drive.py Drive PDF backup
   growth/router.py        # /api/growth: ghosting (10+ days silent, Mon/Thu notify via scheduler followups), weekly goals (goals coll.),
                           # salary insight (INR postings only + AmbitionBox/Glassdoor links, no scraping), role suggestions + hide words
   suggestions/router.py   # Resume & profile coach agent (/api/suggestions, /run): ranked truthful fixes; dashboard CoachCard

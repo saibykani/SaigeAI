@@ -151,3 +151,77 @@ async def github_import(body: GithubImportIn, user: dict = Depends(get_current_u
         run.output = {"added": len(added)}
     await log_action(db, user_id=uid, action="profile.github_imported", entity="profile", details={"added": added})
     return {"added": added, "skipped": [r for r in body.repos if _pretty(r) not in added]}
+
+
+# ------------------------------------------------------------------ coding practice (LeetCode / HackerRank public profiles)
+
+LC_QUERY = ("query($u:String!){matchedUser(username:$u){profile{ranking}submitStatsGlobal{acSubmissionNum{difficulty count}}"
+            "tagProblemCounts{advanced{tagName tagSlug problemsSolved}intermediate{tagName tagSlug problemsSolved}"
+            "fundamental{tagName tagSlug problemsSolved}}}}")
+CORE_TOPICS = [("Array", "array"), ("String", "string"), ("Hash Table", "hash-table"), ("Two Pointers", "two-pointers"),
+               ("Sliding Window", "sliding-window"), ("Linked List", "linked-list"), ("Stack", "stack"), ("Binary Search", "binary-search"),
+               ("Tree", "tree"), ("Graph", "graph"), ("Dynamic Programming", "dynamic-programming"), ("SQL", "database")]
+
+
+def coding_client() -> httpx.AsyncClient:
+    """Factory (patched in tests)."""
+    return httpx.AsyncClient(timeout=12, headers={"User-Agent": "SaigeAI", "Referer": "https://leetcode.com"})
+
+
+async def _leetcode(username: str) -> dict:
+    async with coding_client() as client:
+        r = await client.post("https://leetcode.com/graphql", json={"query": LC_QUERY, "variables": {"u": username}})
+    u = (r.json().get("data") or {}).get("matchedUser") if r.status_code == 200 else None
+    if not u:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"LeetCode user “{username}” not found (or the profile is private).")
+    solved = {x["difficulty"]: x["count"] for x in u["submitStatsGlobal"]["acSubmissionNum"]}
+    tags = {t["tagSlug"]: t["problemsSolved"] for grp in u["tagProblemCounts"].values() for t in grp}
+    return {"username": username, "solved": solved.get("All", 0), "easy": solved.get("Easy", 0), "medium": solved.get("Medium", 0),
+            "hard": solved.get("Hard", 0), "ranking": (u.get("profile") or {}).get("ranking"), "topics": tags}
+
+
+async def _hackerrank(username: str) -> list[dict]:
+    async with coding_client() as client:
+        r = await client.get(f"https://www.hackerrank.com/rest/hackers/{username}/badges")
+    if r.status_code != 200:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"HackerRank user “{username}” not found.")
+    return [{"name": b.get("badge_name"), "stars": b.get("stars", 0)} for b in (r.json().get("models") or []) if b.get("badge_name")]
+
+
+def coding_plan(stats: dict | None) -> dict | None:
+    """What to practise next: weakest core topics first, with links to the topic's problem list."""
+    if not stats or not stats.get("leetcode"):
+        return None
+    lc = stats["leetcode"]
+    weak = sorted(CORE_TOPICS, key=lambda t: lc["topics"].get(t[1], 0))[:4]
+    target = "Aim for 2 medium problems a day" if lc["medium"] < 100 else "Mix in 1 hard problem every other day"
+    return {"leetcode": {k: lc[k] for k in ("username", "solved", "easy", "medium", "hard", "ranking")},
+            "hackerrank": stats.get("hackerrank") or [],
+            "practise": [{"topic": n, "solved": lc["topics"].get(s, 0), "url": f"https://leetcode.com/tag/{s}/"} for n, s in weak],
+            "tip": target}
+
+
+class CodingIn(BaseModel):
+    leetcode: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{1,40}$")
+    hackerrank: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.-]{1,40}$")
+
+
+@router.put("/connectors/coding")
+async def coding_connect(body: CodingIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Link public coding profiles (no password). Stats are fetched now and refreshed when you press Refresh."""
+    if not body.leetcode and not body.hackerrank:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Type a LeetCode or HackerRank username.")
+    stats = {"leetcode": await _leetcode(body.leetcode) if body.leetcode else None,
+             "hackerrank": await _hackerrank(body.hackerrank) if body.hackerrank else None}
+    await db[c.INTEGRATIONS].update_one({"user_id": user["_id"], "provider": "coding"},
+                                        {"$set": {"user_id": user["_id"], "provider": "coding", "usernames": body.model_dump(), "stats": stats,
+                                                  "updated_at": utcnow()}}, upsert=True)
+    await log_action(db, user_id=user["_id"], action="integration.coding_linked", entity="integration", details=body.model_dump())
+    return {"usernames": body.model_dump(), "plan": coding_plan(stats)}
+
+
+@router.get("/connectors/coding")
+async def coding_status(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    doc = await db[c.INTEGRATIONS].find_one({"user_id": user["_id"], "provider": "coding"}) or {}
+    return {"usernames": doc.get("usernames") or {}, "plan": coding_plan(doc.get("stats")),
+            "updated_at": doc["updated_at"].isoformat() if doc.get("updated_at") else None}

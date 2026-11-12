@@ -229,7 +229,7 @@ export interface Dashboard {
     | "offers",
     number
   >;
-  totals: { jobs: number; applications: number; interviews: number; resumes: number };
+  totals: { jobs: number; applications: number; interviews: number; resumes: number; applications_sent?: number; strong_matches?: number };
   high_match_jobs: { id: string; title: string; company: string; score: number }[];
   action_required: {
     applications_need_approval: number;
@@ -657,7 +657,7 @@ export interface InboxEmail {
 
 export interface Integrations {
   google: { connected: boolean; available: boolean };
-  gmail: { connected: boolean; available: boolean; email: string | null; method: "oauth" | "app_password" | null; api_send?: boolean; status: string; error: string | null; last_sync_at: string | null;
+  gmail: { connected: boolean; available: boolean; email: string | null; method: "oauth" | "app_password" | null; api_send?: boolean; drive?: boolean; status: string; error: string | null; last_sync_at: string | null;
     last_result?: { search?: Record<"mail" | "portals", { matched?: number; fetched?: number; mailbox?: string; fallback?: boolean } | undefined> } | null };
   whatsapp: { connected: boolean; enabled: boolean; phone: string | null; error: string | null; muted?: string[] };
   linkedin: { snapshot: boolean; mode: string };

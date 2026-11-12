@@ -161,12 +161,13 @@ export function ResumeHealth({ resumes }: { resumes: Resume[] }) {
   const fixable = (area: string) => data?.sections.find((s) => s.area === area && !s.ok && s.fixable);
   const typed = Object.values(edits).filter((v) => v.trim()).length;
 
-  async function fix() {
+  async function fix(only?: "verbs" | "split" | "trim_skills" | "edits") {
     setBusy(true);
     setErr(null);
+    const body = only ? { edits: only === "edits" ? edits : {}, verbs: only === "verbs", split: only === "split", trim_skills: only === "trim_skills" }
+      : { edits, verbs: opts.verbs && !!fixable("Strong verbs"), split: opts.split && !!fixable("Bullet length"), trim_skills: opts.trim_skills && !!fixable("Skills") };
     try {
-      const r = await request<FixOut>(`/resumes/${id}/health/fix`, { method: "POST", body: { edits, verbs: opts.verbs && !!fixable("Strong verbs"),
-        split: opts.split && !!fixable("Bullet length"), trim_skills: opts.trim_skills && !!fixable("Skills") } });
+      const r = await request<FixOut>(`/resumes/${id}/health/fix`, { method: "POST", body });
       setResult(r);
       setEdits({});
       await reload();
@@ -215,6 +216,17 @@ export function ResumeHealth({ resumes }: { resumes: Resume[] }) {
                     {s.ok ? <Check className="mt-0.5 size-4 shrink-0" style={{ color: "var(--tone-green)" }} /> : <X className="mt-0.5 size-4 shrink-0 text-primary" />}
                     <span><b className="font-medium">{s.area}</b> <span className="text-muted-foreground">· {s.tip}</span></span>
                   </p>
+                  {!s.ok && (() => {
+                    const kind = s.area === "Strong verbs" ? "verbs" : s.area === "Bullet length" ? "split" : s.area === "Skills" && s.fixable ? "trim_skills"
+                      : s.area === "Quantified impact" ? "edits" : null;
+                    const link = ["Contact details", "Summary", "Length"].includes(s.area) ? "/profile" : null;
+                    if (kind && (s.fixable || kind === "edits")) return (
+                      <Button size="sm" variant="outline" className="ml-6 mt-2" disabled={busy || (kind === "edits" && typed === 0)} onClick={() => void fix(kind)}>
+                        <Check /> {kind === "edits" ? (typed ? `Save my ${typed} rewrite(s) as a new version` : "Type a rewrite below, then save") : "Apply this fix → new version"}
+                      </Button>);
+                    if (link) return <a href={link} className="ml-6 mt-2 inline-block text-xs text-primary underline">Fix in Profile, then rebuild</a>;
+                    return null;
+                  })()}
                   {!s.ok && s.items.length > 0 && (
                     <ul className="mt-3 space-y-2 pl-6">
                       {s.items.map((it) => (

@@ -196,6 +196,18 @@ FAMILIES: list[tuple[tuple[str, ...], list[str], list[str]]] = [
     (("devops", "sre", "cloud"), ["DevOps Engineer", "SRE", "Cloud Engineer", "Platform Engineer"], []),
     (("product",), ["Product Manager", "Product Owner", "Associate Product Manager", "Business Analyst"], []),
     (("business analyst",), ["Business Analyst", "Product Owner", "Functional Consultant", "Data Analyst"], []),
+    (("sales", "business development", "bde"), ["Sales Executive", "Business Development Executive", "Inside Sales", "Account Manager",
+                                                 "Key Account Manager"], []),
+    (("marketing", "seo", "content"), ["Digital Marketing Executive", "SEO Specialist", "Content Writer", "Social Media Manager",
+                                       "Performance Marketing"], []),
+    (("hr", "recruiter", "talent"), ["HR Executive", "Talent Acquisition Specialist", "HR Generalist", "Recruiter", "HRBP"], []),
+    (("account", "finance", "audit"), ["Accountant", "Accounts Executive", "Financial Analyst", "Audit Associate", "Tax Associate"], []),
+    (("operations", "supply", "logistics"), ["Operations Executive", "Supply Chain Analyst", "Logistics Coordinator", "Procurement Executive"], []),
+    (("support", "customer"), ["Customer Support Executive", "Customer Success Manager", "Technical Support Engineer", "Helpdesk"], []),
+    (("designer", "ux", "ui"), ["UI/UX Designer", "Product Designer", "Graphic Designer", "Visual Designer"], []),
+    (("teacher", "trainer", "tutor"), ["Teacher", "Corporate Trainer", "Academic Counsellor", "Instructional Designer"], []),
+    (("nurse", "medical", "pharma"), ["Staff Nurse", "Medical Representative", "Clinical Research Associate", "Pharmacist"], []),
+    (("mechanical", "civil", "electrical"), ["Mechanical Engineer", "Site Engineer", "Electrical Engineer", "Maintenance Engineer"], []),
 ]
 _TITLE_NOISE = re.compile(r"\s*[\(\[\-–|,].*$")
 

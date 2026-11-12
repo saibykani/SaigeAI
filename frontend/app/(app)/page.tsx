@@ -27,7 +27,7 @@ import {
   Wand2,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Notice } from "@/components/app-shell";
 import { CoachCard, HistoryTable } from "@/components/coach-history";
@@ -48,6 +48,25 @@ import { formatDateTime } from "@/utils/format";
 function greeting() {
   const h = new Date().getHours();
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+}
+
+// A different warm line each visit, tuned to the time of day and weekday. Never claims anything about the user.
+const WISHES: Record<string, string[]> = {
+  morning: ["Fresh day, fresh openings. Let's find the one that fits you.", "Coffee in hand? Your best matches are waiting below.",
+    "Small steps every morning add up to the offer letter.", "Rise and shine, {n}. Today is a great day to hit Apply."],
+  afternoon: ["Halfway through the day: one tailored application beats ten generic ones.", "Keep the momentum going, {n}. You're closer than you think.",
+    "A quick follow-up this afternoon could be the reply you're waiting for.", "Recruiters are online now. A good time to reach out."],
+  evening: ["Wind down with one smart move: check today's new matches.", "Great work today, {n}. Tomorrow's applications are already lined up.",
+    "Evenings are perfect for polishing your resume. Saige has suggestions ready.", "Rest well. Saige keeps scanning while you sleep."],
+  monday: ["New week, new goals. Set your weekly targets and let's go.", "Monday energy: the first application of the week counts the most."],
+  friday: ["Happy Friday, {n}! Send one more application before the weekend.", "Friday wins: review your follow-ups and close the week strong."],
+  weekend: ["Weekend mode: a calm time to upgrade your profile.", "Enjoy your weekend, {n}. A small profile tweak now pays off on Monday."],
+};
+function wish(name?: string) {
+  const d = new Date(), h = d.getHours(), day = d.getDay();
+  const pool = [...WISHES[h < 12 ? "morning" : h < 17 ? "afternoon" : "evening"],
+    ...(day === 1 ? WISHES.monday : day === 5 ? WISHES.friday : day === 0 || day === 6 ? WISHES.weekend : [])];
+  return pool[Math.floor(Math.random() * pool.length)].replace("{n}", name || "there");
 }
 
 function timeAgo(iso: string): string {
@@ -74,6 +93,7 @@ export default function DashboardPage() {
   const scheduler = useApi<SchedulerStatus>("/scheduler/status");
   const [toggling, setToggling] = useState(false);
 
+  const hello = useMemo(() => wish((user?.name || "").split(" ")[0]), [user?.name]);
   if (error) return <Notice tone="error">{error}</Notice>;
   if (loading && !data) return <Skeleton />;
   if (!data) return null;
@@ -113,7 +133,8 @@ export default function DashboardPage() {
       <section className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-4xl font-light tracking-[-0.03em] md:text-[52px] md:leading-[1.05]">{greeting()}{firstName ? `, ${firstName}` : ""}</h1>
-          <p className="mt-2 text-[15px] text-muted-foreground">
+          <p className="mt-2 text-lg text-foreground/80">{hello}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
             Next profile refresh {refreshTime} {tzLabel} · last ran {lastRan}{sched && sched.naukri_streak > 0 ? ` · Naukri streak ${sched.naukri_streak}d` : ""}
           </p>
           <div className="mt-4 flex flex-wrap gap-2.5">
@@ -165,10 +186,10 @@ export default function DashboardPage() {
         <Link href="/jobs" className="rounded-3xl bg-primary p-5 text-primary-foreground">
           <p className="flex items-center gap-2 text-sm"><Briefcase className="size-5" /> Jobs tracked</p>
           <p className="mt-4 text-5xl font-light"><CountUp value={data.totals.jobs} /></p>
-          <p className="mt-2 text-sm opacity-90">{data.high_match_jobs.length} strong matches</p>
+          <p className="mt-2 text-sm opacity-90">{data.totals.strong_matches ?? data.high_match_jobs.length} strong matches (85%+)</p>
         </Link>
         {[
-          { l: "Applications sent", v: data.totals.applications, s: "Tracked across portals", h: "/applications", I: FileText },
+          { l: "Applications sent", v: data.totals.applications_sent ?? data.totals.applications, s: `${data.totals.applications} tracked in total`, h: "/applications", I: FileText },
           { l: "Interviews", v: data.totals.interviews, s: "Scheduled or completed", h: "/interviews", I: Star },
           { l: "Profile strength", v: data.profile.completeness, s: `${data.profile.unknown_fields.length} parts to finish`, h: "/profile", I: UserRound, pct: true },
         ].map(({ l, v, s, h, I, pct }) => (

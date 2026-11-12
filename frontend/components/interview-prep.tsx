@@ -15,13 +15,14 @@ type Prep = {
   prepare_first: string[];
   pitch: string;
   projects?: { name: string; uses: string[]; story: string[]; questions: string[] }[];
+  coding?: { leetcode: { solved: number; easy: number; medium: number; hard: number }; practise: { topic: string; solved: number; url: string }[]; tip: string } | null;
 };
 
 /** Interview prep for this job: likely questions, your own stories to answer with, and what to ask. */
 export function InterviewPrep({ jobId }: { jobId: string }) {
   const [data, setData] = useState<Prep | null>(null);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"tech" | "projects" | "star" | "ask">("tech");
+  const [tab, setTab] = useState<"tech" | "projects" | "coding" | "star" | "ask">("tech");
   async function load() {
     setBusy(true);
     try { setData(await request<Prep>(`/jobs/${jobId}/interview-prep`)); } finally { setBusy(false); }
@@ -50,7 +51,7 @@ export function InterviewPrep({ jobId }: { jobId: string }) {
             </p>
           )}
           <div className="inline-flex w-fit rounded-full border bg-muted/50 p-1 text-sm">
-            {([["tech", "Technical"], ["projects", "Your projects"], ["star", "Behavioural (STAR)"], ["ask", "Ask them"]] as const).map(([id, label]) => (
+            {([["tech", "Technical"], ["projects", "Your projects"], ["coding", "Coding"], ["star", "Behavioural (STAR)"], ["ask", "Ask them"]] as const).map(([id, label]) => (
               <button key={id} type="button" onClick={() => setTab(id)} className="rounded-full px-3.5 py-1"
                 style={tab === id ? { background: "var(--tone-red)", color: "#0b0b0c", fontWeight: 600 } : undefined}>{label}</button>
             ))}
@@ -80,6 +81,21 @@ export function InterviewPrep({ jobId }: { jobId: string }) {
                 </li>
               ))}
             </ul>
+          )}
+          {tab === "coding" && (
+            data.coding ? (
+              <div className="grid gap-3 text-sm md:grid-cols-2">
+                <div className="rounded-2xl border p-3">
+                  <p className="font-medium">LeetCode: {data.coding.leetcode.solved} solved</p>
+                  <p className="text-muted-foreground">Easy {data.coding.leetcode.easy} · Medium {data.coding.leetcode.medium} · Hard {data.coding.leetcode.hard}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{data.coding.tip} before this interview.</p>
+                </div>
+                <div className="rounded-2xl border p-3">
+                  <p className="font-medium">Practise your weakest topics</p>
+                  {data.coding.practise.map((t) => <a key={t.topic} href={t.url} target="_blank" rel="noopener noreferrer" className="block text-primary hover:underline">{t.topic} · {t.solved} solved →</a>)}
+                </div>
+              </div>
+            ) : <p className="text-sm text-muted-foreground">Link your LeetCode or HackerRank profile in Integrations to get a coding plan here.</p>
           )}
           {tab === "star" && (
             <ul className="flex flex-col gap-2">

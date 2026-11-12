@@ -37,7 +37,7 @@ DESC_KEEP = 6000
 DETAIL_FETCHES_PER_BOARD = 6
 
 SOURCE_LABEL = {
-    "himalayas": "Himalayas", "remotive": "Remotive", "jobicy": "Jobicy", "arbeitnow": "Arbeitnow", "adzuna": "Adzuna",
+    "himalayas": "Himalayas", "remotive": "Remotive", "jobicy": "Jobicy", "arbeitnow": "Arbeitnow", "adzuna": "Adzuna", "jooble": "Jooble",
     "greenhouse": "Career page", "lever": "Career page", "ashby": "Career page",
     "linkedin": "LinkedIn alert", "naukri": "Naukri alert", "indeed": "Indeed alert", "foundit": "Foundit alert",
     "glassdoor": "Glassdoor alert", "instahyre": "Instahyre alert", "hirist": "Hirist alert", "cutshort": "Cutshort alert",
@@ -273,7 +273,7 @@ async def build(db: AsyncIOMotorDatabase, uid: str, *, profile: Profile | None =
         if any(w in it["title"].lower() for w in hide):
             continue
         from_alert = it.get("source") in alerts.PORTALS
-        if not from_alert and it.get("source") != "adzuna" and not any(discover.title_matches(it["title"], r) for r in roles):
+        if not from_alert and it.get("source") not in ("adzuna", "jooble") and not any(discover.title_matches(it["title"], r) for r in roles):
             continue
         key = item_id(it)
         if key in seen:

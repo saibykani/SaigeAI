@@ -57,6 +57,15 @@ ROLE_FAMILIES: list[tuple[set[str], set[str]]] = [
     ({"devops", "sre", "platform", "infrastructure", "cloud"}, {"devops", "sre", "platform", "infrastructure", "cloud"}),
     ({"product", "pm"}, {"product", "pm"}),
     ({"designer", "ux", "ui"}, {"designer", "ux", "ui"}),
+    ({"sales", "business", "bde", "bdm", "account"}, {"sales", "business", "bde", "bdm", "account", "executive"}),
+    ({"marketing", "seo", "content", "brand", "digital"}, {"marketing", "seo", "content", "brand", "digital", "growth"}),
+    ({"hr", "recruiter", "talent", "people"}, {"hr", "recruiter", "talent", "people", "recruitment"}),
+    ({"accountant", "finance", "accounts", "ca", "audit"}, {"accountant", "finance", "accounts", "audit", "tax"}),
+    ({"operations", "supply", "logistics", "procurement"}, {"operations", "supply", "logistics", "procurement", "warehouse"}),
+    ({"support", "customer", "service"}, {"support", "customer", "service", "success", "helpdesk"}),
+    ({"nurse", "doctor", "pharmacist", "medical"}, {"nurse", "doctor", "pharmacist", "medical", "clinical"}),
+    ({"teacher", "tutor", "trainer", "faculty"}, {"teacher", "tutor", "trainer", "faculty", "lecturer"}),
+    ({"mechanical", "civil", "electrical"}, {"mechanical", "civil", "electrical", "site", "maintenance"}),
 ]
 STOP = {"engineer", "senior", "junior", "lead", "staff", "principal", "and", "the", "of", "in", "ii", "iii", "remote"}
 
@@ -178,12 +187,28 @@ def _epoch_date(v) -> str | None:
         return None
 
 
-PROVIDERS = {"adzuna": adzuna, "himalayas": himalayas, "remotive": remotive, "jobicy": jobicy, "arbeitnow": arbeitnow}
+async def jooble(client: httpx.AsyncClient, query: str, location: str | None, country: str | None = None) -> list[dict]:
+    """Jooble's official job-search API (free key): broad coverage of Indian job boards for ANY role."""
+    key = get_settings().jooble_api_key
+    r = await client.post(f"https://jooble.org/api/{key}", json={"keywords": query, "location": location or country or "India", "page": "1"})
+    r.raise_for_status()
+    out = []
+    for j in (r.json().get("jobs") or [])[:PER_PROVIDER]:
+        loc = j.get("location") or ""
+        out.append({"source": "jooble", "source_job_id": str(j.get("id") or j.get("link")), "title": _clean(j.get("title")),
+                    "company": j.get("company") or "", "location": loc, "remote": "remote" in loc.lower(), "url": j.get("link"),
+                    "posted": (j.get("updated") or "")[:10], "employment_type": j.get("type") or None,
+                    "salary_text": j.get("salary") or None, "description": _clean(j.get("snippet"))})
+    return out
+
+
+PROVIDERS = {"adzuna": adzuna, "jooble": jooble, "himalayas": himalayas, "remotive": remotive, "jobicy": jobicy, "arbeitnow": arbeitnow}
 
 
 def enabled_providers() -> list[str]:
     s = get_settings()
-    return [p for p in PROVIDERS if p != "adzuna" or (s.adzuna_app_id and s.adzuna_app_key)]
+    keys = {"adzuna": bool(s.adzuna_app_id and s.adzuna_app_key), "jooble": bool(s.jooble_api_key)}
+    return [p for p in PROVIDERS if keys.get(p, True)]
 
 
 def to_job_in(item: dict) -> JobIn:

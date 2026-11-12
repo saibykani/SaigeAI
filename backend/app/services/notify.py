@@ -20,4 +20,7 @@ async def notify(
     from app.services.whatsapp import mirror  # local import keeps this helper dependency-light
 
     await mirror(db, user_id, title, body, doc["details"], link, kind)
+    from app.services import telegram
+
+    await telegram.mirror(db, user_id, title, body, link)
     return doc["_id"]

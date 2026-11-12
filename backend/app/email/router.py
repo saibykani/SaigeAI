@@ -324,6 +324,7 @@ async def integrations(user: dict = Depends(get_current_user), db: AsyncIOMotorD
         "gmail": {"connected": bool(g), "available": s.google_oauth_enabled, "email": g.get("email") if g else None,
                   "method": (g.get("method") or "oauth") if g else None,
                   "api_send": bool(g and outbound.can_api(g)),
+                  "drive": bool(g and gmail.DRIVE_SCOPE in (g.get("scopes") or [])),
                   "status": g.get("status") if g else "not_connected", "error": g.get("error") if g else None,
                   "last_sync_at": g["last_sync_at"].isoformat() if g and g.get("last_sync_at") else None,
                   "last_result": (g.get("last_result") or {}) if g else None},

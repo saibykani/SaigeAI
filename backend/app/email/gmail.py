@@ -15,7 +15,8 @@ REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 API = "https://gmail.googleapis.com/gmail/v1/users/me"
 READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
-SCOPES = ["openid", "email", READ_SCOPE, "https://www.googleapis.com/auth/gmail.send"]
+DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file"  # only files Saige creates (resume backups)
+SCOPES = ["openid", "email", READ_SCOPE, "https://www.googleapis.com/auth/gmail.send", DRIVE_SCOPE]
 # Only job-search mail: skip promotions/social, look back 30 days.
 DEFAULT_QUERY = "newer_than:30d -category:promotions -category:social"
 

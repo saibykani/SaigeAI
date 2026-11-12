@@ -132,6 +132,27 @@ export const MANUAL: ManualSection[] = [
     ],
   },
   {
+    id: "portfolio", title: "Portfolio website", href: "/portfolio", tone: "purple", image: "/help/portfolio.jpg",
+    purpose: "Turn your verified profile into a personal website with one of 26 templates and publish it to your own link.",
+    steps: [
+      "Resume & ATS → Portfolio. The preview shows YOUR profile in the selected template (switch desktop / mobile at the top).",
+      "Pick any template: Hacker Terminal, Code Editor, Retro OS 95, RPG Character Sheet, Career Playlist, Chat Interview, Boarding Pass, Metro Map and more.",
+      "Choose your link (e.g. /p/asha-rao), add an optional tagline, and decide whether to show your email or phone.",
+      "Press “Publish my portfolio”. Copy the link for LinkedIn, your resume and email signature. The site updates whenever your Profile changes.",
+      "Unpublish any time, or Download HTML to host it yourself (GitHub Pages, Netlify).",
+    ],
+    tips: ["Add projects (or import them from GitHub in Integrations) to make your portfolio richer. Nothing on it is invented."],
+  },
+  {
+    id: "more-integrations", title: "Telegram, Google Drive, LeetCode / HackerRank", href: "/integrations", tone: "orange", image: "/help/integrations.jpg",
+    purpose: "Free alerts on Telegram, automatic resume backups to your Drive, and coding practice in interview prep.",
+    steps: [
+      "Telegram alerts: Connect Telegram → open the bot → press Start → “I pressed Start”. Every Saige notification also arrives in Telegram.",
+      "Google Drive backup: sign in with Google once; every ATS resume you generate is saved as a PDF in “Saige AI Resumes” in your Drive.",
+      "Coding practice: type your LeetCode / HackerRank username. Saige shows solved counts and your weakest core topics, and adds a Coding tab to interview prep.",
+    ],
+  },
+  {
     id: "profile", title: "Profile (last item in the sidebar)", href: "/profile", tone: "mint", image: "/help/profile.jpg",
     purpose: "Your verified career facts. Every resume, answer and message Saige writes uses only what's here, so nothing is ever invented.",
     steps: [

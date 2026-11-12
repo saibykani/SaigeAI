@@ -167,13 +167,21 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
     await db[c.RESUMES].insert_one(doc)
     await resumes.add_version(db, doc, parsed=parsed, raw_text=tailor.resume_text(parsed), source="studio",
                               changes=changes or ["Generated for this job"], base_resume_id=doc["base_resume_id"], job_id=body.job_id)
+    from app.services import drive
+
+    drive_link = None
+    if await drive.drive_integration(db, uid):  # backup to the user's own Google Drive (best effort)
+        fname = render.filename(profile.personal.name or parsed.name, company, date.today().isoformat(), "pdf")
+        drive_link = await drive.upload(db, uid, fname, render.render(parsed, template, "pdf", headline))
+        if drive_link:
+            await db[c.RESUMES].update_one({"_id": doc["_id"]}, {"$set": {"drive_link": drive_link}})
     await log_action(db, user_id=uid, action="studio.resume_generated", entity="resume", entity_id=doc["_id"],
                      details={"title": title, "company": company, "ats_score": report["score"], "template": template})
     return {"id": doc["_id"], "name": doc["name"], "company": company, "title": title, "template": template, "engine": engine,
             "resume": parsed.model_dump(), "ats": report, "changes": changes, "improve": _improve(report, analysis),
             "verdict": analysis["verdict"], "headline": headline, "experience_years": profile.personal.total_experience_years,
             "company_detected": bool(company) and not body.company.strip() and not body.career_job_id,
-            "html": render.to_html(parsed, render.TEMPLATES[template], headline)}
+            "html": render.to_html(parsed, render.TEMPLATES[template], headline), "drive_link": drive_link}
 
 
 def _surface_verified(parsed: ParsedResume, profile, jd) -> ParsedResume:
