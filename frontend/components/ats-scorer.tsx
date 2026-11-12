@@ -145,7 +145,8 @@ export function AtsScorer({ resumes }: { resumes: Resume[] }) {
 
 type HealthItem = { before: string; after?: string; ask?: string; edit?: boolean };
 type HealthSection = { area: string; ok: boolean; tip: string; items: HealthItem[]; fixable: boolean };
-type Health = { score: number; label: string; resume: string; bullets: number; quantified: number; words: number; sections: HealthSection[] };
+type Health = { score: number; label: string; resume: string; bullets: number; quantified: number; words: number; sections: HealthSection[]; plan?: Plan };
+type Plan = { rows: { before: string; after: string; changed: boolean; needs_number: boolean; ask: string }[]; projected: number; numbers_needed: number; blockers: string[] };
 type FixOut = Health & { before: number; changes: string[] };
 
 export function ResumeHealth({ resumes }: { resumes: Resume[] }) {
@@ -160,6 +161,21 @@ export function ResumeHealth({ resumes }: { resumes: Resume[] }) {
   const tone = !data ? "purple" : data.score >= 80 ? "green" : data.score >= 55 ? "yellow" : "red";
   const fixable = (area: string) => data?.sections.find((s) => s.area === area && !s.ok && s.fixable);
   const typed = Object.values(edits).filter((v) => v.trim()).length;
+
+  async function applyAll() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await request<FixOut>(`/resumes/${id}/health/fix`, { method: "POST", body: { edits, verbs: true, split: true, trim_skills: !!fixable("Skills") } });
+      setResult(r);
+      setEdits({});
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't apply the fixes.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function fix(only?: "verbs" | "split" | "trim_skills" | "edits") {
     setBusy(true);
@@ -203,6 +219,48 @@ export function ResumeHealth({ resumes }: { resumes: Resume[] }) {
                 <p className="text-muted-foreground">{data.quantified}/{data.bullets} bullets with numbers · {data.words} words · {data.sections.filter((s) => !s.ok).length} to fix</p>
               </div>
             </div>
+            {data.plan && data.plan.rows.length > 0 && (() => {
+              const pl = data.plan;
+              const left = Math.max(0, pl.numbers_needed - typed);
+              return (
+                <div className="rounded-2xl border">
+                  <div className="flex flex-wrap items-center gap-3 border-b p-4 text-sm">
+                    <b className="font-medium">Side by side: your resume → what changes</b>
+                    <span className="rounded-full border px-2.5 py-0.5">Now {data.score}</span>
+                    <span>→</span>
+                    <span className="rounded-full border px-2.5 py-0.5">After wording fixes {pl.projected}</span>
+                    <span>→</span>
+                    <span className="rounded-full bg-primary px-2.5 py-0.5 text-primary-foreground">100</span>
+                    <span className="text-muted-foreground">
+                      {left > 0 ? `add a real number to ${left} more bullet(s)` : "numbers done"}{pl.blockers.length ? ` · also fix in Profile: ${pl.blockers.join(", ")}` : ""}
+                    </span>
+                  </div>
+                  <div className="hidden grid-cols-2 gap-4 border-b px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground md:grid"><span>Your resume now</span><span>Change to</span></div>
+                  <ul className="divide-y">
+                    {pl.rows.map((r) => (
+                      <li key={r.before} className="grid gap-3 p-4 text-sm md:grid-cols-2 md:gap-4">
+                        <p className={r.changed || edits[r.before] ? "text-muted-foreground line-through decoration-muted-foreground/40" : ""}>{r.before}</p>
+                        <div className="space-y-2">
+                          {!r.changed && !r.needs_number && !edits[r.before] ? <p className="flex items-center gap-1.5 text-[var(--tone-green)]"><Check className="size-4" /> Good, no change</p>
+                            : <p>{edits[r.before]?.trim() || r.after}</p>}
+                          {r.needs_number && (
+                            <>
+                              <p className="text-xs text-primary">{r.ask}</p>
+                              <Input placeholder="Type the line with your real number (optional)" value={edits[r.before] ?? ""}
+                                onChange={(e) => setEdits((x) => ({ ...x, [r.before]: e.target.value }))} />
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex flex-wrap items-center gap-3 border-t p-4">
+                    <Button onClick={() => void applyAll()} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Check />} Apply all changes → new version</Button>
+                    <span className="text-xs text-muted-foreground">Wording fixes are automatic. Numbers come only from what you type; Saige never invents them.</span>
+                  </div>
+                </div>
+              );
+            })()}
             {result && (
               <Notice tone="success">
                 Saved as a new version: score {result.before} → {result.score}. {result.changes.slice(0, 4).join(" · ")}{result.changes.length > 4 ? ` · +${result.changes.length - 4} more` : ""}

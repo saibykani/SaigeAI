@@ -802,7 +802,10 @@ def glitch(d):
                         f"<main>{_sections(d)}{_contact_block(d, 'Initiate contact')}</main>", "Rajdhani:wght@400;700")
 
 
+from app.portfolio.landing import LANDINGS  # noqa: E402
+
 TEMPLATES = {
+    **LANDINGS,
     "dev_pro": ("Developer Pro ★", "Animated hero, typing role, counters, skill marquee, glowing timeline, tilting project cards", dev_pro,
                 ["#07070b", "#8b5cf6", "#0ea5e9"]),
     "particles": ("Particle Network ★", "Interactive node network that reacts to your cursor", particles, ["#030712", "#38bdf8", "#1e293b"]),
@@ -836,7 +839,7 @@ TEMPLATES = {
     "holo_card": ("Holo ID Card", "An iridescent holographic ID that shimmers", holo_card, ["#0a0a0f", "#ff6ec7", "#7873f5"]),
     "zen": ("Zen Garden", "Calm paper, an ensō brush circle and lots of air", zen, ["#f7f3ec", "#2f2a24", "#a0522d"]),
 }
-DEFAULT = "dev_pro"
+DEFAULT = "launch"
 
 
 def render(template_id: str, d: dict) -> str:

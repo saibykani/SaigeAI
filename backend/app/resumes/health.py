@@ -4,6 +4,7 @@ Rewrites only change wording of the user's own text (weak verb -> action verb, s
 over-long skills list to the skills the resume itself shows evidence for). Numbers are never invented: bullets
 without a result get a question to answer, and only text the user types is written back."""
 
+import math
 import re
 
 from app.resumes.tailor import resume_text
@@ -64,7 +65,25 @@ def _bullets(r: ParsedResume) -> list[str]:
     return [b for e in r.experience for b in (e.achievements or []) + (e.responsibilities or [])]
 
 
-def report(r: ParsedResume) -> dict:
+def plan(r: ParsedResume) -> dict:
+    """Side-by-side plan for every bullet: your line, the wording fix Saige applies, and whether it still needs a real number
+    from you. Also the score after the automatic fixes and how many numbers are needed to reach 100."""
+    rows = []
+    for b in _bullets(r):
+        after = _rewrite_verb(b) or b
+        if len(after.split()) > 32:
+            after = " / ".join(_split(after))
+        rows.append({"before": b, "after": after, "changed": after != b, "needs_number": not _NUM.search(b),
+                     "ask": "" if _NUM.search(b) else _question(b)})
+    fixed, _ = apply_fixes(r, {}, verbs=True, split=True, trim_skills=True)
+    rep = report(fixed, with_plan=False)
+    n = max(1, rep["bullets"])
+    need = max(0, math.ceil(0.4 * n) - rep["quantified"])
+    blockers = [s["area"] for s in rep["sections"] if not s["ok"] and s["area"] != "Quantified impact"]
+    return {"rows": rows, "projected": rep["score"], "numbers_needed": need, "blockers": blockers}
+
+
+def report(r: ParsedResume, with_plan: bool = True) -> dict:
     text = resume_text(r)
     bullets = _bullets(r)
     n = max(1, len(bullets))
@@ -114,7 +133,8 @@ def report(r: ParsedResume) -> dict:
     ]
     score = round(100 * sum(s["ok"] for s in sections) / len(sections))
     return {"score": score, "label": "Strong" if score >= 80 else "Average — may get overlooked" if score >= 55 else "Needs work",
-            "sections": sections, "bullets": len(bullets), "quantified": len(quantified), "words": len(words)}
+            "sections": sections, "bullets": len(bullets), "quantified": len(quantified), "words": len(words),
+            **({"plan": plan(r)} if with_plan else {})}
 
 
 def apply_fixes(r: ParsedResume, edits: dict[str, str], *, verbs: bool, split: bool, trim_skills: bool) -> tuple[ParsedResume, list[str]]:
