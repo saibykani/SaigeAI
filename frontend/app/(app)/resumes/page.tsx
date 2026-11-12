@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
+import { AtsCoach } from "@/components/ats-coach";
 import { AtsScorer, ResumeHealth } from "@/components/ats-scorer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/form";
+import { Field, Input } from "@/components/ui/form";
 import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
 import { RESUME_KINDS, type Resume, type ResumeDetail } from "@/types/api";
@@ -20,7 +21,7 @@ export default function ResumesPage() {
   const { data, error, loading, reload } = useApi<Resume[]>(`/resumes?include_archived=${showArchived}`);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
-  const [kind, setKind] = useState(RESUME_KINDS[0]);
+  const kind = RESUME_KINDS[0];
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: React.ReactNode } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -37,6 +38,8 @@ export default function ResumesPage() {
     try {
       const r = await request<ResumeDetail>("/resumes", { method: "POST", form });
       const warnings = r.current_version?.parsed.warnings ?? [];
+      // Every upload also fills the empty profile fields (never overwrites what the user entered).
+      await request("/profile/fill-from-resumes", { method: "POST" }).catch(() => undefined);
       setMessage({
         tone: "success",
         text: (
@@ -67,7 +70,7 @@ export default function ResumesPage() {
           <CardDescription>PDF, DOCX or TXT up to 5 MB. Scanned image PDFs need OCR and won&apos;t parse.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onUpload} className="grid gap-4 md:grid-cols-[2fr_1.5fr_1.5fr_auto] md:items-end">
+          <form onSubmit={onUpload} className="grid gap-4 md:grid-cols-[2fr_2fr_auto] md:items-end">
             <Field label="File" htmlFor="file">
               <Input
                 ref={fileRef}
@@ -81,13 +84,6 @@ export default function ResumesPage() {
             </Field>
             <Field label="Name" htmlFor="rname">
               <Input id="rname" placeholder="e.g. SDET – 2026" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
-            </Field>
-            <Field label="Type" htmlFor="kind">
-              <Select id="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
-                {RESUME_KINDS.map((k) => (
-                  <option key={k}>{k}</option>
-                ))}
-              </Select>
             </Field>
             <Button type="submit" disabled={!file || busy}>
               <Upload /> {busy ? "Parsing…" : "Upload"}
@@ -126,7 +122,7 @@ export default function ResumesPage() {
                     {r.status === "archived" && <Badge variant="muted">Archived</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {r.kind} · v{r.version_count} · {formatBytes(r.size)} · updated {formatDate(r.updated_at)}
+                    v{r.version_count} · {formatBytes(r.size)} · updated {formatDate(r.updated_at)}
                   </p>
                 </div>
               </Card>
@@ -136,6 +132,7 @@ export default function ResumesPage() {
       )}
       {data && data.length > 0 && (
         <div className="mt-6">
+          <AtsCoach resumes={data.filter((r) => r.status === "active")} />
           <ResumeHealth resumes={data.filter((r) => r.status === "active")} />
           <AtsScorer resumes={data.filter((r) => r.status === "active")} />
         </div>

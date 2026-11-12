@@ -13,20 +13,77 @@ export type ManualSection = {
 };
 
 export const QUICK_START = [
-  "Create an account: step 1 is your email and password, step 2 your current role, experience, the roles you want, city, country and notice period (these start your profile).",
-  "Resumes → upload your resume, then click “Import to profile”.",
-  "Profile (last item in the sidebar) → fill anything marked UNKNOWN, and check your target roles and country.",
-  "Settings → Integrations → connect Gmail with an App Password and set up job alerts on LinkedIn / Naukri / Indeed. Settings → Alerts & templates → turn on WhatsApp alerts.",
-  "Jobs → Jobs for you lists every job for your roles in your country. Select all good matches and click “Auto-apply to selected”.",
-  "Applications → “Ready to approve” → Select all → “Approve & apply”. Email applications go from your Gmail; others open the employer's page.",
-  "Recruiters → Sync recruiters to collect HR emails, pick an email or WhatsApp template, and click “Approve & send”.",
+  "Sign up with your name, email and password (career details on the next page are optional).",
+  "Welcome → upload your resume. Saige reads it and fills your profile: contact details, experience, skills, projects, education.",
+  "Check the details it found (phone, city, notice period, expected CTC) and fix anything wrong.",
+  "Tell Saige the roles and cities you want. Jobs for you starts filling up right away.",
+  "Connect Gmail (Settings → Integrations) and install the Chrome extension.",
+  "Jobs → open a good match → Tailor resume or Apply. Applications waits for your approval before anything is sent.",
+  "Resumes → ATS coach: type any role to see your weak spots and build a 100% ATS-fit resume from verified facts.",
 ];
 
 export const MANUAL: ManualSection[] = [
   {
+    id: "guide-onboarding", title: "Guide: get started (new users)", href: "/welcome", tone: "green", image: "/help/onboarding.jpg",
+    purpose: "The first time you sign in, Saige asks you to set up your profile. It takes about 3 minutes and everything Saige writes later comes from it.",
+    steps: [
+      "Step 1 · Upload your resume: drop a PDF, Word or TXT file (up to 5 MB). Saige extracts your name, contact details, roles with dates, skills, projects and education and fills your profile.",
+      "Step 2 · Check your details: phone, current role, city, experience, notice period, expected CTC and LinkedIn are pre-filled. Correct anything and leave blank what you don't want to share.",
+      "Step 3 · Jobs you want: type the roles (e.g. SDET, QA Automation Engineer) and cities, and tick remote if you're open to it.",
+      "Step 4 · Connect & finish: connect Gmail and download the Chrome extension, then press “Go to my dashboard”.",
+      "Already have an account? Profile → “Update profile from resume” fills every empty field from all your uploaded resumes. It never overwrites what you typed.",
+    ],
+    tips: ["Until you upload a resume, Saige brings you back to this setup page. Help & Guide is always open."],
+  },
+  {
+    id: "guide-search", title: "Guide: search for jobs", href: "/jobs", tone: "orange", image: "/help/jobs.jpg",
+    purpose: "Find jobs that match your verified profile across job APIs, company career portals and the postings you capture.",
+    steps: [
+      "Type a role and city in the search box at the top of any page (e.g. “QA engineer in Hyderabad”).",
+      "Jobs → Jobs for you lists fresh roles for your target roles and country, ranked by match %.",
+      "Jobs → Career portals scans 65+ company career sites (Greenhouse, Lever, Workday, Amazon…). Filter by company, location and fit.",
+      "On LinkedIn, Naukri or any job page, open the Saige extension and press “Save to Saige” or “Score this job”.",
+      "Open a job to see why it matches, which skills you have and which are missing.",
+    ],
+  },
+  {
+    id: "guide-apply", title: "Guide: apply to a job", href: "/applications", tone: "purple", image: "/help/apply-email.jpg",
+    purpose: "Saige prepares the resume, cover letter and answers; you approve before anything is sent.",
+    steps: [
+      "From a job: press Tailor resume (only verified facts), then Apply. The application waits in Applications → Ready to approve.",
+      "Email applications (HR email in the post): ATS Studio → Apply by email → paste the post. Saige drafts the email and resume; review and press “Send from my Gmail”.",
+      "Portal applications: open the job page, open the extension and press “Fill this application”. Check everything and press Submit on the site yourself.",
+      "Track every application, reply and interview in Applications and Interviews.",
+    ],
+    tips: ["Nothing is sent without your approval unless you turned on an auto mode in Settings."],
+  },
+  {
+    id: "guide-ats", title: "Guide: make your resume 100% ATS-fit", href: "/resumes", tone: "teal", image: "/help/ats-coach.jpg",
+    purpose: "The ATS coach agent shows, for any role, where your resume is weak and what to add, then builds the fitted resume.",
+    steps: [
+      "Resumes → ATS coach: choose your resume and type any target role (or paste a job description).",
+      "Press “Find weak spots”. Each section shows ✓ or ✗: keywords, summary, experience bullets, projects and ATS checks, with the fix.",
+      "“Add now” keywords are already proven in your profile. “Confirm or learn” keywords: tick only those you have really used.",
+      "Press “Build my … resume”. Download it as PDF or Word, or open it in ATS Studio to change the template.",
+    ],
+    tips: ["Saige never adds a skill or number you haven't confirmed, so the resume holds up in interviews."],
+  },
+  {
+    id: "guide-extension", title: "Guide: resume from any job page (extension)", href: "/settings#extension", tone: "teal", image: "/help/settings.jpg",
+    purpose: "Create an ATS resume for the job you're looking at on LinkedIn, Naukri or any hiring site, without leaving the page.",
+    steps: [
+      "Download the extension from Welcome or Settings, open chrome://extensions, turn on Developer mode and “Load unpacked”.",
+      "Settings → Automation & privacy → Browser extension: create a token and paste it in the extension's Settings.",
+      "On a job posting, select the job description text (optional), open the extension, pick a template and press “Create resume”.",
+      "See the ATS match and missing keywords, then Download PDF or Word.",
+    ],
+  },
+  {
     id: "dashboard", title: "Dashboard", href: "/", tone: "green", image: "/help/dashboard.jpg",
     purpose: "Your daily overview: what Saige found and did today, pipeline health, your market (jobs found, where, which companies), what needs you, and the next scheduled profile refresh.",
     steps: [
+      "Start with the greeting, quick links and “Your next step”: the one thing worth doing now.",
+      "Resume & profile coach lists ranked fixes; History shows everything Saige did today, yesterday or this week.",
       "Read the Today cards: each shows today's count, the change since yesterday and a 7-day trend line. Click a card to open that section.",
       "Check “Action required” for approvals, follow-ups, interviews and profile suggestions waiting for you.",
       "Use “Pause all automation” at the top whenever you want Saige to stop everything instantly.",
@@ -34,10 +91,15 @@ export const MANUAL: ManualSection[] = [
     tips: ["The profile-readiness ring shows how complete your profile is. Higher means better matching and documents."],
   },
   {
+    id: "history", title: "History (Dashboard)", href: "/", tone: "green", image: "/help/history.jpg",
+    purpose: "Everything Saige did for you: every agent run and action, with time, details and status.",
+    steps: ["Scroll to History on the Dashboard.", "Switch between Today, Yesterday and 7 days.", "Failed runs show in red; open the matching page to retry."],
+  },
+  {
     id: "profile", title: "Profile (last item in the sidebar)", href: "/profile", tone: "mint", image: "/help/profile.jpg",
     purpose: "Your verified career facts. Every resume, answer and message Saige writes uses only what's here, so nothing is ever invented.",
     steps: [
-      "Import from your resume first (Resumes → Import to profile), then review each section.",
+      "Press “Update profile from resume” to fill every empty field from your uploaded resumes (nothing you typed is overwritten), then review each section.",
       "Fill fields marked UNKNOWN: notice period, current and expected CTC, target roles, country and preferred locations.",
       "Your target roles and country decide which jobs appear in Jobs → Jobs for you.",
       "Add skills, tools and achievements you can back up in an interview. Click Save.",

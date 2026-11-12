@@ -40,7 +40,7 @@ export function UserMenu() {
   const items = [
     { href: "/alerts", label: "WhatsApp alerts", icon: MessageCircle, tone: "mint" },
     { href: "/settings#extension", label: "Browser extension", icon: Puzzle, tone: "teal" },
-    { href: "/help", label: "Help & Docs", icon: LifeBuoy, tone: "orange" },
+    { href: "/help", label: "Help & Guide", icon: LifeBuoy, tone: "orange" },
   ];
   const current = LANGUAGES.find((l) => l.id === lang)!;
   const avatar = (size: string) => (

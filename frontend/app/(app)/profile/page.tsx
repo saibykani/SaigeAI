@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Save, Trash2 } from "lucide-react";
+import { FileUp, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
@@ -115,7 +115,8 @@ const text = (v: string | null | undefined) => v ?? "";
 const orNull = (v: string) => (v.trim() === "" ? null : v);
 
 export default function ProfilePage() {
-  const { data, error, loading, setData } = useApi<Profile>("/profile");
+  const { data, error, loading, setData, reload } = useApi<Profile>("/profile");
+  const [filling, setFilling] = useState(false);
   const [form, setForm] = useState<Editable | null>(null);
   const [tab, setTab] = useState<Tab>("Personal");
   const [saving, setSaving] = useState(false);
@@ -131,6 +132,22 @@ export default function ProfilePage() {
   const setPersonal = (patch: Partial<PersonalInfo>) => setForm({ ...form, personal: { ...form.personal, ...patch } });
   const setPrefs = (patch: Partial<Preferences>) => setForm({ ...form, preferences: { ...form.preferences, ...patch } });
   const setKb = (patch: Partial<Editable["knowledge"]>) => setForm({ ...form, knowledge: { ...form.knowledge, ...patch } });
+
+  async function fillFromResumes() {
+    setFilling(true);
+    setMessage(null);
+    try {
+      const r = await request<{ resumes: number; applied: string[]; completeness: number }>("/profile/fill-from-resumes", { method: "POST" });
+      await reload();
+      setMessage(r.resumes === 0
+        ? { tone: "error", text: "No uploaded resume yet. Upload one in Resumes first." }
+        : { tone: "success", text: r.applied.length ? `Filled ${r.applied.length} empty field(s) from ${r.resumes} resume(s). Profile is ${r.completeness}% complete. Nothing you entered was overwritten.` : "Your profile already has everything your resumes contain." });
+    } catch (e) {
+      setMessage({ tone: "error", text: e instanceof Error ? e.message : "Couldn't read your resumes." });
+    } finally {
+      setFilling(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -152,9 +169,14 @@ export default function ProfilePage() {
         title="Profile"
         description="Your verified source of truth. Saige will never generate anything that isn't backed by this profile."
         actions={
-          <Button onClick={save} disabled={saving}>
-            <Save /> {saving ? "Saving…" : "Save profile"}
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => void fillFromResumes()} disabled={filling} title="Fills only empty fields from your uploaded resumes">
+              <FileUp /> {filling ? "Reading resumes…" : "Update profile from resume"}
+            </Button>
+            <Button onClick={save} disabled={saving}>
+              <Save /> {saving ? "Saving…" : "Save profile"}
+            </Button>
+          </>
         }
       />
 

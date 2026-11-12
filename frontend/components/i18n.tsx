@@ -29,7 +29,7 @@ const STRINGS: Record<string, Partial<Record<Lang, string>>> = {
   "Profile Sync": { hi: "प्रोफ़ाइल सिंक", te: "ప్రొఫైల్ సింక్" },
   Integrations: { hi: "इंटीग्रेशन", te: "ఇంటిగ్రేషన్లు" },
   "Automation & Privacy": { hi: "ऑटोमेशन और गोपनीयता", te: "ఆటోమేషన్ & గోప్యత" },
-  "Help & Docs": { hi: "सहायता और गाइड", te: "సహాయం & గైడ్" },
+  "Help & Guide": { hi: "सहायता और गाइड", te: "సహాయం & గైడ్" },
   "Saige AI · your AI job search partner": { hi: "Saige AI · आपका AI जॉब सर्च साथी", te: "Saige AI · మీ AI ఉద్యోగ శోధన భాగస్వామి" },
   Notifications: { hi: "सूचनाएँ", te: "నోటిఫికేషన్లు" },
   "Mark all read": { hi: "सब पढ़ा हुआ", te: "అన్నీ చదివినట్లు" },

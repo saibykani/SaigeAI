@@ -66,7 +66,7 @@ export default function HelpPage() {
 
   return (
     <>
-      <PageHeader title="Help & Docs" description="The complete Saige AI user manual: what every screen does and how to use it, step by step, with screenshots." />
+      <PageHeader title="Help & Guide" description="Step-by-step guides (get started, search jobs, apply, 100% ATS resume, extension) and the manual for every screen, with screenshots." />
 
       <div className="relative mb-8 max-w-xl">
         <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -89,7 +89,7 @@ export default function HelpPage() {
         <div className="flex min-w-0 flex-col gap-8">
           {!needle && (
             <Card id="quick-start" className="scroll-mt-24 p-6" style={{ borderColor: "color-mix(in srgb, var(--tone-green) 30%, transparent)", backgroundImage: "radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--tone-green) 12%, transparent), transparent 60%)" }}>
-              <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight"><Rocket className="size-5" style={{ color: "var(--tone-green)" }} /> Quick start: set up in 10 minutes</h2>
+              <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight"><Rocket className="size-5" style={{ color: "var(--tone-green)" }} /> Quick start: set up in 3 minutes</h2>
               <ol className="mt-4 grid gap-2 md:grid-cols-2">
                 {QUICK_START.map((step, i) => (
                   <li key={step} className="flex gap-3 rounded-xl border bg-card-solid/50 p-3 text-sm">

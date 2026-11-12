@@ -54,7 +54,7 @@ backend/app/
   database/mongo.py       # lazy client, 8 s server-selection timeout, index creation
   auth/                   # register/login/refresh/logout, Google OAuth (+ Gmail link branch in callback)
   profiles/               # master profile (service._deep_merge), optimizer, LinkedIn/Naukri sync
-  resumes/                # parser, import-to-profile, tailor/ATS/cover letter, DOCX export
+  resumes/                # parser, import-to-profile, tailor/ATS/cover letter, DOCX export, coach.py (ATS coach agent for any role: /resumes/ats-coach)
   jobs/                   # jd_parser, 9-dimension matching, dedupe, ATS board sources, discover.py (job APIs + role-family title filter),
                           # feed.py (Jobs for you: country/remote scope, walk-ins, HR emails; cached in job_feed), alerts.py (portal job-alert emails),
                           # auto_apply.py (daily prepare + approve_many: email applications via SMTP with resume attached)
@@ -85,7 +85,7 @@ backend/app/
   recruiters/             # contacts (manual/CSV/inbox), truth-checked outreach drafts, caps (10/day, 3/company/week), follow-ups, reply/bounce detection
   extension/router.py     # personal access tokens (/auth/tokens) + PAT-only /ext/* (analyze, save, answers)
 backend/tests/            # pytest + mongomock-motor; conftest disables .env and pops GOOGLE_*/ANTHROPIC_*
-frontend/app/(app)/       # authenticated pages (welcome = 4-step first-run setup; register redirects there) (profiles = LinkedIn & Naukri hub); frontend/app/login, /register = galaxy sign-in
+frontend/app/(app)/       # authenticated pages (welcome = first-run setup, enforced by AppShell via /profile/setup-status until a resume is uploaded) (profiles = LinkedIn & Naukri hub); frontend/app/login, /register = galaxy sign-in
 frontend/components/      # app-shell (nav), kpi, galaxy, loader3d, theme, motion, ui/*
 frontend/services/api.ts  # request() wrapper (auto refresh, CSRF header); types in types/api.ts
 extension/                # Chrome MV3 extension v1.1 (popup + options): score/save, "Fill this application" (types verified fields,

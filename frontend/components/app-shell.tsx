@@ -14,6 +14,7 @@ import { AssistantBubble, Orb } from "@/components/assistant";
 import { Celebrate } from "@/components/celebrate";
 import { Button } from "@/components/ui/button";
 import { useLiveSync } from "@/hooks/use-api";
+import { request } from "@/services/api";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/utils/cn";
 
@@ -41,7 +42,7 @@ const NAV: NavItem[] = [
   { group: "Account", href: "/alerts", label: "Settings", icon: Settings, tone: "red", tabs: [
     { href: "/alerts", label: "Alerts & templates" }, { href: "/integrations", label: "Integrations" },
     { href: "/agent", label: "Agent" }, { href: "/settings", label: "Automation & privacy" }] },
-  { group: "Account", href: "/help", label: "Help & Docs", icon: LifeBuoy, tone: "green" },
+  { group: "Account", href: "/help", label: "Help & Guide", icon: LifeBuoy, tone: "green" },
 ];
 const GROUPS = ["Workspace", "Network", "Account"];
 
@@ -96,6 +97,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [loading, user, router, pathname]);
 
   useEffect(() => setOpen(false), [pathname]);
+
+  // First run: a new user sets up the profile (resume upload) before using the rest of Saige.
+  useEffect(() => {
+    if (!user || pathname === "/welcome" || pathname.startsWith("/help")) return;
+    let skipped = false;
+    try { skipped = localStorage.getItem("saige-welcome-done") === "1"; } catch { /* private mode */ }
+    if (skipped) return;
+    void request<{ needs_setup: boolean }>("/profile/setup-status").then((s) => { if (s.needs_setup) router.replace("/welcome"); }).catch(() => undefined);
+  }, [user, pathname, router]);
 
   if (loading || !user) {
     return (

@@ -324,3 +324,28 @@ async def export_resume(resume_id: str, version_id: str | None = None, user: dic
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume version not found")
     safe = "".join(ch if ch.isalnum() or ch in " -_" else "_" for ch in resume["name"])[:80] or "resume"
     return _docx_response(resume_docx(ParsedResume.model_validate(v["parsed"])), f"{safe}.docx")
+
+
+class AtsCoachIn(BaseModel):
+    resume_id: str = Field(max_length=64)
+    role: str = Field(min_length=2, max_length=200)
+    jd_text: str | None = Field(default=None, max_length=60000)
+
+
+@router.post("/resumes/ats-coach")
+async def ats_coach(body: AtsCoachIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """ATS coach agent: where this resume is weak for any role, and what to add to reach 100%."""
+    from app.resumes import coach
+    from app.services.agent_runs import agent_run
+
+    uid = user["_id"]
+    resume = await resumes.get_owned(db, uid, body.resume_id)
+    v = await db[c.RESUME_VERSIONS].find_one({"_id": resume.get("current_version_id"), "resume_id": resume["_id"]})
+    if not v:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume version not found")
+    async with agent_run(db, "ats_coach", uid, {"resume_id": body.resume_id, "role": body.role}) as run:
+        out = await coach.coach(db, uid, ParsedResume.model_validate(v["parsed"]), body.role.strip(), body.jd_text)
+        run.output = {"score": out["score"], "projected": out["projected"]}
+    await log_action(db, user_id=uid, action="resume.ats_coach", entity="resume", entity_id=body.resume_id,
+                     details={"role": body.role, "score": out["score"]})
+    return {**out, "resume": resume["name"]}
