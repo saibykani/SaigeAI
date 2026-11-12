@@ -8,13 +8,17 @@ import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { VideoTour } from "@/components/video-tour";
+import { VideoTour, type Scene } from "@/components/video-tour";
 import { CONTACT_EMAIL } from "@/components/legal";
 import { Input } from "@/components/ui/form";
 
 import { FAQ, MANUAL, QUICK_START, type ManualSection } from "./manual";
 
-function Section({ s, onZoom }: { s: ManualSection; onZoom: (src: string) => void }) {
+const same = (t: string) => ({ en: t, te: t, hi: t, ta: t, kn: t, ml: t });
+/** Every manual screen as a narrated scene (English): purpose + each step, read aloud by the presenter. */
+const FULL: Scene[] = MANUAL.map((m) => ({ image: m.image, title: same(m.title), say: same(`${m.purpose} ${m.steps.map((x) => x.replace(/^Step \d+ · /, "")).join(" ")}`) }));
+
+function Section({ s, onZoom, onWatch }: { s: ManualSection; onZoom: (src: string) => void; onWatch: () => void }) {
   const tone = `var(--tone-${s.tone})`;
   return (
     <section id={s.id} className="scroll-mt-24">
@@ -40,6 +44,7 @@ function Section({ s, onZoom }: { s: ManualSection; onZoom: (src: string) => voi
             {s.tips?.map((t) => (
               <p key={t} className="rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground"><b className="text-foreground">Tip:</b> {t}</p>
             ))}
+            <button type="button" onClick={onWatch} className="no-print inline-flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium hover:bg-muted"><PlayCircle className="size-4 text-primary" /> Watch the video explainer</button>
             <Link href={s.href} className="mt-auto inline-flex items-center gap-1 text-sm font-medium hover:underline">Open {s.title} <ArrowRight className="size-3.5" /></Link>
           </div>
           <button type="button" onClick={() => onZoom(s.image)} className="group relative block overflow-hidden border-t bg-black lg:border-l lg:border-t-0" aria-label={`Enlarge screenshot of ${s.title}`}>
@@ -57,6 +62,8 @@ function Section({ s, onZoom }: { s: ManualSection; onZoom: (src: string) => voi
 export default function HelpPage() {
   const [q, setQ] = useState("");
   const [zoom, setZoom] = useState<string | null>(null);
+  const [tour, setTour] = useState<{ mode: "quick" | "full"; start: number; play: boolean }>({ mode: "quick", start: 0, play: false });
+  const watch = (id: string) => { setTour({ mode: "full", start: Math.max(0, MANUAL.findIndex((m) => m.id === id)), play: true }); document.getElementById("video-tour")?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => {
     if (!zoom) return;
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setZoom(null); };
@@ -98,8 +105,12 @@ export default function HelpPage() {
           {!needle && (
             <section id="video-tour" className="no-print scroll-mt-24">
               <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight"><PlayCircle className="size-5 text-primary" /> Video tour with voice</h2>
-              <p className="mb-4 text-sm text-muted-foreground">A 3-minute narrated walkthrough of setup and every main feature. Choose English, Telugu, Hindi, Tamil, Kannada or Malayalam. Press Record video to save it as a file you can share.</p>
-              <VideoTour />
+              <p className="mb-4 text-sm text-muted-foreground">An AI presenter walks you through of setup and every main feature. Choose English, Telugu, Hindi, Tamil, Kannada or Malayalam. Press Record video to save it as a file you can share.</p>
+              <div className="mb-3 flex flex-wrap gap-2">
+                <Button size="sm" variant={tour.mode === "quick" ? "default" : "outline"} onClick={() => setTour({ mode: "quick", start: 0, play: false })}>Quick tour · 6 languages</Button>
+                <Button size="sm" variant={tour.mode === "full" ? "default" : "outline"} onClick={() => setTour({ mode: "full", start: 0, play: false })}>Every screen · {MANUAL.length} videos (English)</Button>
+              </div>
+              {tour.mode === "quick" ? <VideoTour key="q" /> : <VideoTour key={`f${tour.start}`} scenes={FULL} englishOnly start={tour.start} autoPlay={tour.play} />}
             </section>
           )}
           {!needle && (
@@ -116,7 +127,7 @@ export default function HelpPage() {
             </Card>
           )}
 
-          {sections.map((s) => <Section key={s.id} s={s} onZoom={setZoom} />)}
+          {sections.map((s) => <Section key={s.id} s={s} onZoom={setZoom} onWatch={() => watch(s.id)} />)}
 
           <section id="faq" className="scroll-mt-24">
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold tracking-tight"><LifeBuoy className="size-5" /> Frequently asked</h2>

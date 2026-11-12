@@ -718,3 +718,14 @@ body {
   section, .card, details { break-inside: avoid; }
   details > *:not(summary) { display: block !important; }
 }
+
+/* Help tour AI presenter */
+.presenter { filter: drop-shadow(0 12px 30px rgba(0,0,0,.6)); animation: pr-breathe 4s ease-in-out infinite; }
+@keyframes pr-breathe { 50% { transform: translateY(-4px) scale(1.02); } }
+.presenter .pr-eyes { animation: pr-blink 4.5s infinite; transform-origin: 60px 52px; }
+@keyframes pr-blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+.presenter .pr-ring { animation: spin 18s linear infinite; transform-origin: 60px 60px; }
+.presenter.talking .pr-ring { stroke-opacity: .7; }
+.pr-mouth { animation: pr-talk .22s ease-in-out infinite alternate; transform-origin: 60px 80px; }
+@keyframes pr-talk { from { transform: scaleY(.35); } to { transform: scaleY(1); } }
+@keyframes spin { to { transform: rotate(360deg); } }

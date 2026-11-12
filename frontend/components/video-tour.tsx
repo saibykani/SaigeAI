@@ -21,7 +21,7 @@ export const LANGS = [
 ] as const;
 type Lang = (typeof LANGS)[number]["id"];
 
-type Scene = { image: string; title: Record<Lang, string>; say: Record<Lang, string> };
+export type Scene = { image: string; title: Record<Lang, string>; say: Record<Lang, string> };
 
 export const SCENES: Scene[] = [
   { image: "/help/login.jpg",
@@ -138,23 +138,57 @@ export const SCENES: Scene[] = [
 
 const SILENT_MS = 7000;
 
-function pickVoice(code: string): SpeechSynthesisVoice | null {
-  if (typeof speechSynthesis === "undefined") return null;
-  const vs = speechSynthesis.getVoices();
+/** Voices for a language, best first: neural "Natural"/"Online" voices (Edge), then Google voices (Chrome), then the rest. */
+export function voicesFor(code: string): SpeechSynthesisVoice[] {
+  if (typeof speechSynthesis === "undefined") return [];
   const base = code.split("-")[0];
-  return vs.find((v) => v.lang === code) ?? vs.find((v) => v.lang.replace("_", "-").startsWith(base)) ?? null;
+  const rank = (v: SpeechSynthesisVoice) => (/natural|neural/i.test(v.name) ? 0 : /online/i.test(v.name) ? 1 : /google/i.test(v.name) ? 2 : 3) + (v.lang.replace("_", "-") === code ? 0 : 0.5);
+  return speechSynthesis.getVoices().filter((v) => v.lang.replace("_", "-").toLowerCase().startsWith(base)).sort((a, b) => rank(a) - rank(b));
 }
 
-export function VideoTour() {
+function pickVoice(code: string, name?: string): SpeechSynthesisVoice | null {
+  const vs = voicesFor(code);
+  return vs.find((v) => v.name === name) ?? vs[0] ?? null;
+}
+
+/** Talking AI presenter: blinks, breathes and moves its mouth on every spoken word. */
+function Presenter({ talking, pulse }: { talking: boolean; pulse: number }) {
+  return (
+    <div className={cn("presenter", talking && "talking")} aria-hidden>
+      <svg viewBox="0 0 120 120" className="size-full">
+        <defs>
+          <radialGradient id="pf" cx="50%" cy="38%" r="65%"><stop offset="0" stopColor="#3a3a44" /><stop offset="1" stopColor="#141418" /></radialGradient>
+        </defs>
+        <circle cx="60" cy="60" r="58" fill="url(#pf)" stroke="var(--primary)" strokeWidth="2.5" />
+        <circle cx="60" cy="60" r="52" fill="none" stroke="var(--primary)" strokeOpacity=".25" strokeDasharray="3 6" className="pr-ring" />
+        <g className="pr-eyes">
+          <ellipse cx="44" cy="52" rx="7" ry="8" fill="#fff" /><ellipse cx="76" cy="52" rx="7" ry="8" fill="#fff" />
+          <circle cx="45" cy="53" r="3.6" fill="var(--primary)" /><circle cx="77" cy="53" r="3.6" fill="var(--primary)" />
+        </g>
+        <ellipse key={pulse} cx="60" cy="80" rx="13" ry={talking ? 7 : 2.5} fill="var(--primary)" className={talking ? "pr-mouth" : ""} />
+      </svg>
+    </div>
+  );
+}
+
+type Props = { scenes?: Scene[]; englishOnly?: boolean; start?: number; autoPlay?: boolean };
+
+export function VideoTour({ scenes = SCENES, englishOnly = false, start = 0, autoPlay = false }: Props) {
+  const SCENES_ = scenes;
   const [lang, setLang] = useState<Lang>("en");
-  const [i, setI] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const [i, setI] = useState(start);
+  const [playing, setPlaying] = useState(autoPlay);
+  const [voiceName, setVoiceName] = useState("");
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [talking, setTalking] = useState(false);
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => { setI(start); }, [start, scenes]);
   const [muted, setMuted] = useState(false);
   const [hasVoice, setHasVoice] = useState(true);
   const [rec, setRec] = useState<MediaRecorder | null>(null);
   const [recErr, setRecErr] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scene = SCENES[i];
+  const scene = SCENES_[i];
   const L = LANGS.find((l) => l.id === lang)!;
 
   const stopAudio = () => {
@@ -164,13 +198,13 @@ export function VideoTour() {
 
   const advance = useCallback(() => {
     setI((n) => {
-      if (n + 1 >= SCENES.length) { setPlaying(false); return n; }
+      if (n + 1 >= SCENES_.length) { setPlaying(false); return n; }
       return n + 1;
     });
   }, []);
 
   useEffect(() => {
-    const check = () => setHasVoice(Boolean(pickVoice(L.voice)));
+    const check = () => { const vs = voicesFor(L.voice); setVoices(vs); setHasVoice(vs.length > 0); };
     check();
     if (typeof speechSynthesis !== "undefined") speechSynthesis.addEventListener("voiceschanged", check);
     return () => { if (typeof speechSynthesis !== "undefined") speechSynthesis.removeEventListener("voiceschanged", check); };
@@ -180,19 +214,22 @@ export function VideoTour() {
     stopAudio();
     if (!playing) return;
     const text = scene.say[lang];
-    const voice = pickVoice(L.voice);
+    const voice = pickVoice(L.voice, voiceName);
     if (!muted && voice && typeof SpeechSynthesisUtterance !== "undefined") {
       const u = new SpeechSynthesisUtterance(text);
       u.voice = voice;
       u.lang = voice.lang;
-      u.rate = 0.95;
-      u.onend = () => { timer.current = setTimeout(advance, 600); };
+      u.rate = /natural|neural|online/i.test(voice.name) ? 1 : 0.92;
+      u.onstart = () => setTalking(true);
+      u.onboundary = () => setPulse((n) => n + 1);
+      u.onend = () => { setTalking(false); timer.current = setTimeout(advance, 700); };
       speechSynthesis.speak(u);
     } else {
       timer.current = setTimeout(advance, Math.max(SILENT_MS, text.length * 55));
     }
     return stopAudio;
-  }, [playing, i, lang, muted, scene, L.voice, advance]);
+  }, [playing, i, lang, muted, scene, L.voice, voiceName, advance]);
+  useEffect(() => { if (!playing) setTalking(false); }, [playing]);
 
   useEffect(() => () => stopAudio(), []);
 
@@ -223,7 +260,7 @@ export function VideoTour() {
   }
 
   useEffect(() => {
-    if (rec && !playing && i === SCENES.length - 1) setTimeout(() => { if (rec.state !== "inactive") rec.stop(); }, 1500);
+    if (rec && !playing && i === SCENES_.length - 1) setTimeout(() => { if (rec.state !== "inactive") rec.stop(); }, 1500);
   }, [rec, playing, i]);
 
   return (
@@ -233,9 +270,10 @@ export function VideoTour() {
         <img key={`${i}-${playing}`} src={scene.image} alt={scene.title.en} className={cn("absolute inset-0 h-full w-full object-cover object-left-top", playing && "tour-kb")} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
         <div className="absolute left-5 top-4 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-xs">
-          <span className="font-semibold">Saige AI</span><span className="opacity-60">· {i + 1}/{SCENES.length}</span>
+          <span className="font-semibold">Saige AI</span><span className="opacity-60">· {i + 1}/{SCENES_.length}</span>
           {rec && <span className="flex items-center gap-1 text-red-400"><Circle className="size-3 fill-current" /> REC</span>}
         </div>
+        <div className="absolute bottom-24 right-4 size-20 md:bottom-auto md:right-6 md:top-6 md:size-28"><Presenter talking={talking || (playing && (muted || !hasVoice))} pulse={pulse} /></div>
         <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
           <h3 key={`t${i}${lang}`} className="tour-in text-2xl font-semibold md:text-4xl">{scene.title[lang]}</h3>
           <p key={`s${i}${lang}`} className="tour-in mt-2 max-w-3xl text-sm leading-relaxed text-white/85 md:text-base">{scene.say[lang]}</p>
@@ -247,18 +285,24 @@ export function VideoTour() {
         )}
       </div>
       <div className="flex h-1 bg-white/10">
-        {SCENES.map((_, k) => <span key={k} className={cn("flex-1 border-r border-black/50 transition-colors", k <= i ? "bg-[var(--primary)]" : "")} />)}
+        {SCENES_.map((_, k) => <span key={k} className={cn("flex-1 border-r border-black/50 transition-colors", k <= i ? "bg-[var(--primary)]" : "")} />)}
       </div>
       <div className="flex flex-wrap items-center gap-2 p-3">
         <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setI((n) => Math.max(0, n - 1))} aria-label="Previous"><ChevronLeft /></Button>
         <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause /> : <Play />}</Button>
-        <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setI((n) => Math.min(SCENES.length - 1, n + 1))} aria-label="Next"><ChevronRight /></Button>
+        <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setI((n) => Math.min(SCENES_.length - 1, n + 1))} aria-label="Next"><ChevronRight /></Button>
         <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setMuted((m) => !m)} aria-label={muted ? "Unmute" : "Mute"}>{muted ? <VolumeX /> : <Volume2 />}</Button>
         <div className="flex flex-wrap gap-1">
-          {LANGS.map((l) => (
+          {(englishOnly ? LANGS.filter((l) => l.id === "en") : LANGS).map((l) => (
             <button key={l.id} onClick={() => setLang(l.id)} className={cn("rounded-full px-3 py-1 text-xs", lang === l.id ? "bg-white text-black" : "bg-white/10 hover:bg-white/20")}>{l.label}</button>
           ))}
         </div>
+        {voices.length > 1 && (
+          <select value={voiceName} onChange={(e) => setVoiceName(e.target.value)} className="max-w-48 rounded-full bg-white/10 px-3 py-1 text-xs" aria-label="Voice">
+            <option value="" className="text-black">Best voice</option>
+            {voices.map((v) => <option key={v.name} value={v.name} className="text-black">{v.name.replace(/Microsoft |Google | Online \(Natural\)/g, "")}</option>)}
+          </select>
+        )}
         <div className="ml-auto flex gap-2">
           {rec ? <Button size="sm" variant="secondary" onClick={() => rec.stop()}><Square /> Stop & download</Button>
             : <Button size="sm" variant="secondary" onClick={() => void record()}><Download /> Record video</Button>}
@@ -266,7 +310,7 @@ export function VideoTour() {
       </div>
       {(!hasVoice || recErr) && (
         <p className="px-4 pb-3 text-xs text-white/60">
-          {recErr ?? `No ${L.label} voice is installed on this device, so the tour plays with captions only. Add one in Windows Settings → Time & language → Speech (or Android TTS settings) to hear it.`}
+          {recErr ?? `No ${L.label} voice is installed on this device, so the tour plays with captions only. Tip: open Saige in Microsoft Edge for natural neural voices in all six languages, or add a voice in Windows Settings → Time & language → Speech.`}
         </p>
       )}
     </div>
