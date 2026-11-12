@@ -1,9 +1,11 @@
 "use client";
 
-import { Bot, Building2, CalendarClock, CheckSquare, ExternalLink, Loader2, Mail, Send, Square } from "lucide-react";
+import { Bot, Building2, CalendarClock, CheckSquare, ExternalLink, Mail, Send, Square } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { DotRing } from "@/components/dot-ring";
+import { useT } from "@/components/i18n";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { CountUp } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
@@ -107,7 +109,7 @@ function ApprovalQueue({ apps, onDone }: { apps: Application[]; onDone: () => vo
           <button type="button" className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium" onClick={() => setPicked(all ? new Set() : new Set(ready.map((a) => a.id)))}>
             {all ? <CheckSquare className="size-4" style={{ color: "var(--tone-purple)" }} /> : <Square className="size-4" />} Select all
           </button>
-          <Button size="sm" disabled={!picked.size || busy} onClick={approve}>{busy ? <Loader2 className="animate-spin" /> : <Send />} Approve &amp; apply ({picked.size})</Button>
+          <Button size="sm" disabled={!picked.size || busy} onClick={approve}>{busy ? <DotRing size={18} dots={12} /> : <Send />} Approve &amp; apply ({picked.size})</Button>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
@@ -183,7 +185,7 @@ function SubmittedCheck({ apps, onDone }: { apps: Application[]; onDone: () => v
           <button type="button" className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium" onClick={() => setPicked(all ? new Set() : new Set(pending.map((a) => a.id)))}>
             {all ? <CheckSquare className="size-4" style={{ color: "var(--tone-teal)" }} /> : <Square className="size-4" />} Select all
           </button>
-          <Button size="sm" disabled={!picked.size || busy} onClick={confirm}>{busy ? <Loader2 className="animate-spin" /> : <Send />} Mark {picked.size || ""} as applied</Button>
+          <Button size="sm" disabled={!picked.size || busy} onClick={confirm}>{busy ? <DotRing size={18} dots={12} /> : <Send />} Mark {picked.size || ""} as applied</Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -205,6 +207,7 @@ function SubmittedCheck({ apps, onDone }: { apps: Application[]; onDone: () => v
 }
 
 export default function ApplicationsPage() {
+  const { t } = useT();
   const { data, error, loading, reload } = useApi<Application[]>("/applications");
   const closed = (data ?? []).filter((a) => CLOSED.includes(a.status));
 
@@ -213,15 +216,15 @@ export default function ApplicationsPage() {
       <PageHeader
         title="Applications"
         description="Every application from preparation to offer. Approve prepared applications in bulk: email applications go from your Gmail, the rest open on the employer's site."
-        actions={<Link href="/jobs" className={buttonVariants({ variant: "gradient", className: "animate-gradient" })}><Send /> Prepare from a job</Link>}
+        actions={<Link href="/jobs" className={buttonVariants({ variant: "gradient", className: "animate-gradient" })}><Send /> {t("Prepare from a job")}</Link>}
       />
       {error && <Notice tone="error">{error}</Notice>}
       {loading && !data && <div className="grid gap-4 md:grid-cols-5">{COLUMNS.map((c) => <div key={c.title} className="skeleton h-64 rounded-2xl" />)}</div>}
       {data && data.length === 0 && (
         <Card className="flex flex-col items-center gap-3 py-14 text-center">
           <Send className="size-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No applications yet. In Jobs → Jobs for you, select jobs and click Auto-apply, or turn on the auto-applier.</p>
-          <Link href="/jobs" className={buttonVariants({ size: "sm" })}>Go to Jobs</Link>
+          <p className="text-sm text-muted-foreground">{t("No applications yet. In Jobs → Jobs for you, select jobs and click Auto-apply, or turn on the auto-applier.")}</p>
+          <Link href="/jobs" className={buttonVariants({ size: "sm" })}>{t("Go to Jobs")}</Link>
         </Card>
       )}
       {data && data.length > 0 && (
@@ -235,11 +238,11 @@ export default function ApplicationsPage() {
                 <section key={col.title} className="animate-rise flex flex-col gap-3 rounded-3xl border bg-muted/40 p-3" style={{ animationDelay: `${ci * 60}ms` }}>
                   <header className="flex items-center gap-2 px-1">
                     <span className="size-2.5 rounded-full" style={{ background: `var(--ord-${col.ord})` }} aria-hidden />
-                    <h2 className="text-sm font-semibold">{col.title}</h2>
+                    <h2 className="text-sm font-semibold">{t(col.title)}</h2>
                     <span className="ml-auto rounded-full bg-card-solid px-2 text-xs font-medium text-muted-foreground"><CountUp value={items.length} /></span>
                   </header>
                   {items.length === 0 ? (
-                    <p className="px-1 py-6 text-center text-xs text-muted-foreground">Nothing here</p>
+                    <p className="px-1 py-6 text-center text-xs text-muted-foreground">{t("Nothing here")}</p>
                   ) : (
                     items.map((a, i) => <AppCard key={a.id} a={a} delay={ci * 60 + i * 40} />)
                   )}
@@ -249,7 +252,7 @@ export default function ApplicationsPage() {
           </div>
           {closed.length > 0 && (
             <div className="mt-8">
-              <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Closed ({closed.length})</h2>
+              <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("Closed")} ({closed.length})</h2>
               <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
                 {closed.map((a, i) => <AppCard key={a.id} a={a} delay={i * 30} />)}
               </div>

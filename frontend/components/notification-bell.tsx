@@ -55,8 +55,11 @@ export function NotificationBell() {
 
   useEffect(() => {
     void refreshCount();
-    const t = setInterval(refreshCount, 60_000);
-    return () => clearInterval(t);
+    // Poll only while the tab is visible; catch up as soon as it becomes visible again.
+    const t = setInterval(() => { if (document.visibilityState === "visible") void refreshCount(); }, 60_000);
+    const onVis = () => { if (document.visibilityState === "visible") void refreshCount(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", onVis); };
   }, [refreshCount]);
 
   useEffect(() => {

@@ -13,7 +13,7 @@ export default function OAuthCallback() {
 
   useEffect(() => {
     if (loading) return;
-    router.replace(user ? "/" : "/login?error=google");
+    router.replace(!user ? "/login?error=google" : user.role === "recruiter" ? "/recruiter" : "/");
   }, [loading, user, router]);
 
   return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Signing you in…</div>;

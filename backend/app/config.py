@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     # Optional Telegram bot (create one with @BotFather) for free notification alerts.
     telegram_bot_token: str | None = None
     telegram_bot_username: str | None = None
+    # Optional WhatsApp Business Cloud API (Meta) for two-way chat with Saige.
+    whatsapp_token: str | None = None
+    whatsapp_phone_number_id: str | None = None
+    whatsapp_verify_token: str | None = None
+    whatsapp_app_secret: str | None = None
     adzuna_country: str = "in"
 
     # Shared secret for /api/cron/daily (Vercel Cron sends it as a Bearer token).
@@ -55,6 +60,9 @@ class Settings(BaseSettings):
     linkedin_client_id: str | None = None
     linkedin_client_secret: str | None = None
     linkedin_api_version: str = "202509"
+
+    # The account with this email is the super admin (admin dashboard, can promote/demote admins).
+    super_admin_email: str | None = None
 
     @field_validator("cors_origins", mode="before")
     @classmethod

@@ -1,9 +1,10 @@
 "use client";
 
-import { CheckSquare, ExternalLink, Loader2, Radar, Search, Square } from "lucide-react";
+import { CheckSquare, ExternalLink, Radar, Search, Square } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { DotRing } from "@/components/dot-ring";
 import { Notice } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,7 +87,7 @@ export function JobDiscover({ onSaved }: { onSaved: () => void }) {
         <form onSubmit={search} className="flex flex-wrap gap-2">
           <Input className="min-w-[14rem] flex-1" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Role (defaults to your target role), e.g. SDET" />
           <Input className="w-48" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location, e.g. Hyderabad" />
-          <Button type="submit" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Search />} {busy ? "Searching…" : "Search"}</Button>
+          <Button type="submit" disabled={busy}>{busy ? <DotRing size={18} dots={12} /> : <Search />} {busy ? "Searching…" : "Search"}</Button>
         </form>
         {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
         {data && (

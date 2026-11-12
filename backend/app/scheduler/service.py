@@ -304,7 +304,9 @@ async def _morning_report(db: AsyncIOMotorDatabase, uid: str, run_date: date) ->
     if pending:
         body += f" · {pending} suggestion(s) waiting for review"
     await notify(db, user_id=uid, kind="morning_report", title="Your Saige morning report", body=body, link="/")
-    return {"summary": body}
+    from app.services.whatsapp_cloud import send_daily_digest
+
+    return {"summary": body, "whatsapp_digest": await send_daily_digest(db, uid)}
 
 
 async def run_job(db: AsyncIOMotorDatabase, uid: str, job: str, s: AutomationSettings, now: datetime,

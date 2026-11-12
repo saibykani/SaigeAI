@@ -4,6 +4,7 @@ import { Link2, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { JobDiscover } from "@/components/job-discover";
 import { AutoApplyCard, JobsFeed } from "@/components/jobs-feed";
@@ -216,6 +217,7 @@ function SourcesCard({ onSynced }: { onSynced: () => void }) {
 type View = "feed" | "saved" | "search" | "add";
 
 export default function JobsPage() {
+  const { t } = useT();
   const [view, setView] = useState<View>("feed");
   const [filters, setFilters] = useState({ q: "", classification: "", status: "", sort: "score" });
   const [applied, setApplied] = useState(filters);
@@ -223,10 +225,10 @@ export default function JobsPage() {
   const { data, error, loading, reload } = useApi<{ total: number; items: JobSummary[] }>(`/jobs?${qs}`);
   const [rematching, setRematching] = useState(false);
   const views: { id: View; label: string }[] = [
-    { id: "feed", label: "Jobs for you" },
-    { id: "saved", label: `Saved jobs${data ? ` · ${data.total}` : ""}` },
-    { id: "search", label: "Search any role" },
-    { id: "add", label: "Add manually" },
+    { id: "feed", label: t("Jobs for you") },
+    { id: "saved", label: `${t("Saved jobs")}${data ? ` · ${data.total}` : ""}` },
+    { id: "search", label: t("Search any role") },
+    { id: "add", label: t("Add manually") },
   ];
 
   return (
@@ -248,7 +250,7 @@ export default function JobsPage() {
               }
             }}
           >
-            <RefreshCw className={cn(rematching && "animate-spin")} /> Re-score all
+            <RefreshCw className={cn(rematching && "animate-spin")} /> {t("Re-score all")}
           </Button>
         ) : undefined}
       />
@@ -287,20 +289,20 @@ export default function JobsPage() {
       >
         <div className="relative min-w-52 flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Search title, company, location" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
+          <Input className="pl-8" placeholder={t("Search title, company, location")} value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
         </div>
         <Select aria-label="Classification" className="w-44" value={filters.classification} onChange={(e) => setFilters({ ...filters, classification: e.target.value })}>
-          <option value="">All matches</option>
+          <option value="">{t("All matches")}</option>
           {CLASSIFICATIONS.map((c) => <option key={c}>{c}</option>)}
         </Select>
         <Select aria-label="Status" className="w-36" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
           {STATUSES.map((s) => <option key={s} value={s}>{s ? s[0].toUpperCase() + s.slice(1) : "Active"}</option>)}
         </Select>
         <Select aria-label="Sort" className="w-36" value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })}>
-          <option value="score">Best match</option>
-          <option value="recent">Most recent</option>
+          <option value="score">{t("Best match")}</option>
+          <option value="recent">{t("Most recent")}</option>
         </Select>
-        <Button type="submit" variant="secondary">Apply</Button>
+        <Button type="submit" variant="secondary">{t("Apply")}</Button>
       </form>
 
       {error && <Notice tone="error">{error}</Notice>}

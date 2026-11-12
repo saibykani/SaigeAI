@@ -41,6 +41,7 @@ const writeCachedUser = (u: User | null) => {
 export type SignupDetails = {
   phone?: string; current_designation?: string; total_experience_years?: number; target_role?: string;
   current_location?: string; country?: string; notice_period_days?: number; linkedin_url?: string;
+  role?: "jobseeker" | "recruiter";
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

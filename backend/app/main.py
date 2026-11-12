@@ -9,6 +9,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.activity.router import router as activity_router
+from app.admin.router import router as admin_router
 from app.analytics.router import router as analytics_router
 from app.applications.router import router as applications_router
 from app.assistant.router import router as assistant_router
@@ -21,11 +22,14 @@ from app.database import mongo
 from app.email.router import router as email_router
 from app.extension.router import router as extension_router
 from app.growth.router import router as growth_router
+from app.hiring.router import router as hiring_router
 from app.jobs.router import agent_router
 from app.jobs.router import router as jobs_router
+from app.learning.router import router as learning_router
 from app.linkedin_posts.router import router as linkedin_posts_router
 from app.logging_setup import configure_logging, request_id_var
 from app.ml.router import router as ml_router
+from app.mock_interview.router import router as mock_interview_router
 from app.notifications.router import router as notifications_router
 from app.portals.router import router as portals_router
 from app.portfolio.router import router as portfolio_router
@@ -39,6 +43,8 @@ from app.resumes.router import router as resumes_router
 from app.scheduler.router import router as scheduler_router
 from app.services.rate_limit import client_key, write_limiter
 from app.services.telegram import router as telegram_router
+from app.services.whatsapp_cloud import router as whatsapp_cloud_router
+from app.services.whatsapp_cloud import webhook_router as whatsapp_webhook_router
 from app.studio.router import router as studio_router
 from app.suggestions.router import router as suggestions_router
 from app.utils import new_id
@@ -136,7 +142,9 @@ def create_app() -> FastAPI:
               ml_router,
               applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router, linkedin_posts_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
-              recruiters_router, extension_router, suggestions_router, growth_router, connectors_router, portfolio_router, telegram_router):
+              recruiters_router, extension_router, suggestions_router, growth_router, connectors_router, portfolio_router, telegram_router,
+              learning_router, whatsapp_cloud_router, whatsapp_webhook_router, admin_router, hiring_router,
+              mock_interview_router):
         api.include_router(r)
     app.include_router(api)
     return app

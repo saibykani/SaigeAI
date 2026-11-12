@@ -4,9 +4,11 @@ import { Download, Pause, Play, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useT } from "@/components/i18n";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { ExtensionTokensCard } from "@/components/extension-tokens";
 import { MatchingWeightsCard } from "@/components/matching-weights";
+import { TalentVisibilityCard } from "@/components/talent-visibility";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +34,7 @@ const LIMITS: [keyof AutomationSettings["limits"], string][] = [
 ];
 
 export default function SettingsPage() {
+  const { t } = useT();
   const auto = useApi<AutomationSettings>("/automation/status");
   const connections = useApi<ConnectedAccount[]>("/auth/connections");
   const notifications = useApi<AppNotification[]>("/notifications");
@@ -84,21 +87,21 @@ export default function SettingsPage() {
           <Card className={cn(draft.paused_all && "border-warning")}>
             <CardHeader className="flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Emergency control</CardTitle>
+                <CardTitle>{t("Emergency control")}</CardTitle>
                 <CardDescription>
-                  {draft.paused_all ? "All automation is currently paused." : "Stops every agent immediately: discovery, applications, email, outreach and profile updates."}
+                  {draft.paused_all ? t("All automation is currently paused.") : t("Stops every agent immediately: discovery, applications, email, outreach and profile updates.")}
                 </CardDescription>
               </div>
               <Button variant={draft.paused_all ? "default" : "destructive"} onClick={togglePauseAll}>
                 {draft.paused_all ? <Play /> : <Pause />}
-                {draft.paused_all ? "Resume all" : "PAUSE ALL AUTOMATION"}
+                {draft.paused_all ? t("Resume all") : t("PAUSE ALL AUTOMATION")}
               </Button>
             </CardHeader>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Automation mode</CardTitle>
+              <CardTitle>{t("Automation mode")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-3">
               {MODES.map((m) => (
@@ -122,7 +125,7 @@ export default function SettingsPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Pause individual capabilities</CardTitle>
+                <CardTitle>{t("Pause individual capabilities")}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-2">
                 {CAPABILITIES.map(([k, label]) => (
@@ -143,7 +146,7 @@ export default function SettingsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Limits & schedule</CardTitle>
+                <CardTitle>{t("Limits & schedule")}</CardTitle>
                 <CardDescription>Schedules run in your timezone ({draft.schedules.timezone}).</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -167,7 +170,7 @@ export default function SettingsPage() {
             </Card>
           </div>
           <div>
-            <Button onClick={() => save(draft)}>Save automation settings</Button>
+            <Button onClick={() => save(draft)}>{t("Save automation settings")}</Button>
           </div>
         </div>
       )}
@@ -178,7 +181,7 @@ export default function SettingsPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Connected accounts</CardTitle>
+            <CardTitle>{t("Connected accounts")}</CardTitle>
             <CardDescription>Saige never stores Gmail, LinkedIn or Naukri passwords, OTPs or 2FA codes — only official OAuth grants.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
@@ -186,11 +189,11 @@ export default function SettingsPage() {
               <div key={c.provider} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
                 <span className="capitalize">{c.provider}</span>
                 {c.connected ? (
-                  <Badge variant="success">Connected</Badge>
+                  <Badge variant="success">{t("Connected")}</Badge>
                 ) : c.status.startsWith("planned") ? (
                   <Badge variant="muted">Phase {c.status.split("_").pop()}</Badge>
                 ) : (
-                  <Badge variant="outline">Not connected</Badge>
+                  <Badge variant="outline">{t("Not connected")}</Badge>
                 )}
               </div>
             ))}
@@ -199,13 +202,15 @@ export default function SettingsPage() {
 
         <ExtensionTokensCard />
 
+        <TalentVisibilityCard />
+
         <Card id="notifications">
           <CardHeader>
-            <CardTitle>Notifications</CardTitle>
+            <CardTitle>{t("Notifications")}</CardTitle>
           </CardHeader>
           <CardContent>
             {(notifications.data ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">You&apos;re all caught up.</p>
+              <p className="text-sm text-muted-foreground">{t("You're all caught up.")}</p>
             ) : (
               <ul className="divide-y">
                 {notifications.data!.map((n) => (
@@ -236,26 +241,26 @@ export default function SettingsPage() {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Your data</CardTitle>
-            <CardDescription>Export everything Saige stores about you, or permanently delete your account.</CardDescription>
+            <CardTitle>{t("Your data")}</CardTitle>
+            <CardDescription>{t("Export everything Saige stores about you, or permanently delete your account.")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div>
               <Button variant="outline" onClick={() => downloadFile("/privacy/export", "saige-ai-export.json")}>
-                <Download /> Export my data
+                <Download /> {t("Export my data")}
               </Button>
             </div>
             <div className="rounded-lg border border-destructive/40 p-4">
               <p className="flex items-center gap-2 text-sm font-medium text-destructive">
-                <ShieldAlert className="size-4" /> Delete my account
+                <ShieldAlert className="size-4" /> {t("Delete my account")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Removes your profile, resumes, applications, history and sessions. Type DELETE to confirm.
+                {t("Removes your profile, resumes, applications, history and sessions. Type DELETE to confirm.")}
               </p>
               <div className="mt-3 flex gap-2">
                 <Input className="max-w-40" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} aria-label="Type DELETE to confirm" />
                 <Button variant="destructive" disabled={confirmText !== "DELETE"} onClick={deleteAccount}>
-                  Delete permanently
+                  {t("Delete permanently")}
                 </Button>
               </div>
             </div>

@@ -13,7 +13,7 @@ import { request } from "@/services/api";
 import { cn } from "@/utils/cn";
 
 type Goal = { key: string; label: string; target: number; done: number; pct: number };
-type Goals = { week_of: string; goals: Goal[] };
+type Goals = { week_of: string; goals: Goal[]; learning?: { in_progress: number; done: number; confirmed: number } };
 type Ghost = { id: string; title: string; company: string; status: string; silent_days: number; link: string; suggestion: string };
 type SLink = { label: string; url: string };
 type Salary = {
@@ -42,6 +42,7 @@ export function GoalsCard({ compact = false }: { compact?: boolean }) {
         <div>
           <h2 className="text-xl">Weekly goals</h2>
           <p className="text-sm text-muted-foreground">Week of {data?.week_of ?? "…"}. Progress updates as you work.</p>
+          {data?.learning && (data.learning.in_progress > 0 || data.learning.done > 0) && <p className="text-xs text-muted-foreground"><a href="/learning" className="underline">Learning path</a>: {data.learning.in_progress} in progress · {data.learning.done} done · {data.learning.confirmed} added to profile</p>}
         </div>
         {!compact && !edit && data && (
           <Button variant="outline" size="sm" onClick={() => setEdit(Object.fromEntries(data.goals.map((g) => [g.key, String(g.target)])))}><Pencil /> Set goals</Button>

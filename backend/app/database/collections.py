@@ -56,6 +56,14 @@ ML_MODELS = "ml_models"
 ML_SAMPLES = "ml_samples"
 ML_RUNS = "ml_runs"
 
+MOCK_INTERVIEWS = "mock_interviews"
+LEARNING_PATHS = "learning_paths"
+WHATSAPP_SESSIONS = "whatsapp_sessions"
+
+# Recruiter side: jobs a recruiter posts and interest requests sent to opted-in candidates.
+RECRUITER_JOBS = "recruiter_jobs"
+TALENT_REQUESTS = "talent_requests"
+
 SCHEDULER_JOBS = "scheduler_jobs"
 SYSTEM_SETTINGS = "system_settings"
 
@@ -67,6 +75,8 @@ USER_SCOPED = [
     PROFILE_CHANGES, OUTREACH, FOLLOWUPS, AGENT_RUNS, AGENT_TASKS, NOTIFICATIONS, AUDIT_LOGS,
     SCHEDULER_JOBS, SYSTEM_SETTINGS, REFRESH_TOKENS, INTEGRATIONS, API_TOKENS,
     JOB_FEED, JOB_ALERTS, PORTAL_LINKS, LINKEDIN_POSTS, CAREER_JOBS, CAREER_SCANS, ML_MODELS, ML_SAMPLES, ML_RUNS, GOALS, CALENDAR_FEEDS, PORTFOLIOS,
+    MOCK_INTERVIEWS, LEARNING_PATHS, WHATSAPP_SESSIONS,
+    RECRUITER_JOBS, TALENT_REQUESTS,
 ]
 
 # Exported to the user but excluded from the JSON export (binary / security material).

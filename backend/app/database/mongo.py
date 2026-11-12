@@ -53,7 +53,7 @@ def close() -> None:
 
 
 # Bump when ensure_indexes changes. Serverless cold starts then skip ~45 create_index round trips.
-INDEX_VERSION = 12
+INDEX_VERSION = 13
 
 
 async def ensure_indexes_once(db: AsyncIOMotorDatabase) -> None:
@@ -112,4 +112,10 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[c.JOB_ALERTS].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
     await db[c.PORTAL_LINKS].create_index([("user_id", ASCENDING), ("portal", ASCENDING)], unique=True)
     await db[c.SCHEDULER_JOBS].create_index([("user_id", ASCENDING), ("started_at", DESCENDING)])
+    # Performance: the dashboard's "today" counts, the 60 s unread-count poll and the 7-day sparklines.
+    await db[c.NOTIFICATIONS].create_index([("user_id", ASCENDING), ("read", ASCENDING)])
+    for coll in (c.APPLICATIONS, c.COVER_LETTERS, c.INTERVIEWS, c.OUTREACH, c.RESUMES):
+        await db[coll].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+    await db[c.EMAILS].create_index([("user_id", ASCENDING), ("classification", ASCENDING), ("created_at", DESCENDING)])
+    await db[c.APPLICATIONS].create_index([("user_id", ASCENDING), ("applied_at", DESCENDING)])
     logger.info("MongoDB indexes ensured")

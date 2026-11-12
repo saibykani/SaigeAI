@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
-import { ScanLoader } from "@/components/scan-loader";
+import { DotRing } from "@/components/dot-ring";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,7 @@ type Settings = { template: string; slug: string; published: boolean; tagline: s
 function TemplateThumb({ id, colors }: { id: string; colors: string[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const [html, setHtml] = useState("");
+  const [visible, setVisible] = useState(false);
   const [scale, setScale] = useState(0.28);
   useEffect(() => {
     const el = ref.current;
@@ -32,9 +33,14 @@ function TemplateThumb({ id, colors }: { id: string; colors: string[] }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Fetch once when near the viewport, and unmount the live iframe when it scrolls away so 40+ animated
+    // template previews don't all keep running (that was the main source of lag on this page).
+    let fetched = false;
     const io = new IntersectionObserver(async (es) => {
-      if (!es[0].isIntersecting) return;
-      io.disconnect();
+      const on = es[0].isIntersecting;
+      setVisible(on);
+      if (!on || fetched) return;
+      fetched = true;
       try {
         const res = await request<Response>(`/portfolio/preview?template=${id}&thumb=true`, { raw: true });
         setHtml(await res.text());
@@ -45,7 +51,7 @@ function TemplateThumb({ id, colors }: { id: string; colors: string[] }) {
   }, [id]);
   return (
     <div ref={ref} className="thumb relative h-44 overflow-hidden border-b" style={{ background: colors[0], ["--s" as string]: scale }}>
-      {html ? (
+      {html && visible ? (
         <iframe title={`${id} preview`} srcDoc={html} sandbox="allow-scripts" tabIndex={-1} aria-hidden loading="lazy"
           className="thumb-frame pointer-events-none absolute left-0 top-0 origin-top-left border-0" />
       ) : (
@@ -130,7 +136,7 @@ export default function PortfolioPage() {
               </div>
             </div>
             <div className="flex justify-center bg-muted/40 p-4">
-              {!html ? <ScanLoader title="Building your website" messages={["Reading your profile…", "Laying out your story…", "Adding animations…", "Styling the template…"]} /> :
+              {!html ? <div className="grid place-items-center py-16"><DotRing size={112} label="Building" sub="your website" /></div> :
               <iframe title="Portfolio preview" srcDoc={html} sandbox="allow-scripts allow-popups" className={cn("h-[640px] rounded-xl border bg-white shadow-sm transition-all", device === "desktop" ? "w-full" : "w-[390px]")} />}
             </div>
           </Card>

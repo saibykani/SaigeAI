@@ -6,6 +6,7 @@ from fastapi import HTTPException, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
+from app.auth.roles import SIGNUP_ROLES, effective_role, is_super_admin
 from app.auth.security import (
     create_access_token,
     hash_password,
@@ -37,12 +38,15 @@ def user_out(user: dict) -> dict:
         "name": user.get("name", ""),
         "roles": user.get("roles", ["user"]),
         "auth_providers": providers,
+        "role": effective_role(user),
+        "is_super_admin": is_super_admin(user),
+        "discoverable": bool(user.get("discoverable")),
     }
 
 
 async def create_user(
     db: AsyncIOMotorDatabase, *, email: str, name: str, password: str | None = None,
-    google_sub: str | None = None,
+    google_sub: str | None = None, role: str = "jobseeker",
 ) -> dict:
     now = utcnow()
     user = {
@@ -51,6 +55,7 @@ async def create_user(
         "name": name,
         "password_hash": hash_password(password) if password else None,
         "roles": ["user"],
+        "role": role if role in SIGNUP_ROLES else "jobseeker",
         "is_active": True,
         "created_at": now,
         "updated_at": now,
@@ -64,7 +69,7 @@ async def create_user(
     except DuplicateKeyError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "Account already exists") from exc
     await log_action(db, user_id=user["_id"], action="user.registered", entity="user",
-                     entity_id=user["_id"], details={"provider": "google" if google_sub else "password"})
+                     entity_id=user["_id"], details={"provider": "google" if google_sub else "password", "role": user["role"]})
     return user
 
 
@@ -94,6 +99,7 @@ async def issue_session(
 ) -> dict:
     s = get_settings()
     refresh = new_opaque_token()
+    await db[c.USERS].update_one({"_id": user["_id"]}, {"$set": {"last_active_at": utcnow()}})
     await db[c.REFRESH_TOKENS].insert_one({
         "_id": hash_token(refresh),
         "user_id": user["_id"],

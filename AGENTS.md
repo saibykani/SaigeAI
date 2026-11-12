@@ -150,7 +150,8 @@ Never commit env files.
   Keep one axis, neutral label text, a legend, and a table-view toggle.
 - The Help & Docs manual lives in `frontend/app/(app)/help/manual.ts`, with screenshots in `frontend/public/help/*.jpg`.
   Update both when a screen changes.
-- App shell strings are translatable via `components/i18n.tsx` (en, hi, te); wrap new nav and menu labels in `t()`.
+- UI strings are translatable via `components/i18n.tsx` (en, hi, te, ta, kn, ml); translations live in `components/i18n-strings.ts`
+  keyed by the English string (missing keys fall back to English). Wrap new labels in `t()` and add all five translations.
 - The 3D loader is `components/loader3d.tsx`. Use it for full-page and route loading.
 - Every page uses `PageHeader` and `Notice` from `components/app-shell.tsx`. Update the `NAV` and
   `UPCOMING` arrays there when a phase lands.

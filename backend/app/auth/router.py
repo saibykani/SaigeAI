@@ -34,13 +34,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 OAUTH_STATE_COOKIE = "saige_oauth_state"
+OAUTH_ROLE_COOKIE = "saige_signup_role"
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201,
              dependencies=[Depends(auth_limiter.dependency("register"))])
 async def register(body: RegisterRequest, response: Response,
                    db: AsyncIOMotorDatabase = Depends(db_dep)):
-    user = await create_user(db, email=body.email, name=body.name, password=body.password)
+    user = await create_user(db, email=body.email, name=body.name, password=body.password, role=body.role)
     await seed_profile(db, user["_id"], body)
     return await issue_session(db, user, response)
 
@@ -122,7 +123,7 @@ async def connections(user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------- Google OAuth
 
 @router.get("/google/authorize")
-async def google_authorize():
+async def google_authorize(role: str | None = None):
     s = get_settings()
     if not s.google_oauth_enabled:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Google sign-in is not configured")
@@ -130,6 +131,9 @@ async def google_authorize():
     resp = RedirectResponse(google.authorization_url(state), status_code=302)
     resp.set_cookie(OAUTH_STATE_COOKIE, state, max_age=600, httponly=True,
                     secure=s.cookie_secure, samesite="lax", path="/api/auth/google")
+    if role == "recruiter":  # the sign-up choice survives the Google round trip
+        resp.set_cookie(OAUTH_ROLE_COOKIE, role, max_age=600, httponly=True,
+                        secure=s.cookie_secure, samesite="lax", path="/api/auth/google")
     return resp
 
 
@@ -138,6 +142,7 @@ async def google_callback(
     code: str | None = None, state: str | None = None, error: str | None = None,
     saige_oauth_state: str | None = Cookie(default=None, alias=OAUTH_STATE_COOKIE),
     saige_gmail_link: str | None = Cookie(default=None, alias="saige_gmail_link"),
+    saige_signup_role: str | None = Cookie(default=None, alias=OAUTH_ROLE_COOKIE),
     db: AsyncIOMotorDatabase = Depends(db_dep),
 ):
     s = get_settings()
@@ -159,6 +164,8 @@ async def google_callback(
         return fail
     if not info.get("email") or not info.get("email_verified"):
         return fail
+    if await db[c.USERS].find_one({"email": info["email"].lower(), "is_active": False}, {"_id": 1}):
+        return RedirectResponse(f"{s.frontend_url}/login?error=disabled", status_code=302)
 
     user = await db[c.USERS].find_one({"google_sub": info["sub"]})
     if not user:
@@ -170,10 +177,12 @@ async def google_callback(
             user = {**existing, "google_sub": info["sub"]}
         else:
             user = await create_user(db, email=info["email"], name=info.get("name") or "",
-                                     google_sub=info["sub"])
+                                     google_sub=info["sub"],
+                                     role="recruiter" if saige_signup_role == "recruiter" else "jobseeker")
     await log_action(db, user_id=user["_id"], action="auth.login", entity="user",
                      entity_id=user["_id"], details={"provider": "google"})
     resp = RedirectResponse(f"{s.frontend_url}/auth/callback", status_code=302)
     await issue_session(db, user, resp)  # sets refresh cookie; frontend then calls /refresh
     resp.delete_cookie(OAUTH_STATE_COOKIE, path="/api/auth/google")
+    resp.delete_cookie(OAUTH_ROLE_COOKIE, path="/api/auth/google")
     return resp

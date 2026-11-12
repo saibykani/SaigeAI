@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, Gauge, Loader2, X } from "lucide-react";
+import { Check, Gauge, X } from "lucide-react";
 import { useState } from "react";
 
+import { DotRing } from "@/components/dot-ring";
 import { Notice } from "@/components/app-shell";
 import { ProgressRing } from "@/components/motion";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,7 @@ export function AtsScorer({ resumes }: { resumes: Resume[] }) {
               <Field label="Job description"><Textarea rows={7} minLength={30} required value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste the full job description" /></Field>
             </>
           )}
-          <Button type="submit" className="w-fit" disabled={busy || !rid}>{busy ? <Loader2 className="animate-spin" /> : <Gauge />} Score my resume</Button>
+          <Button type="submit" className="w-fit" disabled={busy || !rid}>{busy ? <DotRing size={18} dots={12} /> : <Gauge />} Score my resume</Button>
           {err && <Notice tone="error">{err}</Notice>}
         </form>
         <div className="rounded-2xl border bg-muted/30 p-4">
@@ -121,7 +122,7 @@ export function AtsScorer({ resumes }: { resumes: Resume[] }) {
               )}
               {!fixed && out.score < 100 && (
                 <Button className="w-fit" disabled={fixing} onClick={optimise}>
-                  {fixing ? <Loader2 className="animate-spin" /> : <Gauge />} {fixing ? "Optimising…" : "Optimise my resume for this job"}
+                  {fixing ? <DotRing size={18} dots={12} /> : <Gauge />} {fixing ? "Optimising…" : "Optimise my resume for this job"}
                 </Button>
               )}
               {fixed && (
@@ -255,7 +256,7 @@ export function ResumeHealth({ resumes }: { resumes: Resume[] }) {
                     ))}
                   </ul>
                   <div className="flex flex-wrap items-center gap-3 border-t p-4">
-                    <Button onClick={() => void applyAll()} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Check />} Apply all changes → new version</Button>
+                    <Button onClick={() => void applyAll()} disabled={busy}>{busy ? <DotRing size={18} dots={12} /> : <Check />} Apply all changes → new version</Button>
                     <span className="text-xs text-muted-foreground">Wording fixes are automatic. Numbers come only from what you type; Saige never invents them.</span>
                   </div>
                 </div>
@@ -308,7 +309,7 @@ export function ResumeHealth({ resumes }: { resumes: Resume[] }) {
               {fixable("Bullet length") && <label className="flex items-center gap-2"><input type="checkbox" className="size-4 accent-[var(--primary)]" checked={opts.split} onChange={(e) => setOpts({ ...opts, split: e.target.checked })} /> Split long bullets</label>}
               {fixable("Skills") && <label className="flex items-center gap-2"><input type="checkbox" className="size-4 accent-[var(--primary)]" checked={opts.trim_skills} onChange={(e) => setOpts({ ...opts, trim_skills: e.target.checked })} /> Keep only skills my experience shows</label>}
               <Button className="ml-auto" onClick={() => void fix()} disabled={busy || (typed === 0 && !fixable("Strong verbs") && !fixable("Bullet length") && !(opts.trim_skills && fixable("Skills")))}>
-                {busy ? <Loader2 className="animate-spin" /> : <Check />} {busy ? "Saving…" : `Apply fixes${typed ? ` + ${typed} rewrite(s)` : ""}`}
+                {busy ? <DotRing size={18} dots={12} /> : <Check />} {busy ? "Saving…" : `Apply fixes${typed ? ` + ${typed} rewrite(s)` : ""}`}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">Fixes are saved as a new version of this resume, so you can always go back. Skills or employers you type that aren&apos;t in your profile are blocked by the truth guard.</p>

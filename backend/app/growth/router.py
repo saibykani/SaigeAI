@@ -92,7 +92,9 @@ async def goals_view(db: AsyncIOMotorDatabase, uid: str) -> dict:
         "resumes": await db[c.RESUMES].count_documents({"user_id": uid, "kind": "ATS Resume", "created_at": {"$gte": start}}),
         "prep": await db[c.AUDIT_LOGS].count_documents({"user_id": uid, "action": "job.interview_prep", "timestamp": {"$gte": start}}),
     }
-    return {"week_of": start.date().isoformat(),
+    from app.learning.router import summary as learning_summary
+
+    return {"week_of": start.date().isoformat(), "learning": await learning_summary(db, uid),
             "goals": [{"key": k, "label": GOAL_LABELS[k], "target": targets[k], "done": done[k],
                        "pct": 100 if not targets[k] else min(100, round(100 * done[k] / targets[k]))} for k in DEFAULT_GOALS]}
 

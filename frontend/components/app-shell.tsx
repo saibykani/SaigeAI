@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Globe, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
+import { Briefcase, Building2, ShieldCheck, Globe, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -26,19 +26,21 @@ const Linkedin = createLucideIcon("Linkedin", [
 ]);
 
 type Tone = "green" | "orange" | "yellow" | "purple" | "red" | "mint" | "teal" | "lime";
-type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone; group: string; tabs?: { href: string; label: string }[] };
+type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone; group: string; tabs?: { href: string; label: string }[];
+  /** Shown only to this role (admins see everything). */ only?: "recruiter" | "admin" };
 
 // Pages that show the same kind of data share one sidebar entry and switch with tabs at the top.
 const NAV: NavItem[] = [
+  { group: "Home", href: "/recruiter", label: "Hiring", icon: Building2, tone: "teal", only: "recruiter" },
   { group: "Home", href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green", tabs: [
     { href: "/", label: "Overview" }, { href: "/goals", label: "Weekly goals" }, { href: "/analytics", label: "Analytics" }, { href: "/activity", label: "Activity log" }] },
   { group: "Job search", href: "/jobs", label: "Find jobs", icon: Briefcase, tone: "orange", tabs: [
     { href: "/jobs", label: "Jobs for you" }, { href: "/careers", label: "Career portals" }, { href: "/salary", label: "Salary insights" }] },
   { group: "Job search", href: "/applications", label: "Track applications", icon: Send, tone: "yellow", tabs: [
-    { href: "/applications", label: "Applications" }, { href: "/followups", label: "Follow-ups" }, { href: "/interviews", label: "Interviews" }] },
+    { href: "/applications", label: "Applications" }, { href: "/followups", label: "Follow-ups" }, { href: "/interviews", label: "Interviews" }, { href: "/mock-interview", label: "Mock interview" }] },
   { group: "Resume & ATS", href: "/resumes", label: "Resume & ATS", icon: ScanText, tone: "purple", tabs: [
     { href: "/resumes", label: "My resumes & ATS coach" }, { href: "/studio", label: "Resume builder" }, { href: "/studio/analyze", label: "JD analyzer" },
-    { href: "/studio/apply", label: "Apply by email" }] },
+    { href: "/studio/apply", label: "Apply by email" }, { href: "/learning", label: "Learning path" }] },
   { group: "Resume & ATS", href: "/portfolio", label: "Portfolio", icon: Globe, tone: "purple" },
   { group: "Network", href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
   { group: "Network", href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
@@ -49,8 +51,17 @@ const NAV: NavItem[] = [
     { href: "/alerts", label: "Alerts & templates" }, { href: "/agent", label: "Agent" }, { href: "/settings", label: "Automation & privacy" }] },
   { group: "Account", href: "/help", label: "Help & Guide", icon: LifeBuoy, tone: "green" },
   { group: "Account", href: "/integrations", label: "Integrations", icon: Plug, tone: "orange" },
+  { group: "Account", href: "/admin", label: "Admin", icon: ShieldCheck, tone: "red", only: "admin" },
 ];
 const GROUPS = ["Home", "Job search", "Resume & ATS", "Network", "Account"];
+const RECRUITER_ACCOUNT = new Set(["/profile", "/alerts", "/help"]);
+
+/** Sidebar entries for a role: admins see everything, recruiters see hiring + account basics, job seekers skip role-only pages. */
+function navFor(role: string | undefined): NavItem[] {
+  if (role === "admin") return NAV;
+  if (role === "recruiter") return NAV.filter((n) => n.only === "recruiter" || RECRUITER_ACCOUNT.has(n.href));
+  return NAV.filter((n) => !n.only);
+}
 
 const matches = (href: string, pathname: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
@@ -112,18 +123,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useLiveSync(Boolean(user));
 
   useEffect(() => {
-    if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    // Signed-out visitors to "/" see the public landing page; any other app route asks them to sign in.
+    if (!loading && !user) router.replace(pathname === "/" ? "/home" : `/login?next=${encodeURIComponent(pathname)}`);
   }, [loading, user, router, pathname]);
 
   useEffect(() => setOpen(false), [pathname]);
 
-  // First run: a new user sets up the profile (resume upload) before using the rest of Saige.
+  // Recruiters start on their hiring page, not the job-seeker dashboard.
   useEffect(() => {
-    if (!user || pathname === "/welcome" || pathname.startsWith("/help")) return;
+    if (user?.role === "recruiter" && pathname === "/") router.replace("/recruiter");
+  }, [user?.role, pathname, router]);
+
+  // First run: a new user sets up the profile (resume upload) before using the rest of Saige. Recruiters skip it.
+  useEffect(() => {
+    if (!user || user.role === "recruiter" || pathname === "/welcome" || pathname.startsWith("/help")) return;
     let skipped = false;
     try { skipped = localStorage.getItem("saige-welcome-done") === "1"; } catch { /* private mode */ }
+    // Once set up, don't re-check on every navigation (it was one request per page change).
+    try { skipped = skipped || sessionStorage.getItem("saige-setup-ok") === "1"; } catch { /* private mode */ }
     if (skipped) return;
-    void request<{ needs_setup: boolean }>("/profile/setup-status").then((s) => { if (s.needs_setup) router.replace("/welcome"); }).catch(() => undefined);
+    void request<{ needs_setup: boolean }>("/profile/setup-status").then((s) => {
+      if (s.needs_setup) router.replace("/welcome");
+      else try { sessionStorage.setItem("saige-setup-ok", "1"); } catch { /* private mode */ }
+    }).catch(() => undefined);
   }, [user, pathname, router]);
 
   if (loading || !user) {
@@ -158,12 +180,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
-          {GROUPS.map((g) => (
+          {GROUPS.filter((g) => navFor(user.role).some((n) => n.group === g)).map((g) => (
             <div key={g}>
               <p className="px-4 pb-1 pt-3 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/70">{t(g)}</p>
               
               <ul className="flex flex-col gap-1">
-                {NAV.filter((n) => n.group === g).map(({ href, label, icon: Icon }) => {
+                {navFor(user.role).filter((n) => n.group === g).map(({ href, label, icon: Icon }) => {
                   const active = sectionFor(pathname)?.href === href;
                   return (
                     <li key={href}>
@@ -243,11 +265,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
+  const { t } = useT();
   return (
     <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-3xl font-light tracking-[-0.03em] md:text-[44px] md:leading-tight">{title}</h1>
-        {description && <p className="mt-2 max-w-2xl text-[15px] text-muted-foreground">{description}</p>}
+        <h1 className="text-3xl font-light tracking-[-0.03em] md:text-[44px] md:leading-tight">{t(title)}</h1>
+        {description && <p className="mt-2 max-w-2xl text-[15px] text-muted-foreground">{t(description)}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>

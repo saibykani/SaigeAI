@@ -2,64 +2,31 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-/** App language. Navigation, menus and header are translated; page content is in English for now. */
+import { STRINGS } from "@/components/i18n-strings";
+
+/** App language. The shell and the most-used pages are translated; any string without a translation shows in English. */
 export const LANGUAGES = [
   { id: "en", name: "English", native: "English" },
   { id: "hi", name: "Hindi", native: "हिन्दी" },
   { id: "te", name: "Telugu", native: "తెలుగు" },
+  { id: "ta", name: "Tamil", native: "தமிழ்" },
+  { id: "kn", name: "Kannada", native: "ಕನ್ನಡ" },
+  { id: "ml", name: "Malayalam", native: "മലയാളം" },
 ] as const;
 export type Lang = (typeof LANGUAGES)[number]["id"];
+type Vars = Record<string, string | number>;
 
-const STRINGS: Record<string, Partial<Record<Lang, string>>> = {
-  Dashboard: { hi: "डैशबोर्ड", te: "డాష్‌బోర్డ్" },
-  "Master Profile": { hi: "प्रोफ़ाइल", te: "ప్రొఫైల్" },
-  Profile: { hi: "प्रोफ़ाइल", te: "ప్రొఫైల్" },
-  "LinkedIn & Naukri": { hi: "LinkedIn और Naukri", te: "LinkedIn & Naukri" },
-  Resumes: { hi: "रिज़्यूमे", te: "రెజ్యూమేలు" },
-  Jobs: { hi: "नौकरियाँ", te: "ఉద్యోగాలు" },
-  "Career portals": { hi: "करियर पोर्टल", te: "కెరీర్ పోర్టల్స్" },
-  "ATS Studio": { hi: "एटीएस स्टूडियो", te: "ATS స్టూడియో" },
-  "Resume builder": { hi: "रिज़्यूमे बिल्डर", te: "రెజ్యూమ్ బిల్డర్" },
-  "JD analyzer": { hi: "जेडी विश्लेषक", te: "JD విశ్లేషణ" },
-  Applications: { hi: "आवेदन", te: "దరఖాస్తులు" },
-  Interviews: { hi: "इंटरव्यू", te: "ఇంటర్వ్యూలు" },
-  Recruiters: { hi: "रिक्रूटर", te: "రిక్రూటర్లు" },
-  Analytics: { hi: "विश्लेषण", te: "విశ్లేషణ" },
-  Inbox: { hi: "इनबॉक्स", te: "ఇన్‌బాక్స్" },
-  "Profile Sync": { hi: "प्रोफ़ाइल सिंक", te: "ప్రొఫైల్ సింక్" },
-  Integrations: { hi: "इंटीग्रेशन", te: "ఇంటిగ్రేషన్లు" },
-  "Automation & Privacy": { hi: "ऑटोमेशन और गोपनीयता", te: "ఆటోమేషన్ & గోప్యత" },
-  "Help & Guide": { hi: "सहायता और गाइड", te: "సహాయం & గైడ్" },
-  "Saige AI · your AI job search partner": { hi: "Saige AI · आपका AI जॉब सर्च साथी", te: "Saige AI · మీ AI ఉద్యోగ శోధన భాగస్వామి" },
-  Notifications: { hi: "सूचनाएँ", te: "నోటిఫికేషన్లు" },
-  "Mark all read": { hi: "सब पढ़ा हुआ", te: "అన్నీ చదివినట్లు" },
-  "You're all caught up.": { hi: "सब कुछ देख लिया।", te: "అన్నీ చూశారు." },
-  "WhatsApp alerts": { hi: "WhatsApp अलर्ट", te: "WhatsApp అలర్ట్‌లు" },
-  "Browser extension": { hi: "ब्राउज़र एक्सटेंशन", te: "బ్రౌజర్ ఎక్స్‌టెన్షన్" },
-  Language: { hi: "भाषा", te: "భాష" },
-  "Send feedback": { hi: "सुझाव भेजें", te: "అభిప్రాయం పంపండి" },
-  "Sign out": { hi: "साइन आउट", te: "సైన్ అవుట్" },
-  "Your account": { hi: "आपका खाता", te: "మీ ఖాతా" },
-  Settings: { hi: "सेटिंग्स", te: "సెట్టింగ్‌లు" },
-  Overview: { hi: "सारांश", te: "అవలోకనం" },
-  "Resume sync": { hi: "रिज़्यूमे सिंक", te: "రెజ్యూమే సింక్" },
-  "Automation & privacy": { hi: "ऑटोमेशन और गोपनीयता", te: "ఆటోమేషన్ & గోప్యత" },
-  Activity: { hi: "गतिविधि", te: "కార్యకలాపం" },
-  "Saige AI": { hi: "Saige AI", te: "Saige AI" },
-  "Ask Saige AI": { hi: "Saige AI से पूछें", te: "Saige AI ని అడగండి" },
-  "Daily posts": { hi: "रोज़ के पोस्ट", te: "రోజువారీ పోస్ట్‌లు" },
-  Workspace: { hi: "कार्यक्षेत्र", te: "వర్క్‌స్పేస్" },
-  Network: { hi: "नेटवर्क", te: "నెట్‌వర్క్" },
-  Account: { hi: "खाता", te: "ఖాతా" },
-  Theme: { hi: "थीम", te: "థీమ్" },
-  "Alerts & templates": { hi: "अलर्ट और टेम्पलेट", te: "అలర్ట్‌లు & టెంప్లేట్‌లు" },
-  Agent: { hi: "एजेंट", te: "ఏజెంట్" },
-  "Hiring portals": { hi: "हायरिंग पोर्टल", te: "హైరింగ్ పోర్టల్‌లు" },
-};
+const INDEX: Record<Exclude<Lang, "en">, number> = { hi: 0, te: 1, ta: 2, kn: 3, ml: 4 };
+
+/** Translates an English source string; {name} placeholders are filled from vars. Missing keys fall back to English. */
+export function translate(lang: Lang, s: string, vars?: Vars): string {
+  const out = lang === "en" ? s : STRINGS[s]?.[INDEX[lang]] || s;
+  return vars ? out.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : out;
+}
 
 const KEY = "saige-lang";
-type Ctx = { lang: Lang; setLang: (l: Lang) => void; t: (s: string) => string };
-const LangContext = createContext<Ctx>({ lang: "en", setLang: () => {}, t: (s) => s });
+type Ctx = { lang: Lang; setLang: (l: Lang) => void; t: (s: string, vars?: Vars) => string };
+const LangContext = createContext<Ctx>({ lang: "en", setLang: () => {}, t: (s, vars) => translate("en", s, vars) });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
@@ -76,7 +43,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setLangState(l);
     try { localStorage.setItem(KEY, l); } catch { /* ignore */ }
   }, []);
-  const t = useCallback((s: string) => (lang === "en" ? s : STRINGS[s]?.[lang] ?? s), [lang]);
+  const t = useCallback((s: string, vars?: Vars) => translate(lang, s, vars), [lang]);
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
   return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
 }

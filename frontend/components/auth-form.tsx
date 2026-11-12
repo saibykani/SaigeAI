@@ -22,12 +22,14 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [step, setStep] = useState<1 | 2>(1);
+  const [role, setRole] = useState<"jobseeker" | "recruiter">(params.get("role") === "recruiter" ? "recruiter" : "jobseeker");
   const [d, setD] = useState({ phone: "", current_designation: "", total_experience_years: "", target_role: "", current_location: "",
     country: "India", notice_period_days: "", linkedin_url: "" });
   const [error, setError] = useState<string | null>(
     params.get("error") === "google_denied"
       ? "Google didn't allow this sign-in. If you saw “Access blocked”, the app owner needs to add your Google account as a test user (Google Cloud → Google Auth Platform → Audience). You can also sign in with email and password."
-      : params.get("error") === "google" ? "Google sign-in failed or was cancelled." : null,
+      : params.get("error") === "google" ? "Google sign-in failed or was cancelled."
+      : params.get("error") === "disabled" ? "This account has been disabled. Contact info.saigeai@gmail.com if you think this is a mistake." : null,
   );
   const [busy, setBusy] = useState(false);
   const next = safeNext(params.get("next"));
@@ -38,7 +40,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (mode === "register" && step === 1) {
+    if (mode === "register" && step === 1 && role === "jobseeker") {
       setStep(2);
       return;
     }
@@ -52,10 +54,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           phone: d.phone || undefined, current_designation: d.current_designation || undefined,
           total_experience_years: num(d.total_experience_years), target_role: d.target_role || undefined,
           current_location: d.current_location || undefined, country: d.country || undefined,
-          notice_period_days: num(d.notice_period_days), linkedin_url: d.linkedin_url || undefined,
+          notice_period_days: num(d.notice_period_days), linkedin_url: d.linkedin_url || undefined, role,
         });
       }
-      router.replace(mode === "register" ? "/welcome" : next);
+      router.replace(mode === "register" ? (role === "recruiter" ? "/recruiter" : "/welcome") : next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -101,7 +103,17 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               </p>
 
               {/* Full-page navigation: the backend redirects to Google and back via the proxy. */}
-              <a href="/api/auth/google/authorize" className="mt-7 flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-white/15 bg-white/[0.04] text-[15px] font-medium text-white transition hover:bg-white/10 active:scale-[0.99]">
+              {!isLogin && (
+                <div role="radiogroup" aria-label="Account type" className="mt-6 grid grid-cols-2 gap-2">
+                  {([["jobseeker", "I'm looking for a job"], ["recruiter", "I'm hiring (recruiter)"]] as const).map(([id, label]) => (
+                    <button key={id} type="button" role="radio" aria-checked={role === id} onClick={() => { setRole(id); setStep(1); }}
+                      className={`h-11 rounded-full border text-sm font-medium transition ${role === id ? "border-white bg-white text-black" : "border-white/15 bg-white/[0.04] text-white/75 hover:bg-white/10"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <a href={!isLogin && role === "recruiter" ? "/api/auth/google/authorize?role=recruiter" : "/api/auth/google/authorize"} className="mt-7 flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-white/15 bg-white/[0.04] text-[15px] font-medium text-white transition hover:bg-white/10 active:scale-[0.99]">
                 <GoogleMark /> Continue with Google
               </a>
               <div className="my-6 flex items-center gap-3 text-xs text-white/35">
@@ -110,7 +122,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
               <form onSubmit={onSubmit} className="auth-dark flex flex-col gap-4">
                 {error && <Notice tone="error">{error}</Notice>}
-                {!isLogin && (
+                {!isLogin && role === "jobseeker" && (
                   <div className="flex items-center gap-2 text-xs text-white/50">
                     {[1, 2].map((n) => <span key={n} className={`h-1 flex-1 rounded-full ${step >= n ? "bg-white" : "bg-white/15"}`} />)}
                     <span className="ml-1">Step {step} of 2 · {step === 1 ? "Account" : "Your career"}</span>
@@ -163,7 +175,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                   disabled={busy}
                   className="sheen mt-2 h-12 cursor-pointer rounded-full bg-white text-[15px] font-semibold text-black shadow-[0_0_40px_-8px_rgba(255,255,255,0.55)] transition hover:shadow-[0_0_55px_-6px_rgba(255,255,255,0.75)] active:scale-[0.99] disabled:opacity-60"
                 >
-                  {busy ? "Please wait…" : isLogin ? "Sign in" : step === 1 ? "Continue" : "Create account"}
+                  {busy ? "Please wait…" : isLogin ? "Sign in" : step === 1 && role === "jobseeker" ? "Continue" : "Create account"}
                 </button>
                 {!isLogin && step === 2 && (
                   <button type="button" onClick={() => setStep(1)} className="-mt-1 text-sm text-white/55 hover:text-white">← Back</button>

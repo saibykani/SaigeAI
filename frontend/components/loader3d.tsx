@@ -1,17 +1,15 @@
+import { DotRing } from "@/components/dot-ring";
 import { cn } from "@/utils/cn";
 
-/** Three gimbal rings orbiting a glowing core, in the theme's accent. Pure CSS 3D. */
+/**
+ * Full-page / route loader. It used to be three CSS-3D gimbal rings (preserve-3d layers that kept the GPU busy);
+ * it now renders the lightweight DotRing sweep, keeping the same API for every caller.
+ */
 export function Loader3D({ size = 72, label, className }: { size?: number; label?: string; className?: string }) {
   return (
-    <div role="status" aria-live="polite" className={cn("loader3d flex flex-col items-center gap-4", className)}>
-      <div className="loader3d-stage" style={{ width: size, height: size }}>
-        <span className="loader3d-ring" />
-        <span className="loader3d-ring" />
-        <span className="loader3d-ring" />
-        <span className="loader3d-core" />
-      </div>
+    <div className={cn("loader3d flex flex-col items-center gap-4", className)}>
+      <DotRing size={size} dots={size >= 56 ? 36 : 24} />
       {label && <p className="text-sm text-muted-foreground">{label}</p>}
-      <span className="sr-only">Loading</span>
     </div>
   );
 }

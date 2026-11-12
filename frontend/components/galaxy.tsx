@@ -444,12 +444,19 @@ export function Galaxy({ className }: { className?: string }) {
         while (ripples.length && ripples[0].t > 0.8) ripples.shift();
       }
 
-      if (!reduce) frame = requestAnimationFrame(draw);
+      // Pause the loop while the tab is hidden; resumes on visibilitychange.
+      if (!reduce && !document.hidden) frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
+    const onVisibility = () => {
+      cancelAnimationFrame(frame);
+      if (!document.hidden) { last = performance.now(); frame = requestAnimationFrame(draw); }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelAnimationFrame(frame);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerdown", onDown);

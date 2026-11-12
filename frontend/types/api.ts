@@ -4,7 +4,12 @@ export interface User {
   name: string;
   roles: string[];
   auth_providers: string[];
+  role?: UserRole;
+  is_super_admin?: boolean;
+  discoverable?: boolean;
 }
+
+export type UserRole = "jobseeker" | "recruiter" | "admin";
 
 export interface TokenResponse {
   access_token: string;
@@ -1062,3 +1067,39 @@ export interface MlStatus {
 
 export interface MlTask { id: string; title: string; company: string; location: string | null; score: number; ai_score: number | null; category: string | null; url: string; why: string }
 export interface MlTrainResult { status: "trained" | "needs_data"; samples: number; version?: number; message?: string; metrics?: { accuracy: number; auc: number | null } }
+
+// ---------------------------------------------------------------- admin + recruiter side
+
+export interface AdminOverview {
+  kpis: Record<"total_users" | "jobseekers" | "recruiters" | "admins" | "new_today" | "new_7d" | "new_30d" | "active_24h" | "active_7d"
+    | "resumes" | "applications" | "portfolios_published" | "agent_runs" | "agent_runs_30d" | "recruiter_jobs", number>;
+  signups: { date: string; count: number }[];
+  agent_usage: { name: string; count: number }[];
+  action_usage: { name: string; count: number }[];
+}
+
+export interface AdminUser {
+  id: string; email: string; name: string; role: UserRole; is_super_admin: boolean; is_active: boolean;
+  created_at: string | null; last_active_at: string | null; resumes: number; applications: number;
+}
+
+export interface AdminActivity { id: string; at: string | null; email: string; action: string; entity: string | null }
+
+export interface RecruiterJob {
+  id: string; title: string; company: string; location: string; description: string; skills: string[]; status: string; created_at: string | null;
+}
+
+export interface TalentCandidate {
+  id: string; name: string; role: string | null; years: number | null; location: string | null; skills: string[];
+  portfolio_url: string | null; matched_skills: string[]; missing_skills: string[]; match: number | null;
+}
+
+export interface SentTalentRequest {
+  id: string; candidate_id: string; candidate_name: string; job_title: string | null; status: "pending" | "accepted" | "declined";
+  created_at: string | null; contact: { email: string | null; phone: string | null } | null;
+}
+
+export interface IncomingTalentRequest {
+  id: string; recruiter_name: string | null; job_title: string | null; company: string | null; message: string;
+  status: "pending" | "accepted" | "declined"; created_at: string | null;
+}

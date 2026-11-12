@@ -4,6 +4,7 @@ import { FileText, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
+import { useT } from "@/components/i18n";
 import { ScanLoader } from "@/components/scan-loader";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { AtsCoach } from "@/components/ats-coach";
@@ -18,6 +19,7 @@ import { RESUME_KINDS, type Resume, type ResumeDetail } from "@/types/api";
 import { formatBytes, formatDate } from "@/utils/format";
 
 export default function ResumesPage() {
+  const { t } = useT();
   const [showArchived, setShowArchived] = useState(false);
   const { data, error, loading, reload } = useApi<Resume[]>(`/resumes?include_archived=${showArchived}`);
   const [file, setFile] = useState<File | null>(null);
@@ -67,8 +69,8 @@ export default function ResumesPage() {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Upload a resume</CardTitle>
-          <CardDescription>PDF, DOCX or TXT up to 5 MB. Scanned image PDFs need OCR and won&apos;t parse.</CardDescription>
+          <CardTitle>{t("Upload a resume")}</CardTitle>
+          <CardDescription>{t("PDF, DOCX or TXT up to 5 MB. Scanned image PDFs need OCR and won't parse.")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onUpload} className="grid gap-4 md:grid-cols-[2fr_2fr_auto] md:items-end">
@@ -83,11 +85,11 @@ export default function ResumesPage() {
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
             </Field>
-            <Field label="Name" htmlFor="rname">
+            <Field label={t("Name")} htmlFor="rname">
               <Input id="rname" placeholder="e.g. SDET – 2026" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
             </Field>
             <Button type="submit" disabled={!file || busy}>
-              <Upload /> {busy ? "Parsing…" : "Upload"}
+              <Upload /> {busy ? t("Parsing…") : t("Upload")}
             </Button>
           </form>
           {busy && <ScanLoader compact title="Scanning your resume" messages={["Reading the file…", "Finding sections…", "Extracting roles and skills…", "Updating your profile…"]} />}
@@ -100,7 +102,7 @@ export default function ResumesPage() {
       </Card>
 
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-medium">Your resumes</h2>
+        <h2 className="text-sm font-medium">{t("Your resumes")}</h2>
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
           Show archived
@@ -110,7 +112,7 @@ export default function ResumesPage() {
       {error && <Notice tone="error">{error}</Notice>}
       {loading && !data && <p className="text-sm text-muted-foreground">Loading…</p>}
       {data && data.length === 0 && (
-        <Card className="p-8 text-center text-sm text-muted-foreground">No resumes yet. Upload your master resume to get started.</Card>
+        <Card className="p-8 text-center text-sm text-muted-foreground">{t("No resumes yet. Upload your master resume to get started.")}</Card>
       )}
       {data && data.length > 0 && (
         <div className="grid gap-3 md:grid-cols-2">
@@ -121,7 +123,7 @@ export default function ResumesPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="truncate font-medium">{r.name}</p>
-                    {r.status === "archived" && <Badge variant="muted">Archived</Badge>}
+                    {r.status === "archived" && <Badge variant="muted">{t("Archived")}</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     v{r.version_count} · {formatBytes(r.size)} · updated {formatDate(r.updated_at)}

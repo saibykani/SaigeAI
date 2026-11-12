@@ -5,6 +5,7 @@ import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import Link from "next/link";
 import { useId } from "react";
 
+import { useT } from "@/components/i18n";
 import { CountUp, ProgressRing } from "@/components/motion";
 import { cn } from "@/utils/cn";
 
@@ -78,25 +79,27 @@ function Delta({ today, yesterday }: { today: number; yesterday: number }) {
 }
 
 export function TrendKpi({ label, series, icon, href, delay = 0, tone }: { label: string; series: number[]; icon: LucideIcon; href?: string; delay?: number; tone?: Tone }) {
+  const { t } = useT();
   const today = series[series.length - 1] ?? 0;
   const yesterday = series[series.length - 2] ?? 0;
   const body = (
     <div className="glass lift animate-rise group relative h-full overflow-hidden rounded-2xl border p-5 shadow-[var(--shadow-card)]" style={toneStyle(tone, delay)}>
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-70" style={{ background: `linear-gradient(90deg, transparent, ${toneVar(tone)}, transparent)` }} />
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] text-muted-foreground">{label}</span>
+        <span className="text-[13px] text-muted-foreground">{t(label)}</span>
         <ToneIcon icon={icon} tone={tone} />
       </div>
       <p className="mt-3 text-[34px] font-semibold leading-none tracking-tight"><CountUp value={today} /></p>
       <div className="mt-2"><Delta today={today} yesterday={yesterday} /></div>
       <Sparkline points={series} tone={tone} className="mt-3" />
-      <p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground/70">Last 7 days · {series.reduce((a, b) => a + b, 0)} total</p>
+      <p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground/70">{t("Last 7 days · {n} total", { n: series.reduce((a, b) => a + b, 0) })}</p>
     </div>
   );
   return href ? <Link href={href} className="block h-full rounded-2xl">{body}</Link> : body;
 }
 
 export function RateKpi({ label, value, hint, icon: Icon, delay = 0, tone }: { label: string; value: number | null; hint?: string; icon: LucideIcon; delay?: number; tone?: Tone }) {
+  const { t } = useT();
   return (
     <div className="glass lift animate-rise group flex h-full items-center gap-4 rounded-2xl border p-4 shadow-[var(--shadow-card)]" style={toneStyle(tone, delay)}>
       <ProgressRing value={value ?? 0} size={58} stroke={6} trackClass="stroke-muted" barClass="stroke-[var(--kpi)]">
@@ -106,21 +109,22 @@ export function RateKpi({ label, value, hint, icon: Icon, delay = 0, tone }: { l
         <p className="text-2xl font-semibold leading-none tracking-tight">
           {value == null ? <span className="text-base text-muted-foreground">—</span> : <CountUp value={value} suffix="%" />}
         </p>
-        <p className="mt-1 text-[13px] text-muted-foreground">{label}</p>
-        {hint && <p className="text-[11px] text-muted-foreground/70">{hint}</p>}
+        <p className="mt-1 text-[13px] text-muted-foreground">{t(label)}</p>
+        {hint && <p className="text-[11px] text-muted-foreground/70">{t(hint)}</p>}
       </div>
     </div>
   );
 }
 
 export function CountKpi({ label, value, hint, icon, href, delay = 0, tone }: { label: string; value: number; hint?: string; icon: LucideIcon; href?: string; delay?: number; tone?: Tone }) {
+  const { t } = useT();
   const body = (
     <div className="glass lift animate-rise group flex h-full items-center gap-4 rounded-2xl border p-4 shadow-[var(--shadow-card)]" style={toneStyle(tone, delay)}>
       <ToneIcon icon={icon} tone={tone} size="lg" />
       <div className="min-w-0">
         <p className="text-2xl font-semibold leading-none tracking-tight"><CountUp value={value} /></p>
-        <p className="mt-1 text-[13px] text-muted-foreground">{label}</p>
-        {hint && <p className="text-[11px] text-muted-foreground/70">{hint}</p>}
+        <p className="mt-1 text-[13px] text-muted-foreground">{t(label)}</p>
+        {hint && <p className="text-[11px] text-muted-foreground/70">{t(hint)}</p>}
       </div>
     </div>
   );

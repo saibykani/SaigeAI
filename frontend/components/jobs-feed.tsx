@@ -1,9 +1,10 @@
 "use client";
 
-import { Bot, CalendarClock, CheckSquare, ExternalLink, Loader2, Mail, MapPin, RefreshCw, Search, Square, Zap } from "lucide-react";
+import { Bot, CalendarClock, CheckSquare, ExternalLink, Mail, MapPin, RefreshCw, Search, Square, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { DotRing } from "@/components/dot-ring";
 import { Notice } from "@/components/app-shell";
 import { Loader3D } from "@/components/loader3d";
 import { Button } from "@/components/ui/button";
@@ -218,7 +219,7 @@ export function JobsFeed({ onSaved }: { onSaved: () => void }) {
               <div className="ml-auto flex gap-2">
                 <Button size="sm" variant="outline" disabled={!picked.size || saving} onClick={() => save(false)}>Save selected</Button>
                 <Button size="sm" disabled={!picked.size || saving} onClick={() => save(true)}>
-                  {saving ? <Loader2 className="animate-spin" /> : <Bot />} {saving ? "Working…" : `Auto-apply to ${picked.size || ""} selected`}
+                  {saving ? <DotRing size={18} dots={12} /> : <Bot />} {saving ? "Working…" : `Auto-apply to ${picked.size || ""} selected`}
                 </Button>
               </div>
             </div>
@@ -325,7 +326,7 @@ export function AutoApplyCard() {
             postings that ask for CVs by email are sent from your Gmail; others open the employer&apos;s page to submit. You get a WhatsApp message at each step.
           </CardDescription>
         </div>
-        <Button size="sm" disabled={busy || !a} onClick={run}>{busy ? <Loader2 className="animate-spin" /> : <Zap />} Run now</Button>
+        <Button size="sm" disabled={busy || !a} onClick={run}>{busy ? <DotRing size={18} dots={12} /> : <Zap />} Run now</Button>
       </CardHeader>
       {a && (
         <CardContent className="flex flex-col gap-3">

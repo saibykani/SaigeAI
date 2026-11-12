@@ -294,9 +294,13 @@ body {
 
 .glass {
   background: var(--card);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
 }
+/* Performance: a blur inside a blurred card is invisible but re-samples the backdrop on every scroll frame. */
+.glass .glass, .glass .bg-card-solid { backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* Long lists: only the first dozen items rise in; the rest render immediately. */
+.animate-rise:nth-child(n + 13) { animation: none; }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(6px); }
@@ -729,3 +733,19 @@ body {
 .pr-mouth { animation: pr-talk .22s ease-in-out infinite alternate; transform-origin: 60px 80px; }
 @keyframes pr-talk { from { transform: scaleY(.35); } to { transform: scaleY(1); } }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------- Dot ring (processing indicator) ---------------- */
+.dot-ring { position: relative; display: inline-grid; place-items: center; flex-shrink: 0; }
+.dot-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.dot-ring-dot { fill: var(--foreground); opacity: 0.14; transition: opacity 0.25s, fill 0.25s; }
+.dot-ring-dot.on { fill: var(--primary); opacity: 1; filter: drop-shadow(0 0 2.5px var(--primary)); }
+.dot-ring-sweep .dot-ring-dot { fill: var(--primary); opacity: 0.14; animation: dot-ring-glow var(--dr-dur, 1.4s) linear infinite; animation-delay: var(--dr-delay); }
+@keyframes dot-ring-glow {
+  0% { opacity: 1; }
+  35% { opacity: 0.55; }
+  70%, 100% { opacity: 0.14; }
+}
+.dot-ring-label { position: relative; text-align: center; line-height: 1.15; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .dot-ring-sweep .dot-ring-dot { animation-duration: 4s; }
+}

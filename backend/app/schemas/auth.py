@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -15,6 +17,7 @@ class RegisterRequest(BaseModel):
     country: str | None = Field(default=None, max_length=80)
     notice_period_days: int | None = Field(default=None, ge=0, le=365)
     linkedin_url: str | None = Field(default=None, max_length=300)
+    role: Literal["jobseeker", "recruiter"] = "jobseeker"
 
 
 class LoginRequest(BaseModel):
@@ -34,6 +37,9 @@ class UserOut(BaseModel):
     name: str
     roles: list[str]
     auth_providers: list[str]
+    role: str = "jobseeker"
+    is_super_admin: bool = False
+    discoverable: bool = False
 
 
 class ConnectedAccount(BaseModel):

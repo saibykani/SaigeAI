@@ -1,8 +1,9 @@
 "use client";
 
-import { CalendarDays, Download, ExternalLink, Flame, Link2, Loader2, Pencil, Send, Sparkles, Trash2 } from "lucide-react";
+import { CalendarDays, Download, ExternalLink, Flame, Link2, Pencil, Send, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { DotRing } from "@/components/dot-ring";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { Loader3D } from "@/components/loader3d";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -78,7 +79,7 @@ function PostCard({ post, onChange }: { post: Post; onChange: () => void }) {
           <div className="flex flex-wrap gap-2">
             {post.status !== "published" && (
               <Button size="sm" disabled={busy} onClick={() => act(() => request(`/linkedin/posts/${post.id}/publish`, { method: "POST" }))}>
-                {busy ? <Loader2 className="animate-spin" /> : <Send />} Publish on LinkedIn
+                {busy ? <DotRing size={18} dots={12} /> : <Send />} Publish on LinkedIn
               </Button>
             )}
             {post.share_url && <a href={post.share_url} target="_blank" rel="noopener noreferrer" className={buttonVariants({ size: "sm", variant: "outline" })}><ExternalLink /> Post manually</a>}
@@ -155,7 +156,7 @@ export default function LinkedInPostsPage() {
               ? <Button variant="outline" onClick={async () => { await request("/linkedin/connection", { method: "DELETE" }); reload(); }}>Disconnect</Button>
               : <Button onClick={connect} disabled={!st.app_configured}>Connect LinkedIn</Button>}
             <Button variant="outline" disabled={busy} onClick={async () => { setBusy(true); try { await request("/linkedin/posts/generate", { method: "POST" }); reload(); } finally { setBusy(false); } }}>
-              {busy ? <Loader2 className="animate-spin" /> : <Sparkles />} Write a post now
+              {busy ? <DotRing size={18} dots={12} /> : <Sparkles />} Write a post now
             </Button>
           </CardContent>
         </Card>

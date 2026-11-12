@@ -100,6 +100,12 @@ Integrations → Connect Gmail → **Option 1** connects over Gmail IMAP with a 
 review. The password is encrypted at rest, mail is read with `BODY.PEEK` (never marked read), and
 the user can revoke it in their Google account at any time.
 
+### Admin dashboard: SUPER_ADMIN_EMAIL
+
+Set `SUPER_ADMIN_EMAIL` in the backend project (`saige-ai-api`) to the owner's sign-in email. That account always
+has admin rights (sidebar **Admin**, `/admin`, `/api/admin/*`) and is the only one that can promote or demote admins.
+Other admins can switch users between jobseeker and recruiter and disable or enable non-admin accounts.
+
 ### Daily scheduler: CRON_SECRET
 
 Vercel calls `GET /api/cron/daily` once a day (Hobby plan limit; `backend/vercel.json`). The endpoint only runs
@@ -151,6 +157,13 @@ searches Jooble's official API.
 
 **Telegram alerts (optional):** create a bot with @BotFather, then set `TELEGRAM_BOT_TOKEN` (the token) and
 `TELEGRAM_BOT_USERNAME` (without @). Users connect from Settings → Integrations → Telegram alerts.
+
+**Saige on WhatsApp (optional, two-way):** in Meta for Developers create an app (type Business), add the WhatsApp product and a
+phone number, then set `WHATSAPP_TOKEN` (a permanent System User token with `whatsapp_business_messaging`), `WHATSAPP_PHONE_NUMBER_ID`,
+`WHATSAPP_APP_SECRET` (App settings → Basic) and `WHATSAPP_VERIFY_TOKEN` (any random string you choose). In WhatsApp → Configuration set
+the callback URL to `https://saige-ai-api.vercel.app/api/whatsapp/webhook` with the same verify token and subscribe to `messages`.
+Users link their number from Integrations (a 6-digit code is sent; they reply with it or type it in the app). Commands: jobs,
+apply N (then yes/no), status, digest, pause, resume, help. Without these vars the card shows "not configured".
 
 **Google Drive backup:** the Google sign-in now also asks for `drive.file` (only files Saige creates). In Google Cloud, enable the
 **Google Drive API** and add the `.../auth/drive.file` scope under Data access. Users who already connected Gmail sign in again once.

@@ -48,6 +48,7 @@ async def delete_account(response: Response, user: dict = Depends(get_current_us
                          saige_refresh: str | None = Cookie(default=None, alias=REFRESH_COOKIE)):
     for coll in c.USER_SCOPED:
         await db[coll].delete_many({"user_id": user["_id"]})
+    await db[c.TALENT_REQUESTS].delete_many({"candidate_id": user["_id"]})  # requests sent to this candidate
     await db[c.USERS].delete_one({"_id": user["_id"]})
     clear_refresh_cookie(response)
     response.status_code = 204
