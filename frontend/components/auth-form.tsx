@@ -55,7 +55,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           notice_period_days: num(d.notice_period_days), linkedin_url: d.linkedin_url || undefined,
         });
       }
-      router.replace(next);
+      router.replace(mode === "register" ? "/welcome" : next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -119,15 +119,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                 {!isLogin && step === 2 && (
                   <>
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Current role" htmlFor="role"><Input id="role" required placeholder="QA Engineer" value={d.current_designation} onChange={(e) => setD({ ...d, current_designation: e.target.value })} /></Field>
-                      <Field label="Experience (years)" htmlFor="exp"><Input id="exp" type="number" min={0} max={60} step={0.5} required value={d.total_experience_years} onChange={(e) => setD({ ...d, total_experience_years: e.target.value })} /></Field>
+                      <Field label="Current role" htmlFor="role"><Input id="role" placeholder="QA Engineer" value={d.current_designation} onChange={(e) => setD({ ...d, current_designation: e.target.value })} /></Field>
+                      <Field label="Experience (years)" htmlFor="exp"><Input id="exp" type="number" min={0} max={60} step={0.5} value={d.total_experience_years} onChange={(e) => setD({ ...d, total_experience_years: e.target.value })} /></Field>
                     </div>
                     <Field label="Roles you want" htmlFor="target" hint="Comma-separated, e.g. SDET, QA Automation Engineer">
-                      <Input id="target" required value={d.target_role} onChange={(e) => setD({ ...d, target_role: e.target.value })} />
+                      <Input id="target" value={d.target_role} onChange={(e) => setD({ ...d, target_role: e.target.value })} />
                     </Field>
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="City" htmlFor="city"><Input id="city" required placeholder="Hyderabad" value={d.current_location} onChange={(e) => setD({ ...d, current_location: e.target.value })} /></Field>
-                      <Field label="Country" htmlFor="country"><Input id="country" required value={d.country} onChange={(e) => setD({ ...d, country: e.target.value })} /></Field>
+                      <Field label="City" htmlFor="city"><Input id="city" placeholder="Hyderabad" value={d.current_location} onChange={(e) => setD({ ...d, current_location: e.target.value })} /></Field>
+                      <Field label="Country" htmlFor="country"><Input id="country" value={d.country} onChange={(e) => setD({ ...d, country: e.target.value })} /></Field>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Phone" htmlFor="phone"><Input id="phone" type="tel" autoComplete="tel" placeholder="+91 98765 43210" value={d.phone} onChange={(e) => setD({ ...d, phone: e.target.value })} /></Field>

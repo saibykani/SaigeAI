@@ -129,6 +129,16 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {data.profile.completeness < 60 && (
+        <section className="flex flex-col gap-3 rounded-3xl border border-primary/40 bg-accent/40 p-5 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <p className="text-lg">Finish setting up · {data.profile.completeness}% done</p>
+            <p className="text-sm text-muted-foreground">Upload your resume and pick the jobs you want. It takes about 3 minutes.</p>
+          </div>
+          <Link href="/welcome" className={buttonVariants({ size: "lg" })}>Continue setup</Link>
+        </section>
+      )}
+
       {/* Next step */}
       {(() => {
         const top = data.high_match_jobs[0];
