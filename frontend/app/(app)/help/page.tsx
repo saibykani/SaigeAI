@@ -18,6 +18,8 @@ const same = (t: string) => ({ en: t, te: t, hi: t, ta: t, kn: t, ml: t });
 /** Every manual screen as a narrated scene (English): purpose + each step, read aloud by the presenter. */
 const FULL: Scene[] = MANUAL.map((m) => ({ image: m.image, title: same(m.title), say: same(`${m.purpose} ${m.steps.map((x) => x.replace(/^Step \d+ · /, "")).join(" ")}`) }));
 
+const fullAudio = (i: number) => (MANUAL[i] ? `/help/audio/m-${MANUAL[i].id}.mp3` : null);
+
 function Section({ s, onZoom, onWatch }: { s: ManualSection; onZoom: (src: string) => void; onWatch: () => void }) {
   const tone = `var(--tone-${s.tone})`;
   return (
@@ -110,7 +112,7 @@ export default function HelpPage() {
                 <Button size="sm" variant={tour.mode === "quick" ? "default" : "outline"} onClick={() => setTour({ mode: "quick", start: 0, play: false })}>Quick tour · 6 languages</Button>
                 <Button size="sm" variant={tour.mode === "full" ? "default" : "outline"} onClick={() => setTour({ mode: "full", start: 0, play: false })}>Every screen · {MANUAL.length} videos (English)</Button>
               </div>
-              {tour.mode === "quick" ? <VideoTour key="q" /> : <VideoTour key={`f${tour.start}`} scenes={FULL} englishOnly start={tour.start} autoPlay={tour.play} />}
+              {tour.mode === "quick" ? <VideoTour key="q" /> : <VideoTour key={`f${tour.start}`} scenes={FULL} englishOnly start={tour.start} autoPlay={tour.play} audioFor={fullAudio} />}
             </section>
           )}
           {!needle && (

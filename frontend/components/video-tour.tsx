@@ -171,9 +171,10 @@ function Presenter({ talking, pulse }: { talking: boolean; pulse: number }) {
   );
 }
 
-type Props = { scenes?: Scene[]; englishOnly?: boolean; start?: number; autoPlay?: boolean };
+type Props = { scenes?: Scene[]; englishOnly?: boolean; start?: number; autoPlay?: boolean; audioFor?: (i: number, lang: Lang) => string | null };
+const quickAudio = (i: number, lang: Lang) => `/help/audio/q${i}-${lang}.mp3`;
 
-export function VideoTour({ scenes = SCENES, englishOnly = false, start = 0, autoPlay = false }: Props) {
+export function VideoTour({ scenes = SCENES, englishOnly = false, start = 0, autoPlay = false, audioFor = quickAudio }: Props) {
   const SCENES_ = scenes;
   const [lang, setLang] = useState<Lang>("en");
   const [i, setI] = useState(start);
@@ -191,8 +192,10 @@ export function VideoTour({ scenes = SCENES, englishOnly = false, start = 0, aut
   const scene = SCENES_[i];
   const L = LANGS.find((l) => l.id === lang)!;
 
+  const audio = useRef<HTMLAudioElement | null>(null);
   const stopAudio = () => {
     if (timer.current) clearTimeout(timer.current);
+    if (audio.current) { audio.current.onended = null; audio.current.onerror = null; audio.current.pause(); audio.current = null; }
     if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
   };
 
@@ -214,6 +217,29 @@ export function VideoTour({ scenes = SCENES, englishOnly = false, start = 0, aut
     stopAudio();
     if (!playing) return;
     const text = scene.say[lang];
+    const speakDevice = () => {
+      const voice = pickVoice(L.voice, voiceName);
+      if (!voice || typeof SpeechSynthesisUtterance === "undefined") { timer.current = setTimeout(advance, Math.max(SILENT_MS, text.length * 55)); return; }
+      const u = new SpeechSynthesisUtterance(text);
+      u.voice = voice;
+      u.lang = voice.lang;
+      u.onstart = () => setTalking(true);
+      u.onboundary = () => setPulse((n) => n + 1);
+      u.onend = () => { setTalking(false); timer.current = setTimeout(advance, 700); };
+      speechSynthesis.speak(u);
+    };
+    const src = audioFor(i, lang);
+    if (!muted && src && !voiceName) {  // studio neural voice (pre-recorded MP3), works on every device
+      const a = new Audio(src);
+      audio.current = a;
+      let tick: ReturnType<typeof setInterval> | undefined;
+      a.onplay = () => { setTalking(true); tick = setInterval(() => setPulse((n) => n + 1), 260); };
+      a.onended = () => { clearInterval(tick); setTalking(false); timer.current = setTimeout(advance, 700); };
+      a.onpause = () => { clearInterval(tick); setTalking(false); };
+      a.onerror = () => { clearInterval(tick); audio.current = null; speakDevice(); };
+      a.play().catch(() => { clearInterval(tick); setPlaying(false); });
+      return stopAudio;
+    }
     const voice = pickVoice(L.voice, voiceName);
     if (!muted && voice && typeof SpeechSynthesisUtterance !== "undefined") {
       const u = new SpeechSynthesisUtterance(text);
@@ -228,7 +254,7 @@ export function VideoTour({ scenes = SCENES, englishOnly = false, start = 0, aut
       timer.current = setTimeout(advance, Math.max(SILENT_MS, text.length * 55));
     }
     return stopAudio;
-  }, [playing, i, lang, muted, scene, L.voice, voiceName, advance]);
+  }, [playing, i, lang, muted, scene, L.voice, voiceName, advance, audioFor]);
   useEffect(() => { if (!playing) setTalking(false); }, [playing]);
 
   useEffect(() => () => stopAudio(), []);
@@ -297,9 +323,9 @@ export function VideoTour({ scenes = SCENES, englishOnly = false, start = 0, aut
             <button key={l.id} onClick={() => setLang(l.id)} className={cn("rounded-full px-3 py-1 text-xs", lang === l.id ? "bg-white text-black" : "bg-white/10 hover:bg-white/20")}>{l.label}</button>
           ))}
         </div>
-        {voices.length > 1 && (
+        {voices.length > 0 && (
           <select value={voiceName} onChange={(e) => setVoiceName(e.target.value)} className="max-w-48 rounded-full bg-white/10 px-3 py-1 text-xs" aria-label="Voice">
-            <option value="" className="text-black">Best voice</option>
+            <option value="" className="text-black">Saige studio voice (natural)</option>
             {voices.map((v) => <option key={v.name} value={v.name} className="text-black">{v.name.replace(/Microsoft |Google | Online \(Natural\)/g, "")}</option>)}
           </select>
         )}
@@ -308,7 +334,7 @@ export function VideoTour({ scenes = SCENES, englishOnly = false, start = 0, aut
             : <Button size="sm" variant="secondary" onClick={() => void record()}><Download /> Record video</Button>}
         </div>
       </div>
-      {(!hasVoice || recErr) && (
+      {recErr && (
         <p className="px-4 pb-3 text-xs text-white/60">
           {recErr ?? `No ${L.label} voice is installed on this device, so the tour plays with captions only. Tip: open Saige in Microsoft Edge for natural neural voices in all six languages, or add a voice in Windows Settings → Time & language → Speech.`}
         </p>

@@ -48,3 +48,16 @@ async def test_publish_flow_public_url_and_privacy(client, auth, other_auth=None
     assert bad.status_code == 422
     await client.post("/api/portfolio/unpublish", headers=auth)
     assert (await client.get("/api/p/asha-rao")).status_code == 404
+
+
+def test_build_whitespace_name_does_not_crash():
+    from app.portfolio import data as pdata
+    from app.portfolio import templates as tpl
+    from app.schemas.profile import Profile
+
+    p = Profile()
+    p.personal.name = "   "
+    d = pdata.build(p, {})
+    assert d["name"] == "Your Name" and d["first"] == "Your"
+    for k in tpl.TEMPLATES:
+        assert tpl.render(k, d)

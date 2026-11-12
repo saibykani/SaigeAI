@@ -28,7 +28,7 @@ def build(profile: Profile, settings: dict) -> dict:
             "years": "–".join(str(y) for y in (ed.start_year, ed.end_year) if y)} for ed in k.education]
     certs = [{"name": c.name, "issuer": c.issuer or "", "url": str(c.credential_url) if c.credential_url else ""} for c in k.certifications]
     links = [(lbl, str(u)) for lbl, u in (("LinkedIn", p.linkedin_url), ("GitHub", p.github_url), ("Portfolio", p.portfolio_url)) if u]
-    name = (p.name or "Your Name").strip()
+    name = (p.name or "").strip() or "Your Name"
     return {
         "name": name, "first": name.split()[0], "initials": "".join(w[0] for w in name.split()[:2]).upper(),
         "role": role or "Professional", "tagline": (settings.get("tagline") or "").strip(),

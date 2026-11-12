@@ -81,13 +81,14 @@ async def put_portfolio(body: PortfolioIn, user: dict = Depends(get_current_user
 @router.post("/portfolio/publish")
 async def publish(body: PortfolioIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     uid = user["_id"]
+    slug = body.slug.strip().lower()
     p = await get_profile(db, uid)
-    if not p.personal.name or not (p.knowledge.experience or p.knowledge.projects or p.skills.all()):
+    if not (p.personal.name or "").strip() or not (p.knowledge.experience or p.knowledge.projects or p.skills.all()):
         raise HTTPException(status.HTTP_409_CONFLICT, "Add your name and at least your experience, projects or skills to your Profile first.")
     await _save(db, uid, body)
     await db[c.PORTFOLIOS].update_one({"_id": uid}, {"$set": {"published": True, "published_at": utcnow()}})
-    await log_action(db, user_id=uid, action="portfolio.published", entity="portfolio", details={"slug": body.slug, "template": body.template})
-    await notify(db, user_id=uid, kind="portfolio_published", title="Your portfolio is live", body=f"/p/{body.slug.lower()}", link="/portfolio")
+    await log_action(db, user_id=uid, action="portfolio.published", entity="portfolio", details={"slug": slug, "template": body.template})
+    await notify(db, user_id=uid, kind="portfolio_published", title="Your portfolio is live", body=f"/p/{slug}", link="/portfolio")
     return await get_portfolio(user, db)
 
 
