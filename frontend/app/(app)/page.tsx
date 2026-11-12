@@ -30,6 +30,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Notice } from "@/components/app-shell";
+import { CoachCard, HistoryTable } from "@/components/coach-history";
 import { FunnelChart } from "@/components/funnel-chart";
 import { InsightsGrid } from "@/components/insights";
 import { CountKpi, RateKpi, TrendKpi } from "@/components/kpi";
@@ -167,6 +168,11 @@ export default function DashboardPage() {
           </Link>
         ))}
       </section>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
+        <CoachCard />
+        <HistoryTable />
+      </div>
 
       {paused && <Notice tone="warning">All automation is paused. No agent will discover, apply, email or update anything until you resume.</Notice>}
 

@@ -256,3 +256,30 @@ async def ext_comment_replies(body: ExtComments, user: dict = Depends(token_user
     first = (user.get("name") or "").split(" ")[0]
     return {"replies": [{"author": str(x.get("author", ""))[:80], "comment": str(x.get("text", ""))[:500],
                          "reply": reply_to(str(x.get("author", "")), str(x.get("text", "")), first)} for x in body.comments]}
+
+
+class PageResumeIn(PageIn):
+    template: str = Field(default="modern", max_length=30)
+
+
+@router.post("/ext/resume", status_code=201)
+async def ext_build_resume(page: PageResumeIn, user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """ATS resume for the posting on screen, built only from the verified profile (same engine as ATS Studio)."""
+    from app.studio import router as studio
+
+    body = studio.ResumeIn(jd_text=page.text, title=page.title, company=page.company, template=page.template)
+    r = await studio._build(db, user["_id"], body, page.text, page.title, page.company.strip())
+    return {"id": r["id"], "title": r["title"], "company": r["company"], "score": r["ats"]["score"],
+            "missing": (r["ats"]["missing_required"] + r["ats"]["missing_preferred"])[:8], "improve": r["improve"][:3],
+            "verdict": r["verdict"]["label"], "path": "/studio"}
+
+
+@router.get("/ext/studio/{resume_id}/download")
+async def ext_resume_download(resume_id: str, format: str = "pdf", on: str | None = None,
+                              user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    from app.studio import router as studio
+
+    if format not in ("pdf", "docx"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "format must be pdf or docx")
+    data, fname = await studio.file_for(db, user["_id"], resume_id, format, None, on)
+    return studio.file_response(data, fname, format)

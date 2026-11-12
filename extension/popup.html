@@ -33,6 +33,28 @@
       <button id="save" class="btn">Save to Saige</button>
     </div>
 
+    <section class="block" id="resumeBox">
+      <p class="label">ATS resume for this job</p>
+      <div class="row">
+        <select id="template" aria-label="Template">
+          <option value="modern">Modern</option><option value="classic">Classic</option><option value="banner">Banner</option>
+          <option value="minimal">Minimal</option><option value="projects_first">Projects first</option><option value="technical">Technical</option>
+          <option value="corporate">Corporate</option><option value="elegant">Elegant</option>
+        </select>
+        <button id="makeResume" class="btn primary">Create resume</button>
+      </div>
+      <div id="resumeOut" hidden>
+        <p class="cls" id="resumeScore"></p>
+        <div class="chips muted" id="resumeMissing"></div>
+        <div class="row">
+          <button id="dlPdf" class="btn">Download PDF</button>
+          <button id="dlDocx" class="btn">Download Word</button>
+          <a id="openStudio" class="btn" target="_blank">Open in Saige</a>
+        </div>
+      </div>
+      <p class="hint">Built only from your verified profile, aimed at this posting. Select the JD text first for the best result.</p>
+    </section>
+
     <div id="result" hidden>
       <div class="score">
         <div class="ring" id="ring"><span id="scoreValue">0</span></div>

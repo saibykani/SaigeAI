@@ -306,3 +306,45 @@ void init().then(() => {
   void loadEdits();
   if (/linkedin\.com\/(feed\/update|posts)\//.test(page.url)) $("commentsBox").hidden = false;
 });
+
+// ATS resume for the posting on screen (same engine as ATS Studio), then download it as PDF or Word.
+let resumeId = null;
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
+$("makeResume").onclick = async () => {
+  setStatus("Building your ATS resume for this job…");
+  $("makeResume").disabled = true;
+  try {
+    const r = await call("/ext/resume", { method: "POST", body: JSON.stringify({ ...payload(), template: $("template").value }) });
+    resumeId = r.id;
+    $("resumeOut").hidden = false;
+    $("resumeScore").textContent = `ATS match ${r.score}% · ${r.verdict}`;
+    const miss = $("resumeMissing");
+    miss.replaceChildren(...r.missing.map((s) => Object.assign(document.createElement("span"), { textContent: s })));
+    $("openStudio").href = `${cfg.web}/studio`;
+    setStatus(r.missing.length ? "Ready. Missing keywords: add them in Saige only if you really have them." : "Ready.", "ok");
+  } catch (e) {
+    setStatus(e.message, "error");
+  } finally {
+    $("makeResume").disabled = false;
+  }
+};
+
+async function download(format) {
+  if (!resumeId) return;
+  setStatus("Preparing file…");
+  try {
+    const r = await fetch(`${cfg.api}/api/ext/studio/${resumeId}/download?format=${format}&on=${today()}`, { headers: { Authorization: `Bearer ${cfg.token}` } });
+    if (!r.ok) throw new Error(`Download failed (${r.status})`);
+    const cd = r.headers.get("content-disposition") || "";
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/) || cd.match(/filename="?([^";]+)"?/);
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await r.blob()), download: m ? decodeURIComponent(m[1]) : `resume.${format}` });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    setStatus("Downloaded.", "ok");
+  } catch (e) {
+    setStatus(e.message, "error");
+  }
+}
+$("dlPdf").onclick = () => download("pdf");
+$("dlDocx").onclick = () => download("docx");

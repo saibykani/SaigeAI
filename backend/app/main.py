@@ -36,6 +36,7 @@ from app.resumes.router import router as resumes_router
 from app.scheduler.router import router as scheduler_router
 from app.services.rate_limit import client_key, write_limiter
 from app.studio.router import router as studio_router
+from app.suggestions.router import router as suggestions_router
 from app.utils import new_id
 
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -131,7 +132,7 @@ def create_app() -> FastAPI:
               ml_router,
               applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router, linkedin_posts_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
-              recruiters_router, extension_router):
+              recruiters_router, extension_router, suggestions_router):
         api.include_router(r)
     app.include_router(api)
     return app

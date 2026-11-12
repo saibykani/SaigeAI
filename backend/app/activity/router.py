@@ -81,3 +81,23 @@ async def referral_runs(user: dict = Depends(get_current_user), db: AsyncIOMotor
         out.append(r)
     out.sort(key=lambda r: r["last_activity"] or "", reverse=True)
     return out
+
+
+@router.get("/history")
+async def history(days: int = Query(2, ge=1, le=30), user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """What Saige did for you, newest first: agent runs (with their result) and every recorded action."""
+    from datetime import timedelta
+
+    from app.utils import utcnow
+
+    since = utcnow() - timedelta(days=days)
+    rows = [{**describe(a), "kind": "action", "status": "done"}
+            async for a in db[c.AUDIT_LOGS].find({"user_id": user["_id"], "timestamp": {"$gte": since}}).sort("timestamp", DESCENDING).limit(300)]
+    async for r in db[c.AGENT_RUNS].find({"user_id": user["_id"], "start_time": {"$gte": since}}).sort("start_time", DESCENDING).limit(200):
+        out = r.get("output") or {}
+        rows.append({"id": r["_id"], "at": r["start_time"].isoformat(), "group": "agents", "kind": "agent", "status": r.get("status"),
+                     "action": r["agent_name"], "title": r["agent_name"].replace("_", " ").capitalize() + " agent",
+                     "detail": " · ".join(f"{k.replace('_', ' ')} {v}" for k, v in out.items() if isinstance(v, (int, float, str)))[:160],
+                     "entity": None, "entity_id": None})
+    rows.sort(key=lambda x: x["at"] or "", reverse=True)
+    return rows

@@ -280,14 +280,23 @@ async def download(resume_id: str, format: str = Query("pdf", pattern="^(pdf|doc
                    template: str | None = Query(None, max_length=30), on: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
                    user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     """The file is named First_Last_YYYY-MM-DD_Company.<ext> (`on` is the date in your timezone)."""
-    d, parsed = await _parsed(db, user["_id"], resume_id)
+    data, fname = await file_for(db, user["_id"], resume_id, format, template, on)
+    return file_response(data, fname, format)
+
+
+async def file_for(db: AsyncIOMotorDatabase, uid: str, resume_id: str, format: str, template: str | None = None,
+                   on: str | None = None) -> tuple[bytes, str]:
+    d, parsed = await _parsed(db, uid, resume_id)
     tid = template if template in render.TEMPLATES else d.get("template") or "modern"
     data = render.render(parsed, tid, format, _hl(d))
-    profile = await get_profile(db, user["_id"])
-    name = profile.personal.name or parsed.name
-    fname = render.filename(name, d.get("company"), on or date.today().isoformat(), format)
-    await log_action(db, user_id=user["_id"], action="studio.resume_downloaded", entity="resume", entity_id=resume_id,
+    profile = await get_profile(db, uid)
+    fname = render.filename(profile.personal.name or parsed.name, d.get("company"), on or date.today().isoformat(), format)
+    await log_action(db, user_id=uid, action="studio.resume_downloaded", entity="resume", entity_id=resume_id,
                      details={"format": format, "template": tid})
+    return data, fname
+
+
+def file_response(data: bytes, fname: str, format: str) -> Response:
     return Response(content=data, media_type=render.FORMATS[format],
                     headers={"Content-Disposition": f"attachment; filename=\"{re.sub(r'[^A-Za-z0-9_.-]', '_', fname)}\"; "
                                                     f"filename*=UTF-8''{quote(fname)}", "X-Content-Type-Options": "nosniff"})

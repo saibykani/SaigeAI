@@ -73,7 +73,8 @@ backend/app/
                           # never moves application status); auto_reply.py (reply drafts to recruiter mail from verified profile facts)
   linkedin_posts/          # daily LinkedIn posting agent: content.py (series from verified skills), render.py (Pillow card / PDF
                           # carousel), client.py (official OAuth + Posts API, w_member_social), service.py, router.py (/api/linkedin/*)
-  activity/router.py      # /activity timeline (audit log) + /activity/referrals (outreach grouped per job); page kept at /activity (not in the sidebar)
+  suggestions/router.py   # Resume & profile coach agent (/api/suggestions, /run): ranked truthful fixes; dashboard CoachCard
+  activity/router.py      # /activity/history (agent runs + actions, dashboard History table) + /activity timeline (audit log) + /activity/referrals (outreach grouped per job); page kept at /activity (not in the sidebar)
   assistant/router.py     # Saige AI chat: Claude (llm.chat) grounded in a summary of the user's records, or a built-in answerer without a key
   analytics/router.py     # also /analytics/insights (market + pipeline numbers useful before any application is sent)
   analytics/              # /analytics/dashboard aggregate + service.breakdowns (source/role/resume/match, weekly, time-to-response)
