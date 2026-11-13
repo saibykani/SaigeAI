@@ -34,7 +34,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone; grou
 const NAV: NavItem[] = [
   { group: "Home", href: "/recruiter", label: "Hiring", icon: Building2, tone: "teal", only: "recruiter" },
   { group: "Home", href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green", tabs: [
-    { href: "/", label: "Overview" }, { href: "/goals", label: "Weekly goals" }, { href: "/analytics", label: "Analytics" }, { href: "/activity", label: "Activity log" }] },
+    { href: "/", label: "Overview" }, { href: "/goals", label: "Weekly goals" }, { href: "/analytics", label: "Analytics" }, { href: "/analytics/companies", label: "Company insights" }, { href: "/activity", label: "Activity log" }] },
   { group: "Job search", href: "/jobs", label: "Find jobs", icon: Briefcase, tone: "orange", tabs: [
     { href: "/jobs", label: "Jobs for you" }, { href: "/careers", label: "Career portals" }, { href: "/salary", label: "Salary insights" }] },
   { group: "Job search", href: "/applications", label: "Track applications", icon: Send, tone: "yellow", tabs: [

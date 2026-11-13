@@ -6,9 +6,10 @@ All numbers are plain counts from stored records - descriptive only, never infer
 import asyncio
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.analytics.insights import insights_by
 from app.auth.deps import db_dep, get_current_user
 from app.automation.service import get_settings_doc
 from app.database import collections as c
@@ -255,3 +256,10 @@ async def insights(user: dict = Depends(get_current_user), db: AsyncIOMotorDatab
         agg(c.EMAILS, "category"), agg(c.RECRUITER_CONTACTS, "source"), feed_stats())
     return {"applications_by_status": statuses, "jobs_by_source": sources, "match_distribution": buckets,
             "top_companies": companies, "inbox": inbox, "contacts_by_source": contacts, "feed": feed}
+
+
+@router.get("/companies")
+async def company_insights(days: int | None = Query(None, ge=1, le=3650), user: dict = Depends(get_current_user),
+                           db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """The user's own reply / interview rates per company and per source (optional window in days)."""
+    return await insights_by(db, user["_id"], days)

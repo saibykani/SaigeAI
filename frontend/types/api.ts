@@ -1103,3 +1103,14 @@ export interface IncomingTalentRequest {
   id: string; recruiter_name: string | null; job_title: string | null; company: string | null; message: string;
   status: "pending" | "accepted" | "declined"; created_at: string | null;
 }
+
+export interface InsightGroup {
+  label: string; applied: number; replied: number; interviews: number; offers: number; rejections: number; ghosted: number;
+  reply_rate: number | null; interview_rate: number | null; median_response_days: number | null; last_activity: string | null;
+  tip?: string; outreach_sent?: number; outreach_replied?: number;
+}
+export interface InsightPick { label: string; applied: number; reply_rate?: number; interview_rate?: number }
+export interface CompanyInsights {
+  days: number | null; min_sample: number; overall: InsightGroup; companies: InsightGroup[]; sources: InsightGroup[];
+  best_source: InsightPick | null; worst_source: InsightPick | null; best_interview_source: InsightPick | null; enough_data: boolean;
+}
