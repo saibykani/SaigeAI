@@ -82,6 +82,16 @@ async def _learn(db: AsyncIOMotorDatabase, uid: str, career_job_id: str | None, 
         return
 
 
+class DetectIn(BaseModel):
+    jd_text: str = Field(max_length=60000)
+
+
+@router.post("/detect")
+async def detect(body: DetectIn, user: dict = Depends(get_current_user)):
+    """Company and role read from a pasted job description, to pre-fill the form."""
+    return {"company": analyzer.extract_company(body.jd_text) or "", "title": analyzer.extract_title(body.jd_text) or ""}
+
+
 @router.get("/templates")
 async def templates():
     return {"templates": [{"id": t.id, "name": t.name, "description": t.description} for t in render.TEMPLATES.values()],

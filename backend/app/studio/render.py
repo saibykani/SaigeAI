@@ -458,9 +458,8 @@ def render(r: ParsedResume, template: str, fmt: str, headline: str | None = None
 
 
 def filename(name: str | None, company: str | None, date: str, fmt: str) -> str:
-    """First_Last_YYYY-MM-DD_Company.ext"""
+    """Full_Name_YYYY-MM-DD_Company.ext (the whole name, as written in the profile)"""
     def clean(s: str) -> str:
         return re.sub(r"[^A-Za-z0-9]+", "_", s).strip("_")[:40]
-    words = (name or "").split()
-    person = f"{words[0]} {words[-1]}" if len(words) >= 2 else (name or "Resume")
+    person = (name or "").strip() or "Resume"
     return "_".join(p for p in (clean(person), date, clean(company or "")) if p) + f".{fmt}"

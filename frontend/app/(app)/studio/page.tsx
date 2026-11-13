@@ -56,6 +56,20 @@ function Builder() {
   const [preview, setPreview] = useState<string>("");
   const [gallery, setGallery] = useState<Gallery[]>([]);
   const started = useRef(false);
+  const [detected, setDetected] = useState(false);
+
+  // Paste a JD → read the company and role from it and fill whichever field is still empty.
+  useEffect(() => {
+    if (jd.trim().length < 60 || careerJob) return;
+    const t = setTimeout(async () => {
+      const r = await request<{ company: string; title: string }>("/studio/detect", { method: "POST", body: { jd_text: jd } }).catch(() => null);
+      if (!r) return;
+      if (r.company) setCompany((c) => c.trim() || r.company);
+      if (r.title) setTitle((v) => v.trim() || r.title);
+      setDetected(Boolean(r.company || r.title));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [jd, careerJob]);
 
   async function generate(over?: { career_job_id?: string; jd_text?: string; title?: string; company?: string }) {
     setBusy(true);
@@ -164,6 +178,7 @@ function Builder() {
           ) : (
             <Field label="Job description" className="lg:col-span-2">
               <Textarea rows={10} value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste the full job description here" />
+              {detected && (company || title) && <p className="mt-1.5 text-xs text-muted-foreground">Filled from the job description: {[title, company].filter(Boolean).join(" at ")}. Edit if needed.</p>}
             </Field>
           )}
           <div className="lg:col-span-2">

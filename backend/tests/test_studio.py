@@ -60,7 +60,7 @@ def test_every_template_renders_every_format(tid):
     for fmt in render.FORMATS:
         out = render.render(r, tid, fmt)
         assert len(out) > 200
-    assert render.filename("Asha K Rao", "Acme & Co.", "2026-11-10", "pdf") == "Asha_Rao_2026-11-10_Acme_Co.pdf"
+    assert render.filename("Asha K Rao", "Acme & Co.", "2026-11-10", "pdf") == "Asha_K_Rao_2026-11-10_Acme_Co.pdf"
 
 
 async def test_company_is_read_from_the_jd_and_experience_counts_from_dates(client, auth):
@@ -114,3 +114,14 @@ def test_polish_repairs_imported_resume_artefacts():
     assert _guess_title("I Do Not Accept I Accept\nWe are hiring a Senior QA Automation Engineer to join us.") == "Senior QA Automation Engineer"
     assert _guess_title("Job Title: SDET II\nLocation: Hyderabad") == "SDET II"
     assert _guess_title("Cookie settings\nAccept all") == ""
+
+
+async def test_detect_company_and_role_from_pasted_jd(client, auth):
+    jd = "Senior SDET - Payments\nRazorpay is hiring a Senior SDET to own test automation for payments at razorpay.com."
+    r = await client.post("/api/studio/detect", headers=auth, json={"jd_text": jd})
+    assert r.status_code == 200 and r.json() == {"company": "Razorpay", "title": "Senior SDET"}
+
+
+def test_resume_filename_uses_full_name():
+    from app.studio import render
+    assert render.filename("Asha Lakshmi Rao", "PayCo", "2026-11-13", "pdf") == "Asha_Lakshmi_Rao_2026-11-13_PayCo.pdf"

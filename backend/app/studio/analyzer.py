@@ -244,3 +244,8 @@ def extract_company(text: str) -> str | None:
     for n in list(votes):
         votes[n] += min(len(re.findall(re.escape(n), head)), 5)
     return max(votes, key=votes.get)
+
+
+def extract_title(text: str) -> str | None:
+    """The role named in a job description, for pre-filling forms."""
+    return _guess_title(text) or None
