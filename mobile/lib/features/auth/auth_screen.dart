@@ -5,7 +5,7 @@ import '../../core/motion.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/logo.dart';
-import '../../core/widgets/particles.dart';
+import '../../core/widgets/galaxy.dart';
 import '../../core/widgets/ui.dart';
 
 /// Cinematic sign-in / sign-up over a tilt-reactive particle field.
@@ -76,7 +76,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: C.bg,
         resizeToAvoidBottomInset: true,
-        body: ParallaxField(
+        body: GalaxyBackground(
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(
