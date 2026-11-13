@@ -144,6 +144,12 @@ export default function HelpPage() {
             </div>
           </section>
 
+          <Card className="no-print flex flex-wrap items-center gap-4 p-5">
+            <PlayCircle className="size-6 text-primary" />
+            <div className="flex-1 text-sm"><p className="font-medium">Get the Saige AI app</p><p className="text-muted-foreground">Android app download, or add Saige to your iPhone home screen.</p></div>
+            <Link href="/download" className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Download</Link>
+          </Card>
+
           <Card id="about" className="scroll-mt-24 p-6">
             <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight"><Info className="size-5 text-primary" /> About Saige AI</h2>
             <p className="mt-3 text-sm text-muted-foreground">Saige AI is a truthful career assistant for one job seeker at a time. It finds jobs, matches them to your verified profile, builds ATS resumes and cover letters, tracks applications and recruiter mail, and builds your portfolio website. It does the repetitive work so you can focus on interviews.</p>

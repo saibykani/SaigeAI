@@ -299,6 +299,7 @@ export function Landing({ fontClass }: { fontClass: string }) {
             <p className="mt-4 text-white/70">{t("Setup takes about 3 minutes.")}</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link href="/register" className="rounded-full bg-white px-6 py-3 text-sm font-medium text-black">{t("Get started free")}</Link>
+              <Link href="/download" className="rounded-full border border-white/25 px-6 py-3 text-sm font-medium text-white">{t("Get the app")}</Link>
               <Link href="/login" className={cn(s.glass, "rounded-full px-6 py-3 text-sm")}>{t("Sign in")}</Link>
             </div>
           </Reveal>
@@ -312,6 +313,7 @@ export function Landing({ fontClass }: { fontClass: string }) {
             <p className="mt-1 text-sm text-white/60">© {year} Saige AI. {t("All rights reserved.")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-5 text-sm text-white/70">
+            <Link href="/download" className="hover:text-white">{t("Get the app")}</Link>
             <Link href="/privacy" className="hover:text-white">{t("Privacy")}</Link>
             <Link href="/terms" className="hover:text-white">{t("Terms")}</Link>
             <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-white">{t("Contact")}</a>
