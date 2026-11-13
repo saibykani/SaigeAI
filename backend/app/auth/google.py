@@ -1,8 +1,10 @@
 """Google OAuth 2.0 authorization-code flow (sign-in only; Gmail scopes arrive in Phase 5)."""
 
+import time
 from urllib.parse import urlencode
 
 import httpx
+import jwt
 
 from app.config import get_settings
 
@@ -43,3 +45,54 @@ async def exchange_code(code: str) -> dict:
         info.raise_for_status()
         # Google access token is discarded; we only needed identity for sign-in.
         return info.json()
+
+
+# ---------------------------------------------------------------- ID token (native mobile sign-in)
+
+CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs"
+ISSUERS = ("accounts.google.com", "https://accounts.google.com")
+_jwks_cache: dict = {"keys": None, "at": 0.0}
+_JWKS_TTL = 3600.0
+
+
+class InvalidIdToken(Exception):
+    pass
+
+
+async def _jwks(force: bool = False) -> list[dict]:
+    now = time.monotonic()
+    if force or not _jwks_cache["keys"] or now - _jwks_cache["at"] > _JWKS_TTL:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(CERTS_URL)
+            resp.raise_for_status()
+            _jwks_cache.update(keys=resp.json()["keys"], at=now)
+    return _jwks_cache["keys"]
+
+
+async def verify_id_token(id_token: str) -> dict:
+    """Verify a Google ID token (RS256, Google's public certs) and return its claims.
+
+    Checks signature, exp, iss, aud == GOOGLE_CLIENT_ID (the web client id) and email_verified.
+    Raises InvalidIdToken on any problem; httpx errors propagate if the certs cannot be fetched."""
+    s = get_settings()
+    if not s.google_client_id:
+        raise InvalidIdToken("not configured")
+    try:
+        kid = jwt.get_unverified_header(id_token).get("kid")
+    except jwt.PyJWTError as e:
+        raise InvalidIdToken("malformed") from e
+    key = next((k for k in await _jwks() if k.get("kid") == kid), None)
+    if key is None:  # Google rotates keys: refresh once
+        key = next((k for k in await _jwks(force=True) if k.get("kid") == kid), None)
+    if key is None:
+        raise InvalidIdToken("unknown key")
+    try:
+        claims = jwt.decode(id_token, jwt.PyJWK(key).key, algorithms=["RS256"], audience=s.google_client_id,
+                            options={"require": ["exp", "iss", "aud", "sub"]}, leeway=30)
+    except jwt.PyJWTError as e:
+        raise InvalidIdToken(str(e)) from e
+    if claims.get("iss") not in ISSUERS:
+        raise InvalidIdToken("bad issuer")
+    if claims.get("email_verified") not in (True, "true") or not claims.get("email"):
+        raise InvalidIdToken("email not verified")
+    return claims

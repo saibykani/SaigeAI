@@ -35,6 +35,27 @@ first-party). Change it at runtime in Profile > Settings > Server. The client (`
 - sends `X-Requested-With: saige` on every call (CSRF),
 - on 401 runs one shared `/auth/refresh`, retries once, then signs the user out.
 
+## Google sign-in
+
+The app uses `google_sign_in` (native account picker), sends the Google ID token to `POST /api/auth/google/mobile`
+(`{id_token, role?}`), and gets the normal session back (access token + refresh cookie). The API verifies the token
+against Google's public certs and requires `aud` == the API's `GOOGLE_CLIENT_ID` (the **Web** client).
+
+1. Google Cloud console > APIs & Services > Credentials. Reuse the existing **Web application** client (the one the
+   web app and the API's `GOOGLE_CLIENT_ID` use). Its client id is `GOOGLE_WEB_CLIENT_ID` below.
+2. Create credentials > OAuth client ID > type **Android**, package name `ai.saige`, and the SHA-1 of the signing key.
+   Debug-signed APK (current) keystore:
+   ```bash
+   keytool -list -v -keystore "$USERPROFILE/.android/debug.keystore" -alias androiddebugkey -storepass android -keypass android
+   ```
+   Add a second Android client for the real release key (and Play App Signing key) once it exists.
+3. If the OAuth consent screen is in Testing, add the testers' Google accounts.
+4. Build with the web client id (no google-services.json needed):
+   ```bash
+   /c/flutter/bin/flutterw build apk --release --split-per-abi --dart-define=GOOGLE_WEB_CLIENT_ID=<id>.apps.googleusercontent.com
+   ```
+   The constant lives in `lib/core/google_auth.dart`. Without it the button shows "not set up in this build yet".
+
 ## Structure
 
 ```
@@ -54,7 +75,7 @@ active palette, so those widgets cannot be `const`. `ThemeController` (`theme_co
 
 ## TODO / known gaps
 
-- Google sign-in (needs a native OAuth client plus a token-exchange endpoint on the API).
+- Google sign-in is built; it needs the Google Cloud setup below before it works.
 - Recruiter role signs up and signs in, but the recruiter-side screens are not built; recruiters see the job seeker UI.
 - Real release signing key (currently debug-signed), Play Store listing, push notifications (FCM / web push bridge).
 - Resume editing, tailored-resume preview and download, application answers review, Outreach, LinkedIn posts and

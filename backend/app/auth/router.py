@@ -5,6 +5,7 @@ import httpx
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.responses import RedirectResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel, Field
 
 from app.auth import google
 from app.auth.deps import db_dep, get_current_user, require_csrf_header
@@ -186,3 +187,37 @@ async def google_callback(
     resp.delete_cookie(OAUTH_STATE_COOKIE, path="/api/auth/google")
     resp.delete_cookie(OAUTH_ROLE_COOKIE, path="/api/auth/google")
     return resp
+
+
+class GoogleMobileRequest(BaseModel):
+    id_token: str = Field(min_length=20, max_length=4096)
+    role: str | None = None
+
+
+@router.post("/google/mobile", response_model=TokenResponse,
+             dependencies=[Depends(auth_limiter.dependency("login"))])
+async def google_mobile(body: GoogleMobileRequest, response: Response, db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Native app sign-in: exchange a Google ID token (audience = the web client id) for a Saige session."""
+    if not get_settings().google_client_id:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Google sign-in is not configured")
+    try:
+        info = await google.verify_id_token(body.id_token)
+    except google.InvalidIdToken:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid Google sign-in") from None
+    except httpx.HTTPError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Could not reach Google, try again") from None
+    email = info["email"].lower()
+    if await db[c.USERS].find_one({"email": email, "is_active": False}, {"_id": 1}):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This account is disabled")
+    user = await db[c.USERS].find_one({"google_sub": info["sub"]})
+    if not user:
+        existing = await db[c.USERS].find_one({"email": email})
+        if existing:  # link by email: Google asserts it is verified
+            await db[c.USERS].update_one({"_id": existing["_id"]}, {"$set": {"google_sub": info["sub"]}})
+            user = {**existing, "google_sub": info["sub"]}
+        else:
+            user = await create_user(db, email=email, name=info.get("name") or "", google_sub=info["sub"],
+                                     role="recruiter" if body.role == "recruiter" else "jobseeker")
+    await log_action(db, user_id=user["_id"], action="auth.login", entity="user",
+                     entity_id=user["_id"], details={"provider": "google", "client": "mobile"})
+    return await issue_session(db, user, response)

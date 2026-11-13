@@ -74,6 +74,9 @@ class Session extends ChangeNotifier {
   Future<void> login(String email, String password) async =>
       _afterToken(await api.post('/auth/login', data: {'email': email.trim(), 'password': password}));
 
+  Future<void> loginWithGoogle(String idToken, {String role = 'jobseeker'}) async =>
+      _afterToken(await api.post('/auth/google/mobile', data: {'id_token': idToken, 'role': role}));
+
   Future<void> register({required String name, required String email, required String password, required String role}) async =>
       _afterToken(await api.post('/auth/register', data: {'name': name.trim(), 'email': email.trim(), 'password': password, 'role': role}));
 

@@ -59,7 +59,7 @@ class ApiClient {
   }
 
   Future<dynamic> request(String method, String path, {Object? data, Map<String, dynamic>? query}) async {
-    final isAuth = path.startsWith('/auth/login') || path.startsWith('/auth/register') || path.startsWith('/auth/refresh');
+    final isAuth = path.startsWith('/auth/login') || path.startsWith('/auth/google') || path.startsWith('/auth/register') || path.startsWith('/auth/refresh');
     try {
       return (await _send(method, path, data: data, query: query)).data;
     } on DioException catch (e) {

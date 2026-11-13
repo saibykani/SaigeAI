@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/api.dart';
+import '../../core/google_auth.dart';
 import '../../core/motion.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
@@ -12,7 +13,6 @@ import '../../core/widgets/logo.dart';
 
 /// Sign in / create account. The Milky Way fills the top with a slow camera drift, the wordmark blurs in
 /// letter by letter, and a clean sheet springs up from the bottom with Google-style floating-label fields.
-/// TODO: Google sign-in (needs a native OAuth client plus a token-exchange endpoint on the API).
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
   @override
@@ -64,6 +64,31 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       _fail(e.message);
     } catch (_) {
       _fail('Could not sign in. Check your connection and try again.');
+    }
+  }
+
+  Future<void> _google() async {
+    FocusScope.of(context).unfocus();
+    if (!GoogleAuth.configured) {
+      _fail('Google sign-in is not set up in this build yet.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final token = await GoogleAuth.idToken();
+      if (token == null) {
+        if (mounted) setState(() => _busy = false);
+        return;
+      }
+      await Session.I.loginWithGoogle(token, role: _register ? _role : 'jobseeker');
+      success();
+    } on ApiException catch (e) {
+      _fail(e.message);
+    } catch (_) {
+      _fail('Google sign-in did not work. Check your connection and try again.');
     }
   }
 
@@ -140,6 +165,22 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           _Segmented(register: _register, onChanged: _mode),
           const SizedBox(height: 18),
           if (_register) ...[
+            Row(children: [
+              Expanded(child: _RoleCard(label: 'Job seeker', icon: Icons.person_search_rounded, on: _role == 'jobseeker', onTap: () => setState(() => _role = 'jobseeker'))),
+              const SizedBox(width: 10),
+              Expanded(child: _RoleCard(label: 'Recruiter', icon: Icons.groups_rounded, on: _role == 'recruiter', onTap: () => setState(() => _role = 'recruiter'))),
+            ]),
+            const SizedBox(height: 14),
+          ],
+          _GoogleButton(busy: _busy, onTap: _google),
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: Divider(color: C.line, height: 1)),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text('or', style: T.small)),
+            Expanded(child: Divider(color: C.line, height: 1)),
+          ]),
+          const SizedBox(height: 16),
+          if (_register) ...[
             _Field(controller: _name, label: 'Full name', icon: Icons.person_outline_rounded, capitalize: true),
             const SizedBox(height: 12),
           ],
@@ -164,14 +205,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-          if (_register) ...[
-            const SizedBox(height: 16),
-            Row(children: [
-              Expanded(child: _RoleCard(label: 'Job seeker', icon: Icons.person_search_rounded, on: _role == 'jobseeker', onTap: () => setState(() => _role = 'jobseeker'))),
-              const SizedBox(width: 10),
-              Expanded(child: _RoleCard(label: 'Recruiter', icon: Icons.groups_rounded, on: _role == 'recruiter', onTap: () => setState(() => _role = 'recruiter'))),
-            ]),
-          ],
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             transitionBuilder: (c, a) => SizeTransition(sizeFactor: a, alignment: Alignment.topCenter, child: FadeTransition(opacity: a, child: c)),
@@ -444,4 +477,54 @@ class _ShimmerButtonState extends State<_ShimmerButton> with SingleTickerProvide
           ]),
         ),
       );
+}
+
+/// "Continue with Google": white pill, thin border, multicolour G (Google branding guidelines).
+/// Stays white in dark themes as Google allows (light variant with a neutral border).
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton({required this.busy, required this.onTap});
+  final bool busy;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Pressable(
+        onTap: busy ? null : onTap,
+        scale: 0.97,
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(99), border: Border.all(color: const Color(0xFF747775))),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const SizedBox(width: 20, height: 20, child: CustomPaint(painter: _GoogleG())),
+            const SizedBox(width: 12),
+            const Text('Continue with Google', style: TextStyle(color: Color(0xFF1F1F1F), fontSize: 15.5, fontWeight: FontWeight.w600, letterSpacing: 0.1)),
+          ]),
+        ),
+      );
+}
+
+/// Multicolour Google "G" built from four arcs and the crossbar.
+class _GoogleG extends CustomPainter {
+  const _GoogleG();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width;
+    final c = Offset(s / 2, s / 2);
+    final stroke = s * 0.2;
+    final rect = Rect.fromCircle(center: c, radius: s / 2 - stroke / 2);
+    Paint p(Color col) => Paint()
+      ..color = col
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    const pi = 3.141592653589793;
+    // Angles run clockwise from 3 o'clock; the gap between -45 degrees and 0 is the G's opening.
+    canvas.drawArc(rect, -pi * 0.75, pi * 0.5, false, p(const Color(0xFFEA4335))); // top
+    canvas.drawArc(rect, pi * 0.75, pi * 0.5, false, p(const Color(0xFFFBBC05))); // left
+    canvas.drawArc(rect, pi * 0.25, pi * 0.5, false, p(const Color(0xFF34A853))); // bottom
+    // Blue crossbar and right-hand tail.
+    final blue = Paint()..color = const Color(0xFF4285F4);
+    canvas.drawRect(Rect.fromLTRB(s * 0.5, s * 0.4, s * 0.98, s * 0.6), blue);
+    canvas.drawArc(rect, 0, pi * 0.25, false, p(const Color(0xFF4285F4)));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }
