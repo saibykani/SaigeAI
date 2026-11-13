@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 
 import { translate } from "@/components/i18n";
 import { STRINGS } from "@/components/i18n-strings";
