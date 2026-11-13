@@ -81,6 +81,30 @@ class ApiClient {
   Future<dynamic> post(String p, {Object? data, Map<String, dynamic>? query}) => request('POST', p, data: data, query: query);
   Future<dynamic> put(String p, {Object? data}) => request('PUT', p, data: data);
 
+  /// Downloads a binary file (resume PDF/DOCX). Returns the bytes and the server's suggested filename.
+  Future<(List<int>, String?)> download(String path, {Map<String, dynamic>? query}) async {
+    Future<Response<List<int>>> go() => dio.request<List<int>>(path,
+        queryParameters: query,
+        options: Options(method: 'GET', responseType: ResponseType.bytes, headers: {if (_token != null) 'Authorization': 'Bearer $_token'}));
+    Response<List<int>> r;
+    try {
+      try {
+        r = await go();
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 401 && await refresh()) {
+          r = await go();
+        } else {
+          rethrow;
+        }
+      }
+    } on DioException catch (e) {
+      throw _wrap(e);
+    }
+    final cd = r.headers.value('content-disposition') ?? '';
+    final m = RegExp(r'filename\*?=(?:UTF-8.{2})?"?([^";]+)"?').firstMatch(cd);
+    return (r.data ?? <int>[], m == null ? null : Uri.decodeComponent(m.group(1)!));
+  }
+
   static ApiException _wrap(DioException e) {
     final code = e.response?.statusCode;
     if (code == null) {

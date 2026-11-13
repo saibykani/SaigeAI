@@ -12,6 +12,7 @@ import '../../core/widgets/confetti.dart';
 import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/scan_loader.dart';
 import '../../core/widgets/ui.dart';
+import '../more/more_hub.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -144,6 +145,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Pill(Session.I.isRecruiter ? 'Recruiter' : 'Job seeker', color: C.primary, filled: true),
                       ]),
                     ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Stagger(
+                index: 2,
+                child: GlassCard(
+                  onTap: () => pushDepth(context, (_) => const MoreHub()),
+                  border: C.primary.withValues(alpha: 0.5),
+                  child: const Row(children: [
+                    Icon(Icons.apps_rounded, color: C.primary, size: 30),
+                    SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Everything in Saige', style: T.h2), Text('ATS coach, resume health, job search, inbox, goals, learning, mock interview', style: T.small)])),
+                    Icon(Icons.chevron_right_rounded, color: C.muted),
                   ]),
                 ),
               ),
