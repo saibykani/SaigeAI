@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../core/api.dart';
+import '../../core/config.dart';
 import '../../core/motion.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
@@ -47,7 +48,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
   late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
   final _level = ValueNotifier<double>(0);
   OrbState _state = OrbState.idle;
-  int _lang = 0;
+  int _lang = _langs.indexWhere((l) => l.$1 == AppConfig.lang).clamp(0, _langs.length - 1);
   bool _sttReady = false;
   bool _speak = true;
   String _partial = '';
@@ -170,7 +171,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
             child: Row(children: [
-              const Expanded(child: Text('Saige', style: T.display)),
+              Expanded(child: Text('Saige', style: T.display)),
               IconButton(
                 tooltip: 'Speak replies',
                 onPressed: () {
@@ -233,7 +234,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               itemCount: _msgs.length + (_state == OrbState.thinking ? 1 : 0),
               itemBuilder: (context, i) {
-                if (i == _msgs.length) return const Align(alignment: Alignment.centerLeft, child: Padding(padding: EdgeInsets.all(8), child: DotRing(size: 30, dots: 12)));
+                if (i == _msgs.length) return Align(alignment: Alignment.centerLeft, child: Padding(padding: EdgeInsets.all(8), child: DotRing(size: 30, dots: 12)));
                 final m = _msgs[i];
                 final me = m.role == 'user';
                 return Stagger(
@@ -247,7 +248,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(color: me ? C.primary : C.surface2, borderRadius: BorderRadius.only(topLeft: const Radius.circular(22), topRight: const Radius.circular(22), bottomLeft: Radius.circular(me ? 22 : 6), bottomRight: Radius.circular(me ? 6 : 22)), border: me ? null : Border.all(color: C.line)),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        SelectableText(m.text, style: T.body.copyWith(color: me ? Colors.white : C.text)),
+                        SelectableText(m.text, style: T.body.copyWith(color: me ? C.onPrimary : C.text)),
                         if (m.actions.isNotEmpty) ...[const SizedBox(height: 10), Wrap(spacing: 8, children: [for (final a in m.actions) Pressable(onTap: () => _action(a), child: Pill('${a['label']}', color: C.text, filled: true))])],
                       ]),
                     ),
@@ -261,7 +262,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
             child: Row(children: [
               Expanded(child: TextField(controller: _input, textInputAction: TextInputAction.send, onSubmitted: _send, decoration: const InputDecoration(hintText: 'Ask Saige anything'))),
               const SizedBox(width: 10),
-              Pressable(onTap: () => _send(_input.text), child: Container(width: 54, height: 54, decoration: const BoxDecoration(color: C.primary, shape: BoxShape.circle), child: const Icon(Icons.arrow_upward_rounded))),
+              Pressable(onTap: () => _send(_input.text), child: Container(width: 54, height: 54, decoration: BoxDecoration(color: C.primary, shape: BoxShape.circle), child: const Icon(Icons.arrow_upward_rounded))),
             ]),
           ),
         ]),
@@ -291,8 +292,8 @@ class _OrbPainter extends CustomPainter {
     final breathe = st == OrbState.speaking ? 1 + 0.08 * math.sin(t.value * math.pi * 2 * 6) : 1 + 0.04 * math.sin(t.value * math.pi * 2);
     final r = base * breathe * (1 + lv * 0.35);
     final rect = Rect.fromCircle(center: c, radius: r);
-    canvas.drawCircle(c, r * 1.35, Paint()..shader = const RadialGradient(colors: [Color(0x55E5304A), Color(0x00E5304A)]).createShader(Rect.fromCircle(center: c, radius: r * 1.35)));
-    canvas.drawCircle(c, r, Paint()..shader = const RadialGradient(center: Alignment(-0.3, -0.35), colors: [Color(0xFFFF7B8E), C.primary, Color(0xFF8E1426)], stops: [0, 0.55, 1]).createShader(rect));
+    canvas.drawCircle(c, r * 1.35, Paint()..shader = RadialGradient(colors: [C.primary.withValues(alpha: 0.33), C.primary.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: c, radius: r * 1.35)));
+    canvas.drawCircle(c, r, Paint()..shader = RadialGradient(center: Alignment(-0.3, -0.35), colors: [Color.lerp(C.primary, Colors.white, 0.4)!, C.primary, Color.lerp(C.primary, Colors.black, 0.45)!], stops: [0, 0.55, 1]).createShader(rect));
     if (st == OrbState.listening) {
       canvas.drawCircle(c, r * 0.28, Paint()..color = Colors.white.withValues(alpha: 0.85));
     }

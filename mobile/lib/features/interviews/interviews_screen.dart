@@ -64,15 +64,15 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 64, 20, 0),
                     sliver: SliverList.list(children: [
-                      const Text('Interviews', style: T.display),
+                      Text('Interviews', style: T.display),
                       const SizedBox(height: 14),
                       PrimaryButton(label: 'Scan inbox for interview mail', icon: Icons.mark_email_unread_outlined, busy: _syncing, ghost: true, onTap: _sync),
                       if (_upcoming.error != null && up.isEmpty && mails.isEmpty) ...[const SizedBox(height: 20), ErrorState(error: _upcoming.error!, onRetry: _refresh)],
                       const SectionTitle('Upcoming'),
-                      if (up.isEmpty) const GlassCard(child: Text('Nothing scheduled yet.', style: T.small)),
+                      if (up.isEmpty) GlassCard(child: Text('Nothing scheduled yet.', style: T.small)),
                       for (final (i, x) in up.indexed) Padding(padding: const EdgeInsets.only(bottom: 10), child: Stagger(index: i, child: _Upcoming(i: x))),
                       const SectionTitle('From your inbox'),
-                      if (mails.isEmpty) const GlassCard(child: Text('No interview emails found. Connect Gmail on the web app, then scan.', style: T.small)),
+                      if (mails.isEmpty) GlassCard(child: Text('No interview emails found. Connect Gmail on the web app, then scan.', style: T.small)),
                       for (final (i, m) in mails.indexed) Padding(padding: const EdgeInsets.only(bottom: 10), child: Stagger(index: i, child: _Mail(m: m))),
                     ]),
                   ),
@@ -80,7 +80,7 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
               },
             ),
             Positioned(left: 12, top: 8, child: Pressable(onTap: () => Navigator.of(context).maybePop(), child: Container(width: 46, height: 46, decoration: BoxDecoration(shape: BoxShape.circle, color: C.surface2, border: Border.all(color: C.line)), child: const Icon(Icons.arrow_back_rounded)))),
-            if (_syncing) const Positioned(right: 20, top: 16, child: DotRing(size: 30, dots: 12)),
+            if (_syncing) Positioned(right: 20, top: 16, child: DotRing(size: 30, dots: 12)),
           ]),
         ),
       );
@@ -141,8 +141,8 @@ class _Mail extends StatelessWidget {
         Text('${m['subject']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Text('${m['sender']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: T.small),
-        if (x['interview_date'] != null || x['round'] != null) ...[const SizedBox(height: 8), Text([if (x['round'] != null) '${x['round']}', if (x['interview_date'] != null) '${x['interview_date']}'].join('  ·  '), style: const TextStyle(color: C.warn, fontSize: 13))],
-        if (link != null && link.isNotEmpty) ...[const SizedBox(height: 10), Align(alignment: Alignment.centerLeft, child: Pressable(onTap: () => _open(link), child: const Pill('Join link', color: C.good, filled: true)))],
+        if (x['interview_date'] != null || x['round'] != null) ...[const SizedBox(height: 8), Text([if (x['round'] != null) '${x['round']}', if (x['interview_date'] != null) '${x['interview_date']}'].join('  ·  '), style: TextStyle(color: C.warn, fontSize: 13))],
+        if (link != null && link.isNotEmpty) ...[const SizedBox(height: 10), Align(alignment: Alignment.centerLeft, child: Pressable(onTap: () => _open(link), child: Pill('Join link', color: C.good, filled: true)))],
       ]),
     );
   }

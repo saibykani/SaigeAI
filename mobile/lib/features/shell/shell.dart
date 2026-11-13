@@ -7,7 +7,9 @@ import '../applications/applications_screen.dart';
 import '../assistant/assistant_screen.dart';
 import '../home/home_screen.dart';
 import '../jobs/jobs_screen.dart';
+import '../more/more_hub.dart';
 import '../profile/profile_screen.dart';
+import '../roles/hiring_screen.dart';
 
 /// Lets any screen switch tabs (e.g. Home -> Applications).
 class ShellNav {
@@ -46,16 +48,26 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  static const _tabs = <(IconData, IconData, String)>[
-    (Icons.blur_circular_outlined, Icons.blur_circular_rounded, 'Home'),
-    (Icons.style_outlined, Icons.style_rounded, 'Jobs'),
-    (Icons.view_kanban_outlined, Icons.view_kanban_rounded, 'Pipeline'),
-    (Icons.auto_awesome_outlined, Icons.auto_awesome_rounded, 'Saige'),
-    (Icons.person_outline_rounded, Icons.person_rounded, 'Me'),
-  ];
+  static List<(IconData, IconData, String)> get _tabs => Session.I.isRecruiter
+      ? const [
+          (Icons.groups_outlined, Icons.groups_rounded, 'Hiring'),
+          (Icons.auto_awesome_outlined, Icons.auto_awesome_rounded, 'Saige'),
+          (Icons.apps_outlined, Icons.apps_rounded, 'More'),
+          (Icons.person_outline_rounded, Icons.person_rounded, 'Me'),
+        ]
+      : const [
+          (Icons.home_outlined, Icons.home_rounded, 'Home'),
+          (Icons.style_outlined, Icons.style_rounded, 'Jobs'),
+          (Icons.view_kanban_outlined, Icons.view_kanban_rounded, 'Pipeline'),
+          (Icons.auto_awesome_outlined, Icons.auto_awesome_rounded, 'Saige'),
+          (Icons.person_outline_rounded, Icons.person_rounded, 'Me'),
+        ];
 
   Widget _page(int i) {
     if (!_visited.contains(i)) return const SizedBox.shrink();
+    if (Session.I.isRecruiter) {
+      return switch (i) { 0 => const HiringScreen(embedded: true), 1 => const AssistantScreen(), 2 => const MoreHub(), _ => const ProfileScreen() };
+    }
     return switch (i) {
       0 => const HomeScreen(),
       1 => const JobsScreen(),
@@ -73,7 +85,7 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin {
       extendBody: true,
       body: AnimatedBuilder(
         animation: _swap,
-        child: IndexedStack(index: idx, children: [for (var i = 0; i < 5; i++) _page(i)]),
+        child: IndexedStack(index: idx, children: [for (var i = 0; i < _ShellState._tabs.length; i++) _page(i)]),
         builder: (context, child) {
           final p = Curves.easeOutCubic.transform(_swap.value);
           return Opacity(opacity: 0.4 + 0.6 * p, child: Transform.scale(scale: 0.97 + 0.03 * p, child: child));
@@ -133,13 +145,14 @@ class _NavBarState extends State<_NavBar> with SingleTickerProviderStateMixin {
       child: Container(
         height: 68,
         decoration: BoxDecoration(
-          color: const Color(0xF2101013),
+          color: C.surface,
           borderRadius: BorderRadius.circular(34),
           border: Border.all(color: C.line),
-          boxShadow: const [BoxShadow(color: Color(0xAA000000), blurRadius: 30, offset: Offset(0, 10))],
+          boxShadow: C.dark ? const [BoxShadow(color: Color(0x99000000), blurRadius: 30, offset: Offset(0, 10))] : [BoxShadow(color: const Color(0xFF1F2A44).withValues(alpha: 0.14), blurRadius: 30, offset: const Offset(0, 10))],
         ),
         child: LayoutBuilder(builder: (context, box) {
-          final w = box.maxWidth / 5;
+          final n = _ShellState._tabs.length;
+          final w = box.maxWidth / n;
           return Stack(children: [
             // Liquid indicator: the leading edge runs ahead, the trailing edge springs after it.
             AnimatedBuilder(
@@ -155,12 +168,12 @@ class _NavBarState extends State<_NavBar> with SingleTickerProviderStateMixin {
                   width: (right - left).clamp(20.0, w * 3),
                   top: 8,
                   bottom: 8,
-                  child: Container(decoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(26), border: Border.all(color: C.primary.withValues(alpha: 0.5)))),
+                  child: Container(decoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(26))),
                 );
               },
             ),
             Row(children: [
-              for (var i = 0; i < 5; i++)
+              for (var i = 0; i < n; i++)
                 Expanded(child: _NavItem(icon: _ShellState._tabs[i], on: widget.index == i, onTap: () => widget.onTap(i))),
             ]),
           ]);
@@ -186,9 +199,9 @@ class _NavItem extends StatelessWidget {
             duration: const Duration(milliseconds: 500),
             curve: springy,
             builder: (context, v, _) => Column(mainAxisSize: MainAxisSize.min, children: [
-              Transform.translate(offset: Offset(0, -2 * v), child: Transform.scale(scale: 1 + 0.12 * v, child: Icon(on ? icon.$2 : icon.$1, size: 24, color: Color.lerp(C.muted, C.text, v.clamp(0.0, 1.0))))),
+              Transform.translate(offset: Offset(0, -2 * v), child: Transform.scale(scale: 1 + 0.12 * v, child: Icon(on ? icon.$2 : icon.$1, size: 24, color: Color.lerp(C.muted, C.primary, v.clamp(0.0, 1.0))))),
               const SizedBox(height: 2),
-              Text(icon.$3, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color.lerp(C.muted, C.text, v.clamp(0.0, 1.0)))),
+              Text(icon.$3, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color.lerp(C.muted, C.primary, v.clamp(0.0, 1.0)))),
             ]),
           ),
         ),

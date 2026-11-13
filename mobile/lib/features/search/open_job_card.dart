@@ -64,9 +64,9 @@ class _OpenJobCardState extends State<OpenJobCard> {
         ]),
         const SizedBox(height: 10),
         Wrap(spacing: 6, runSpacing: 6, children: [
-          if (j['fresh'] == true) const Pill('New', color: C.good, filled: true),
-          if (j['remote'] == true || j['scope'] == 'remote') const Pill('Remote', color: C.good),
-          if (j['walk_in'] == true) const Pill('Walk-in', color: C.warn),
+          if (j['fresh'] == true) Pill('New', color: C.good, filled: true),
+          if (j['remote'] == true || j['scope'] == 'remote') Pill('Remote', color: C.good),
+          if (j['walk_in'] == true) Pill('Walk-in', color: C.warn),
           if ('${j['fit_label'] ?? ''}'.isNotEmpty) Pill('${j['fit_label']}'.split(':').first, color: scoreColor(s)),
           if (salary.isNotEmpty) Pill(salary),
           if ('${j['source'] ?? ''}'.isNotEmpty) Pill('${j['source']}'),
@@ -80,9 +80,9 @@ class _OpenJobCardState extends State<OpenJobCard> {
               : Padding(
                   padding: const EdgeInsets.only(top: 14),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if (matched.isNotEmpty) ...[const Text('YOU HAVE', style: T.label), const SizedBox(height: 6), Wrap(spacing: 6, runSpacing: 6, children: [for (final m in matched) Pill(m, color: C.good, filled: true)])],
-                    if (missing.isNotEmpty) ...[const SizedBox(height: 12), const Text('GAPS (not on your profile)', style: T.label), const SizedBox(height: 6), Wrap(spacing: 6, runSpacing: 6, children: [for (final m in missing) Pill(m, color: C.warn)])],
-                    if (matched.isEmpty && missing.isEmpty) const Text('Open the posting for the full description.', style: T.small),
+                    if (matched.isNotEmpty) ...[Text('YOU HAVE', style: T.label), const SizedBox(height: 6), Wrap(spacing: 6, runSpacing: 6, children: [for (final m in matched) Pill(m, color: C.good, filled: true)])],
+                    if (missing.isNotEmpty) ...[const SizedBox(height: 12), Text('GAPS (not on your profile)', style: T.label), const SizedBox(height: 6), Wrap(spacing: 6, runSpacing: 6, children: [for (final m in missing) Pill(m, color: C.warn)])],
+                    if (matched.isEmpty && missing.isEmpty) Text('Open the posting for the full description.', style: T.small),
                   ]),
                 ),
         ),

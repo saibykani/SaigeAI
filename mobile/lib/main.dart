@@ -1,21 +1,16 @@
-import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'core/config.dart';
 import 'core/session.dart';
 import 'core/theme.dart';
+import 'core/theme_controller.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/shell/shell.dart';
 import 'features/splash/splash.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    systemNavigationBarColor: Colors.black,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarIconBrightness: Brightness.light,
-  ));
+  await ThemeController.I.load();
   await AppConfig.load();
   await Session.I.init();
   runApp(const SaigeApp());
@@ -24,11 +19,16 @@ Future<void> main() async {
 class SaigeApp extends StatelessWidget {
   const SaigeApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'Saige AI',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        home: const _Root(),
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: ThemeController.I,
+        builder: (context, _) => MaterialApp(
+          title: 'Saige AI',
+          debugShowCheckedModeBanner: false,
+          navigatorKey: ThemeController.I.navigatorKey,
+          theme: buildTheme(),
+          builder: (context, child) => RepaintBoundary(key: ThemeController.I.boundaryKey, child: child),
+          home: const _Root(),
+        ),
       );
 }
 

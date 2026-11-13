@@ -66,7 +66,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                   children: [
                     Stagger(index: 0, child: Text('${a['role']}', style: T.h1)),
                     const SizedBox(height: 6),
-                    Text('${a['company']}', style: const TextStyle(fontSize: 16, color: C.muted)),
+                    Text('${a['company']}', style: TextStyle(fontSize: 16, color: C.muted)),
                     const SizedBox(height: 14),
                     Row(children: [
                       Pill(prettyStatus(status), color: status == 'OFFER' ? C.good : C.primary, filled: true),
@@ -75,7 +75,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                     ]),
                     if (approvable.contains(status)) ...[
                       const SizedBox(height: 14),
-                      const GlassCard(
+                      GlassCard(
                         color: C.primarySoft,
                         padding: EdgeInsets.all(14),
                         child: Row(children: [Icon(Icons.shield_outlined, color: C.primary), SizedBox(width: 12), Expanded(child: Text('Waiting for you. Saige never sends an application without your approval.', style: T.small))]),
@@ -83,14 +83,14 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                     ],
                     if (ints.isNotEmpty) ...[
                       const SectionTitle('Interviews'),
-                      for (final i in ints) Padding(padding: const EdgeInsets.only(bottom: 8), child: GlassCard(radius: R.md, padding: const EdgeInsets.all(14), child: Row(children: [const Icon(Icons.event_rounded, color: C.primary), const SizedBox(width: 12), Expanded(child: Text('${i['round'] ?? 'Interview'}  ·  ${_when(i['scheduled_at'])}', style: const TextStyle(fontWeight: FontWeight.w600)))]))),
+                      for (final i in ints) Padding(padding: const EdgeInsets.only(bottom: 8), child: GlassCard(radius: R.md, padding: const EdgeInsets.all(14), child: Row(children: [Icon(Icons.event_rounded, color: C.primary), const SizedBox(width: 12), Expanded(child: Text('${i['round'] ?? 'Interview'}  ·  ${_when(i['scheduled_at'])}', style: const TextStyle(fontWeight: FontWeight.w600)))]))),
                     ],
                     if (answers.any((x) => x['status'] == 'REVIEW_REQUIRED')) ...[
                       const SectionTitle('Answers to review'),
-                      const GlassCard(child: Text('Some application answers are low confidence. Review them on the web app before approving.', style: T.small)),
+                      GlassCard(child: Text('Some application answers are low confidence. Review them on the web app before approving.', style: T.small)),
                     ],
                     const SectionTitle('Timeline'),
-                    if (events.isEmpty) const GlassCard(child: Text('No events yet.', style: T.small)) else _Timeline(events: events),
+                    if (events.isEmpty) GlassCard(child: Text('No events yet.', style: T.small)) else _Timeline(events: events),
                   ],
                 );
               },

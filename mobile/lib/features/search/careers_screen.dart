@@ -138,7 +138,7 @@ class _CareersScreenState extends State<CareersScreen> {
           width: 44,
           height: 44,
           decoration: BoxDecoration(shape: BoxShape.circle, color: C.primarySoft, border: Border.all(color: C.primary)),
-          child: _scanning ? const Padding(padding: EdgeInsets.all(10), child: DotRing(size: 22, dots: 10)) : const Icon(Icons.radar_rounded, color: C.primary, size: 22),
+          child: _scanning ? Padding(padding: EdgeInsets.all(10), child: DotRing(size: 22, dots: 10)) : Icon(Icons.radar_rounded, color: C.primary, size: 22),
         ),
       ),
       child: Column(children: [
@@ -150,8 +150,8 @@ class _CareersScreenState extends State<CareersScreen> {
             onSubmitted: (_) => _load(),
             decoration: InputDecoration(
               hintText: 'Search title, company, skill',
-              prefixIcon: const Icon(Icons.search_rounded, color: C.muted),
-              suffixIcon: _q.text.isEmpty ? null : IconButton(icon: const Icon(Icons.close_rounded, color: C.muted), onPressed: () => setState(() {
+              prefixIcon: Icon(Icons.search_rounded, color: C.muted),
+              suffixIcon: _q.text.isEmpty ? null : IconButton(icon: Icon(Icons.close_rounded, color: C.muted), onPressed: () => setState(() {
                     _q.clear();
                     _load();
                   })),

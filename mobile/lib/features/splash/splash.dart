@@ -34,7 +34,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 const SizedBox(height: 26),
                 Opacity(
                   opacity: word,
-                  child: Transform.translate(offset: Offset(0, 14 * (1 - word)), child: const Text('Saige AI', style: T.h1)),
+                  child: Transform.translate(offset: Offset(0, 14 * (1 - word)), child: Text('Saige AI', style: T.h1)),
                 ),
                 const SizedBox(height: 34),
                 Opacity(opacity: word, child: const DotRing(size: 30, dots: 12)),

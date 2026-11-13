@@ -79,7 +79,7 @@ class _FieldPainter extends CustomPainter {
   void paint(Canvas canvas, Size s) {
     // Soft crimson horizon glow.
     final r = Rect.fromCircle(center: Offset(s.width / 2 + tilt.value.dx * 40, s.height * 1.02), radius: s.width * 0.95);
-    canvas.drawRect(Offset.zero & s, Paint()..shader = const RadialGradient(colors: [Color(0x55E5304A), Color(0x00000000)]).createShader(r));
+    canvas.drawRect(Offset.zero & s, Paint()..shader = RadialGradient(colors: [C.primary.withValues(alpha: 0.33), C.primary.withValues(alpha: 0)]).createShader(r));
     final buckets = [<Offset>[], <Offset>[], <Offset>[]];
     final drift = t.value * s.height;
     for (var i = 0; i < pts.length; i++) {

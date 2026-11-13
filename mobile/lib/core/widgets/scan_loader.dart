@@ -57,14 +57,14 @@ class _ScanPainter extends CustomPainter {
       final w = (i == 0 ? 0.45 : (i % 4 == 3 ? 0.55 : 0.82)) * (s.width - 44);
       final near = (1 - ((ly - y).abs() / 46)).clamp(0.0, 1.0);
       final scanned = ly < y;
-      final col = Color.lerp(scanned ? const Color(0xFF3A3A42) : C.line, C.primary, near)!;
+      final col = Color.lerp(scanned ? C.surface3 : C.line, C.primary, near)!;
       canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(22, ly - 3, w * (0.9 + 0.1 * near), 6), const Radius.circular(3)), Paint()..color = col);
     }
     // Laser beam + soft trailing glow (gradient, no blur).
     final glow = Rect.fromLTWH(0, y - 34, s.width, 34);
     canvas.drawRect(
       glow,
-      Paint()..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0x00E5304A), Color(0x44E5304A)]).createShader(glow),
+      Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [C.primary.withValues(alpha: 0), C.primary.withValues(alpha: 0.27)]).createShader(glow),
     );
     canvas.drawRect(Rect.fromLTWH(0, y - 1, s.width, 2), Paint()..color = C.primary);
     canvas.drawCircle(Offset(s.width - 2, y), 4, Paint()..color = C.primary);

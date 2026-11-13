@@ -45,6 +45,13 @@ lib/features    splash, auth, shell (morphing nav), home, jobs (deck, detail), a
 test            api client refresh logic, DotRing
 ```
 
+## Themes
+
+`lib/core/theme.dart` holds `Palette` (generated with `ColorScheme.fromSeed`): Light (default), Dark, Blue, Green,
+Purple, Coral, Graphite, plus Follow system. Screens read `C.bg`, `C.surface`, `C.primary` etc., which are getters on the
+active palette, so those widgets cannot be `const`. `ThemeController` (`theme_controller.dart`) persists the choice
+(shared_preferences), rebuilds every element and plays a circular reveal from the tap point. Picker: Me > Settings.
+
 ## TODO / known gaps
 
 - Google sign-in (needs a native OAuth client plus a token-exchange endpoint on the API).

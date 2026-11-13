@@ -24,6 +24,8 @@ class Session extends ChangeNotifier {
   String get name => (user['name'] as String?) ?? '';
   String get firstName => name.trim().isEmpty ? 'there' : name.trim().split(' ').first;
   bool get isRecruiter => user['role'] == 'recruiter';
+  bool get isAdmin => user['role'] == 'admin' || user['is_super_admin'] == true;
+  bool get isSuperAdmin => user['is_super_admin'] == true;
 
   Future<void> init({ApiClient? client}) async {
     if (client != null) {

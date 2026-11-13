@@ -70,7 +70,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 64, 20, 0),
                     sliver: SliverList.list(children: [
-                      Row(children: [const Expanded(child: Text('Notifications', style: T.display)), TextButton(onPressed: _readAll, child: const Text('Read all'))]),
+                      Row(children: [Expanded(child: Text('Notifications', style: T.display)), TextButton(onPressed: _readAll, child: const Text('Read all'))]),
                       const SizedBox(height: 14),
                       for (final (i, n) in list.indexed)
                         Padding(

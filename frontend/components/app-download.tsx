@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { SaigeMark } from "@/components/brand";
 
 export const APK_URL = "/downloads/saige-ai-android.apk";
-const APK_SIZE = "18 MB";
+const APK_SIZE = "18.4 MB";
 
 /** "Get the app" block: Android APK download and iPhone Add-to-Home-Screen steps. Highlights the visitor's platform. */
 export function AppDownload({ compact = false }: { compact?: boolean }) {

@@ -58,7 +58,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
               controller: _q,
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _reload(),
-              decoration: const InputDecoration(hintText: 'Search title or company', prefixIcon: Icon(Icons.search_rounded, color: C.muted), contentPadding: EdgeInsets.symmetric(vertical: 14)),
+              decoration: InputDecoration(hintText: 'Search title or company', prefixIcon: Icon(Icons.search_rounded, color: C.muted), contentPadding: EdgeInsets.symmetric(vertical: 14)),
             ),
           ),
           ChipRow(options: const ['all', 'new', 'saved', 'shortlisted', 'archived', 'rejected'], labels: const {'all': 'All', 'new': 'New', 'saved': 'Saved', 'shortlisted': 'Shortlisted', 'archived': 'Archived', 'rejected': 'Rejected'}, value: _status, onChanged: (v) {

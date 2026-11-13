@@ -92,7 +92,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text('${j['title']}', style: T.h1),
                             const SizedBox(height: 6),
-                            Text('${j['company']}', style: const TextStyle(fontSize: 16, color: C.muted)),
+                            Text('${j['company']}', style: TextStyle(fontSize: 16, color: C.muted)),
                           ]),
                         ),
                         const SizedBox(width: 14),
@@ -108,7 +108,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     const SizedBox(height: 16),
                     Stagger(index: 1, child: Wrap(spacing: 8, runSpacing: 8, children: [
                       if (j['location'] != null) Pill('${j['location']}'),
-                      if (j['remote'] == true) const Pill('Remote', color: C.good),
+                      if (j['remote'] == true) Pill('Remote', color: C.good),
                       if (sal.isNotEmpty) Pill(sal, color: C.text),
                       if (j['employment_type'] != null) Pill('${j['employment_type']}'),
                       if (j['classification'] != null) Pill('${j['classification']}', color: scoreColor(score), filled: true),
@@ -124,17 +124,17 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                         child: GlassCard(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             if (have.isNotEmpty) ...[
-                              const Text('YOU HAVE', style: T.label),
+                              Text('YOU HAVE', style: T.label),
                               const SizedBox(height: 8),
                               Wrap(spacing: 8, runSpacing: 8, children: [for (final s in have) Pill('$s', color: C.good, filled: true)]),
                             ],
                             if (miss.isNotEmpty) ...[
                               const SizedBox(height: 16),
-                              const Text('MISSING', style: T.label),
+                              Text('MISSING', style: T.label),
                               const SizedBox(height: 8),
                               Wrap(spacing: 8, runSpacing: 8, children: [for (final s in miss) Pill('$s', color: C.warn, filled: true)]),
                               const SizedBox(height: 10),
-                              const Text('Saige only adds skills you can back up. Add missing ones in Profile if you truly have them.', style: T.small),
+                              Text('Saige only adds skills you can back up. Add missing ones in Profile if you truly have them.', style: T.small),
                             ],
                           ]),
                         ),
@@ -142,7 +142,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ],
                     if (reqs.isNotEmpty) ...[
                       const SectionTitle('Requirements'),
-                      GlassCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [for (final r in reqs.take(8)) Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Padding(padding: EdgeInsets.only(top: 7, right: 10), child: Icon(Icons.circle, size: 6, color: C.primary)), Expanded(child: Text('$r', style: T.body))]))])),
+                      GlassCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [for (final r in reqs.take(8)) Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Padding(padding: EdgeInsets.only(top: 7, right: 10), child: Icon(Icons.circle, size: 6, color: C.primary)), Expanded(child: Text('$r', style: T.body))]))])),
                     ],
                     const SectionTitle('Description'),
                     GlassCard(

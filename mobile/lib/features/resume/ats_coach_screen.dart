@@ -92,7 +92,7 @@ class _AtsCoachScreenState extends State<AtsCoachScreen> {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
         children: [
-          const Stagger(index: 0, child: Text('YOUR RESUME', style: T.label)),
+          Stagger(index: 0, child: Text('YOUR RESUME', style: T.label)),
           const SizedBox(height: 10),
           ResumePicker(onSelected: (id, _) => _resumeId = id),
           const SizedBox(height: 22),
@@ -105,7 +105,7 @@ class _AtsCoachScreenState extends State<AtsCoachScreen> {
               child: Row(children: [
                 Icon(_showJd ? Icons.remove_rounded : Icons.add_rounded, size: 18, color: C.primary),
                 const SizedBox(width: 6),
-                Text(_showJd ? 'Hide job description' : 'Paste a job description (optional)', style: const TextStyle(color: C.primary, fontWeight: FontWeight.w600)),
+                Text(_showJd ? 'Hide job description' : 'Paste a job description (optional)', style: TextStyle(color: C.primary, fontWeight: FontWeight.w600)),
               ]),
             ),
           ),
@@ -127,7 +127,7 @@ class _AtsCoachScreenState extends State<AtsCoachScreen> {
             builder: (context, _) {
               final l = _built.data;
               if (l == null) return _built.error != null ? ErrorState(error: _built.error!, onRetry: _built.load) : const Busy();
-              if (l.isEmpty) return const GlassCard(child: Text('Resumes you build here show up with PDF and Word downloads.', style: T.small));
+              if (l.isEmpty) return GlassCard(child: Text('Resumes you build here show up with PDF and Word downloads.', style: T.small));
               return Column(children: [for (final (i, r) in l.indexed) Padding(padding: const EdgeInsets.only(bottom: 10), child: Stagger(index: i, child: _BuiltRow(r)))]);
             },
           ),
@@ -170,7 +170,7 @@ class _AtsCoachScreenState extends State<AtsCoachScreen> {
         const SectionTitle('Only if you have really used them'),
         Wrap(spacing: 8, runSpacing: 8, children: [for (final s in confirm) Pill(s, color: C.warn)]),
         const SizedBox(height: 6),
-        const Text('Saige will not put these on your resume until you confirm them in Profile. Unknown stays unknown.', style: T.small),
+        Text('Saige will not put these on your resume until you confirm them in Profile. Unknown stays unknown.', style: T.small),
       ],
       const SectionTitle('Weak spots'),
       for (final (i, s) in secs.indexed)
@@ -189,7 +189,7 @@ class _AtsCoachScreenState extends State<AtsCoachScreen> {
                     Text('${s['section']}', style: const TextStyle(fontWeight: FontWeight.w600)),
                     Text('${s['issue']}', style: T.small),
                     if ('${s['fix'] ?? ''}'.isNotEmpty && s['ok'] != true)
-                      Padding(padding: const EdgeInsets.only(top: 6), child: Text('${s['fix']}', style: const TextStyle(fontSize: 13, color: C.text, height: 1.35))),
+                      Padding(padding: const EdgeInsets.only(top: 6), child: Text('${s['fix']}', style: TextStyle(fontSize: 13, color: C.text, height: 1.35))),
                   ]),
                 ),
               ]),
@@ -199,7 +199,7 @@ class _AtsCoachScreenState extends State<AtsCoachScreen> {
       const SizedBox(height: 10),
       PrimaryButton(label: 'Build my resume', icon: Icons.auto_awesome_rounded, busy: _building, onTap: _build),
       const SizedBox(height: 6),
-      const Center(child: Text('Built only from your verified profile.', style: T.small)),
+      Center(child: Text('Built only from your verified profile.', style: T.small)),
     ];
   }
 }
@@ -223,9 +223,9 @@ class _BuiltRow extends StatelessWidget {
             Text(timeAgo('${r['created_at']}'), style: T.small),
           ]),
         ),
-        Pressable(onTap: () => downloadAndShare(context, p, query: {'format': 'pdf'}, fallbackName: 'resume.pdf'), child: const Pill('PDF', color: C.primary, filled: true)),
+        Pressable(onTap: () => downloadAndShare(context, p, query: {'format': 'pdf'}, fallbackName: 'resume.pdf'), child: Pill('PDF', color: C.primary, filled: true)),
         const SizedBox(width: 8),
-        Pressable(onTap: () => downloadAndShare(context, p, query: {'format': 'docx'}, fallbackName: 'resume.docx'), child: const Pill('DOCX', color: C.muted)),
+        Pressable(onTap: () => downloadAndShare(context, p, query: {'format': 'docx'}, fallbackName: 'resume.docx'), child: Pill('DOCX', color: C.muted)),
       ]),
     );
   }

@@ -96,7 +96,7 @@ class _MockReportScreenState extends State<MockReportScreen> {
                           : Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                if ('${q['answer'] ?? ''}'.isNotEmpty) ...[const Text('YOU SAID', style: T.label), const SizedBox(height: 4), Text('${q['answer']}', style: T.small.copyWith(color: C.text)), const SizedBox(height: 12)],
+                                if ('${q['answer'] ?? ''}'.isNotEmpty) ...[Text('YOU SAID', style: T.label), const SizedBox(height: 4), Text('${q['answer']}', style: T.small.copyWith(color: C.text)), const SizedBox(height: 12)],
                                 for (final t in (q['feedback'] as List? ?? const [])) Dot('$t', C.warn),
                                 for (final t in (q['outline'] as List? ?? const [])) Dot('$t', C.good),
                               ]),

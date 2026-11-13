@@ -46,7 +46,7 @@ class _ResumePickerState extends State<ResumePicker> {
           final l = _r.data;
           if (l == null) return _r.error != null ? ErrorState(error: _r.error!, onRetry: _r.load) : const Busy();
           if (l.isEmpty) {
-            return const GlassCard(child: Row(children: [Icon(Icons.upload_file_rounded, color: C.primary), SizedBox(width: 12), Expanded(child: Text('Upload a resume in Profile first. Saige works only from your real resume.', style: T.small))]));
+            return GlassCard(child: Row(children: [Icon(Icons.upload_file_rounded, color: C.primary), SizedBox(width: 12), Expanded(child: Text('Upload a resume in Profile first. Saige works only from your real resume.', style: T.small))]));
           }
           return SizedBox(
             height: 92,

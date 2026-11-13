@@ -82,7 +82,7 @@ class _CompanyInsightsScreenState extends State<CompanyInsightsScreen> {
                           if (worst != null) Expanded(child: _Source('Weakest source', worst, C.warn)),
                         ]),
                       ],
-                      if (d['enough_data'] != true) const Padding(padding: EdgeInsets.only(top: 12), child: Text('Fewer than a handful of applications so far: treat these numbers as early signals.', style: T.small)),
+                      if (d['enough_data'] != true) Padding(padding: EdgeInsets.only(top: 12), child: Text('Fewer than a handful of applications so far: treat these numbers as early signals.', style: T.small)),
                       const SectionTitle('By company'),
                       for (final (i, c) in cos.indexed)
                         Padding(

@@ -68,7 +68,7 @@ class _CoverLetterScreenState extends State<CoverLetterScreen> {
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
             children: [
-              const Text('PICK A JOB', style: T.label),
+              Text('PICK A JOB', style: T.label),
               const SizedBox(height: 10),
               for (final (i, j) in jobs.take(30).indexed)
                 Padding(

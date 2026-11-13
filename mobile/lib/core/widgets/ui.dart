@@ -24,8 +24,8 @@ class GlassCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color ?? C.surface,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: border ?? C.line, width: 1),
-        gradient: color == null ? const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF131316), Color(0xFF0A0A0C)]) : null,
+        border: Border.all(color: border ?? (C.dark ? C.line : Colors.transparent), width: 1),
+        boxShadow: color == null ? C.shadow : null,
       ),
       child: child,
     );
@@ -44,7 +44,7 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = ghost ? C.text : Colors.white;
+    final fg = ghost ? C.primary : C.onPrimary;
     return Pressable(
       onTap: busy ? null : onTap,
       child: AnimatedContainer(
@@ -53,10 +53,9 @@ class PrimaryButton extends StatelessWidget {
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 22),
         decoration: BoxDecoration(
-          color: onTap == null && !busy ? C.surface3 : (ghost ? C.surface2 : C.primary),
-          borderRadius: BorderRadius.circular(R.md),
-          border: ghost ? Border.all(color: C.line) : null,
-          boxShadow: ghost || onTap == null ? null : const [BoxShadow(color: Color(0x55E5304A), blurRadius: 22, offset: Offset(0, 8))],
+          color: onTap == null && !busy ? C.surface3 : (ghost ? C.primarySoft : C.primary),
+          borderRadius: BorderRadius.circular(99),
+          boxShadow: ghost || onTap == null ? null : [BoxShadow(color: C.primary.withValues(alpha: C.dark ? 0.3 : 0.32), blurRadius: 20, offset: const Offset(0, 8))],
         ),
         child: Row(mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
           if (busy)
@@ -72,12 +71,14 @@ class PrimaryButton extends StatelessWidget {
 }
 
 class Pill extends StatelessWidget {
-  const Pill(this.text, {super.key, this.color = C.muted, this.filled = false});
+  const Pill(this.text, {super.key, this.color, this.filled = false});
   final String text;
-  final Color color;
+  final Color? color;
   final bool filled;
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    final color = this.color ?? C.muted;
+    return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: filled ? color.withValues(alpha: 0.16) : Colors.transparent,
@@ -86,6 +87,7 @@ class Pill extends StatelessWidget {
         ),
         child: Text(text, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
       );
+  }
 }
 
 class SectionTitle extends StatelessWidget {
@@ -104,13 +106,13 @@ void toast(BuildContext context, String msg, {bool error = false}) {
     ?..clearSnackBars()
     ..showSnackBar(SnackBar(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: C.surface3,
+      backgroundColor: C.dark ? C.surface3 : C.surface,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.sm), side: BorderSide(color: error ? C.bad : C.line)),
       content: Row(children: [
         Icon(error ? Icons.error_outline : Icons.check_circle_outline, color: error ? C.bad : C.good, size: 20),
         const SizedBox(width: 10),
-        Expanded(child: Text(msg, style: const TextStyle(color: C.text))),
+        Expanded(child: Text(msg, style: TextStyle(color: C.text))),
       ]),
     ));
 }
@@ -163,7 +165,7 @@ class ErrorState extends StatelessWidget {
 class LoadingState extends StatelessWidget {
   const LoadingState({super.key});
   @override
-  Widget build(BuildContext context) => const Center(child: DotRing(size: 64, dots: 24));
+  Widget build(BuildContext context) => Center(child: DotRing(size: 64, dots: 24));
 }
 
 /// Renders a [Resource] with loading / error / data states.

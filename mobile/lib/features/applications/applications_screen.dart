@@ -81,7 +81,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
             child: Row(children: [
-              const Expanded(child: Text('Pipeline', style: T.display)),
+              Expanded(child: Text('Pipeline', style: T.display)),
               Pressable(
                 onTap: () => pushDepth(context, (_) => const InterviewsScreen()),
                 child: Container(height: 44, padding: const EdgeInsets.symmetric(horizontal: 14), decoration: BoxDecoration(color: C.surface2, borderRadius: BorderRadius.circular(99), border: Border.all(color: C.line)), child: const Row(children: [Icon(Icons.event_rounded, size: 18), SizedBox(width: 6), Text('Interviews', style: TextStyle(fontWeight: FontWeight.w600))])),
@@ -148,9 +148,9 @@ class _StageBar extends StatelessWidget {
                     border: Border.all(color: Color.lerp(C.line, C.primary, on)!),
                   ),
                   child: Row(children: [
-                    Text(_stages[i].$1, style: TextStyle(fontWeight: FontWeight.w600, color: Color.lerp(C.muted, Colors.white, on))),
+                    Text(_stages[i].$1, style: TextStyle(fontWeight: FontWeight.w600, color: Color.lerp(C.muted, C.onPrimary, on))),
                     const SizedBox(width: 8),
-                    Text('${counts[i]}', style: TextStyle(fontWeight: FontWeight.w700, color: Color.lerp(C.muted, Colors.white, on))),
+                    Text('${counts[i]}', style: TextStyle(fontWeight: FontWeight.w700, color: Color.lerp(C.muted, C.onPrimary, on))),
                   ]),
                 ),
               );
@@ -176,7 +176,7 @@ class _Column extends StatelessWidget {
         if (apps.isEmpty)
           SliverFillRemaining(hasScrollBody: false, child: EmptyState(icon: stage.$3, title: 'Nothing in ${stage.$1.toLowerCase()}', body: queue ? 'Applications you prepare wait here for your approval.' : 'Cards move here as the status changes.'))
         else ...[
-          if (queue) const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(6, 4, 6, 12), child: Text('Swipe right to approve and send, left to dismiss. Nothing goes out until you do.', style: T.small))),
+          if (queue) SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(6, 4, 6, 12), child: Text('Swipe right to approve and send, left to dismiss. Nothing goes out until you do.', style: T.small))),
           SliverList.separated(
             itemCount: apps.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),

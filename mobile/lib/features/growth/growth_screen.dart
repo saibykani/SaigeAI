@@ -169,7 +169,7 @@ class _TargetSheetState extends State<_TargetSheet> {
   Widget build(BuildContext context) => Padding(
         padding: EdgeInsets.fromLTRB(20, 24, 20, 24 + MediaQuery.viewInsetsOf(context).bottom),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Weekly targets', style: T.h2),
+          Text('Weekly targets', style: T.h2),
           const SizedBox(height: 14),
           for (final g in widget.goals)
             Padding(
@@ -247,7 +247,7 @@ class _FollowupsState extends State<_Followups> {
                             width: 56,
                             height: 56,
                             decoration: BoxDecoration(shape: BoxShape.circle, color: (days > 20 ? C.bad : C.warn).withValues(alpha: 0.14), border: Border.all(color: days > 20 ? C.bad : C.warn)),
-                            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text('$days', style: T.h2.copyWith(color: days > 20 ? C.bad : C.warn)), const Text('days', style: TextStyle(fontSize: 10, color: C.muted))]),
+                            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text('$days', style: T.h2.copyWith(color: days > 20 ? C.bad : C.warn)), Text('days', style: TextStyle(fontSize: 10, color: C.muted))]),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -255,10 +255,10 @@ class _FollowupsState extends State<_Followups> {
                               Text('${a['title']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
                               Text('${a['company']}', style: T.small),
                               const SizedBox(height: 4),
-                              Text('${a['suggestion']}', style: const TextStyle(fontSize: 13, color: C.text)),
+                              Text('${a['suggestion']}', style: TextStyle(fontSize: 13, color: C.text)),
                             ]),
                           ),
-                          const Icon(Icons.chevron_right_rounded, color: C.muted),
+                          Icon(Icons.chevron_right_rounded, color: C.muted),
                         ]),
                       ),
                     ),
@@ -313,7 +313,7 @@ class _SalaryState extends State<_Salary> {
             controller: _role,
             textInputAction: TextInputAction.search,
             onSubmitted: (_) => _go(),
-            decoration: InputDecoration(hintText: 'Role (blank uses yours)', prefixIcon: const Icon(Icons.search_rounded, color: C.muted), suffixIcon: IconButton(icon: const Icon(Icons.arrow_forward_rounded, color: C.primary), onPressed: _go)),
+            decoration: InputDecoration(hintText: 'Role (blank uses yours)', prefixIcon: Icon(Icons.search_rounded, color: C.muted), suffixIcon: IconButton(icon: Icon(Icons.arrow_forward_rounded, color: C.primary), onPressed: _go)),
           ),
           const SizedBox(height: 16),
           ListenableBuilder(
@@ -342,13 +342,13 @@ class _SalaryState extends State<_Salary> {
                       Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                         CountUp(value: (o['median'] as num).toDouble(), style: T.display),
                         const SizedBox(width: 8),
-                        const Padding(padding: EdgeInsets.only(bottom: 6), child: Text('median LPA', style: T.small)),
+                        Padding(padding: EdgeInsets.only(bottom: 6), child: Text('median LPA', style: T.small)),
                       ]),
                       const SizedBox(height: 14),
                       _Range(min: mn, max: mx, median: (o['median'] as num).toDouble(), you: (d['expected_ctc'] as num?)?.toDouble()),
                       const SizedBox(height: 12),
                       Text('${num0(o['min'])} to ${num0(o['max'])} LPA across ${o['postings']} postings', style: T.small),
-                      if (d['verdict'] != null) ...[const SizedBox(height: 8), Text('Your expected CTC is ${d['verdict']}.', style: const TextStyle(color: C.text, fontSize: 14))],
+                      if (d['verdict'] != null) ...[const SizedBox(height: 8), Text('Your expected CTC is ${d['verdict']}.', style: TextStyle(color: C.text, fontSize: 14))],
                     ]),
                   ),
                 ),
@@ -373,7 +373,7 @@ class _SalaryState extends State<_Salary> {
                       ),
                     ),
                   ),
-                const Padding(padding: EdgeInsets.only(top: 6), child: Text('Only INR salaries from real postings. No scraping of salary sites; the links open them for you.', style: T.small)),
+                Padding(padding: EdgeInsets.only(top: 6), child: Text('Only INR salaries from real postings. No scraping of salary sites; the links open them for you.', style: T.small)),
               ]);
             },
           ),
@@ -420,7 +420,7 @@ class _Range extends StatelessWidget {
           builder: (context, t, _) => Stack(clipBehavior: Clip.none, children: [
             Positioned(left: 0, right: 0, top: 11, child: Container(height: 8, decoration: BoxDecoration(color: C.surface3, borderRadius: BorderRadius.circular(9)))),
             Positioned(left: 0, top: 11, width: c.maxWidth * pos(median) * t, child: Container(height: 8, decoration: BoxDecoration(color: C.good.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(9)))),
-            Positioned(left: c.maxWidth * pos(median) * t - 7, top: 8, child: Container(width: 14, height: 14, decoration: const BoxDecoration(color: C.good, shape: BoxShape.circle))),
+            Positioned(left: c.maxWidth * pos(median) * t - 7, top: 8, child: Container(width: 14, height: 14, decoration: BoxDecoration(color: C.good, shape: BoxShape.circle))),
             if (you != null) Positioned(left: c.maxWidth * pos(you!) * t - 2, top: 0, child: Container(width: 4, height: 30, decoration: BoxDecoration(color: C.primary, borderRadius: BorderRadius.circular(3)))),
           ]),
         ),

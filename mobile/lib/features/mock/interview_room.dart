@@ -221,9 +221,9 @@ class _InterviewRoomState extends State<InterviewRoom> {
       builder: (context) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Leave the interview?', style: T.h2),
+          Text('Leave the interview?', style: T.h2),
           const SizedBox(height: 6),
-          const Text('Your answers so far are saved. You can start another session any time.', style: T.small),
+          Text('Your answers so far are saved. You can start another session any time.', style: T.small),
           const SizedBox(height: 18),
           PrimaryButton(label: 'Keep going', onTap: () => Navigator.pop(context, false)),
           const SizedBox(height: 8),
@@ -305,7 +305,7 @@ class _InterviewRoomState extends State<InterviewRoom> {
                   ),
                   const SizedBox(height: 16),
                   if (_phase == _Phase.asking)
-                    Center(child: Pressable(onTap: _skipSpeech, child: const Padding(padding: EdgeInsets.all(10), child: Text('Skip the voice and answer now', style: TextStyle(color: C.primary, fontWeight: FontWeight.w600)))))
+                    Center(child: Pressable(onTap: _skipSpeech, child: Padding(padding: EdgeInsets.all(10), child: Text('Skip the voice and answer now', style: TextStyle(color: C.primary, fontWeight: FontWeight.w600)))))
                   else if (_phase == _Phase.answering || busy) ..._answerArea(busy)
                   else if (_fb != null) ..._feedback(_fb!),
                 ],
@@ -336,14 +336,14 @@ class _InterviewRoomState extends State<InterviewRoom> {
                   border: Border.all(color: _listening ? C.good : C.line),
                   boxShadow: _listening ? [BoxShadow(color: C.good.withValues(alpha: 0.35 + _level * 0.3), blurRadius: 18 + _level * 26, spreadRadius: _level * 6)] : null,
                 ),
-                child: Icon(_listening ? Icons.stop_rounded : Icons.mic_rounded, color: _listening ? Colors.black : C.text, size: 28),
+                child: Icon(_listening ? Icons.stop_rounded : Icons.mic_rounded, color: _listening ? Colors.white : C.text, size: 28),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(child: PrimaryButton(label: 'Submit answer', icon: Icons.arrow_upward_rounded, onTap: _submit)),
           ]),
           const SizedBox(height: 6),
-          Center(child: Pressable(onTap: () => _submit(skip: true), child: const Padding(padding: EdgeInsets.all(12), child: Text('Skip this question', style: T.small)))),
+          Center(child: Pressable(onTap: () => _submit(skip: true), child: Padding(padding: EdgeInsets.all(12), child: Text('Skip this question', style: T.small)))),
         ],
       ];
 

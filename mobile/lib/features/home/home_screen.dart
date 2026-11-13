@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           progress: comp / 100,
                           child: Column(mainAxisSize: MainAxisSize.min, children: [
                             CountUp(value: comp, suffix: '%', style: T.h1),
-                            const Text('PROFILE', style: T.label),
+                            Text('PROFILE', style: T.label),
                           ]),
                         ),
                         const SizedBox(width: 20),
@@ -119,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         border: C.primary.withValues(alpha: 0.5),
                         padding: const EdgeInsets.all(16),
                         child: Row(children: [
-                          const Icon(Icons.bolt_rounded, color: C.primary),
+                          Icon(Icons.bolt_rounded, color: C.primary),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -127,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
-                          const Icon(Icons.chevron_right_rounded, color: C.muted),
+                          Icon(Icons.chevron_right_rounded, color: C.muted),
                         ]),
                       ),
                     ),
@@ -181,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 10),
                   GlassCard(
                     onTap: () => pushDepth(context, (_) => const InterviewsScreen()),
-                    child: const Row(children: [
+                    child: Row(children: [
                       Icon(Icons.event_available_rounded, color: C.primary),
                       SizedBox(width: 12),
                       Expanded(child: Text('Interviews and invites from your inbox', style: TextStyle(fontWeight: FontWeight.w600))),
@@ -260,7 +260,7 @@ class _Mini extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, size: 20, color: C.muted),
           const SizedBox(height: 10),
-          value == null ? const Text('--', style: T.h1) : CountUp(value: value as num, suffix: suffix, style: T.h1),
+          value == null ? Text('--', style: T.h1) : CountUp(value: value as num, suffix: suffix, style: T.h1),
           Text(label, style: T.small),
         ]),
       );
@@ -268,7 +268,7 @@ class _Mini extends StatelessWidget {
 
 class _NoInterview extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => const GlassCard(
+  Widget build(BuildContext context) => GlassCard(
         child: Row(children: [
           Icon(Icons.event_busy_rounded, color: C.muted),
           SizedBox(width: 12),
@@ -363,7 +363,7 @@ class _MatchTile extends StatelessWidget {
           Row(children: [
             Hero(tag: 'home-${m['id']}', child: Text('${s ?? '--'}%', style: T.h1.copyWith(color: scoreColor(s)))),
             const Spacer(),
-            const Icon(Icons.north_east_rounded, size: 18, color: C.muted),
+            Icon(Icons.north_east_rounded, size: 18, color: C.muted),
           ]),
           const Spacer(),
           Text('${m['title']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
@@ -383,7 +383,7 @@ class _Tip extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         radius: R.md,
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.lightbulb_outline_rounded, color: C.warn, size: 22),
+          Icon(Icons.lightbulb_outline_rounded, color: C.warn, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

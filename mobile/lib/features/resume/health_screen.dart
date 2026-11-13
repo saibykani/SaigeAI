@@ -152,7 +152,7 @@ class _ResumeHealthScreenState extends State<ResumeHealthScreen> {
         ),
       if (rows.isNotEmpty) ...[
         const SectionTitle('Your lines, side by side'),
-        const Padding(padding: EdgeInsets.only(bottom: 12, left: 4), child: Text('Write only numbers that are true. Saige blocks anything not in your verified profile.', style: T.small)),
+        Padding(padding: EdgeInsets.only(bottom: 12, left: 4), child: Text('Write only numbers that are true. Saige blocks anything not in your verified profile.', style: T.small)),
         for (final (i, row) in rows.indexed)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -161,7 +161,7 @@ class _ResumeHealthScreenState extends State<ResumeHealthScreen> {
         const SizedBox(height: 6),
         PrimaryButton(label: 'Apply all', icon: Icons.done_all_rounded, busy: _applying, onTap: _apply),
         const SizedBox(height: 8),
-        const Center(child: Text('Saves a new version. Your original stays.', style: T.small)),
+        Center(child: Text('Saves a new version. Your original stays.', style: T.small)),
       ],
     ];
   }

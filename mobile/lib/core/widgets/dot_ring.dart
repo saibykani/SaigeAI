@@ -7,11 +7,11 @@ import '../theme.dart';
 /// Glowing dotted progress ring. [progress] 0..1 lights dots around the circle;
 /// null means indeterminate (a comet of light chasing around the ring).
 class DotRing extends StatefulWidget {
-  const DotRing({super.key, this.progress, this.size = 56, this.dots = 28, this.color = C.primary, this.dotRadius, this.child});
+  const DotRing({super.key, this.progress, this.size = 56, this.dots = 28, this.color, this.dotRadius, this.child});
   final double? progress;
   final double size;
   final int dots;
-  final Color color;
+  final Color? color;
   final double? dotRadius;
   final Widget? child;
 
@@ -85,7 +85,7 @@ class _DotRingState extends State<DotRing> with TickerProviderStateMixin {
               prog: _prog,
               indeterminate: widget.progress == null,
               n: widget.dots,
-              color: widget.color,
+              color: widget.color ?? C.primary,
               dotRadius: widget.dotRadius ?? widget.size / 26 + 0.8,
             ),
           ),

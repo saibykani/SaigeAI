@@ -111,7 +111,7 @@ class _InboxScreenState extends State<InboxScreen> {
                   radius: R.md,
                   padding: const EdgeInsets.all(14),
                   child: Row(children: [
-                    const Icon(Icons.mark_email_read_rounded, color: C.good),
+                    Icon(Icons.mark_email_read_rounded, color: C.good),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

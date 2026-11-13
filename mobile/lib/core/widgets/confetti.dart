@@ -37,7 +37,7 @@ class _BurstState extends State<_Burst> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     final r = math.Random();
-    const cols = [C.primary, C.text, Color(0xFFFF8A9B), C.warn, C.good];
+    final cols = [C.primary, C.text, C.violet, C.warn, C.good];
     _ps = List.generate(widget.count, (_) {
       final a = r.nextDouble() * math.pi * 2;
       final v = 260 + r.nextDouble() * 520;

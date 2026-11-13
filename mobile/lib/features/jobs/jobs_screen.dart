@@ -74,8 +74,8 @@ class _JobsScreenState extends State<JobsScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
             child: Row(children: [
-              const Expanded(child: Text('Jobs', style: T.display)),
-              if (_finding) const Padding(padding: EdgeInsets.only(right: 12), child: DotRing(size: 28, dots: 10)) else _IconBtn(icon: Icons.travel_explore_rounded, onTap: _find),
+              Expanded(child: Text('Jobs', style: T.display)),
+              if (_finding) Padding(padding: EdgeInsets.only(right: 12), child: DotRing(size: 28, dots: 10)) else _IconBtn(icon: Icons.travel_explore_rounded, onTap: _find),
               const SizedBox(width: 8),
               _IconBtn(icon: _deck ? Icons.view_agenda_outlined : Icons.style_rounded, onTap: () => setState(() => _deck = !_deck)),
             ]),
@@ -310,8 +310,8 @@ class _DeckState extends State<_Deck> with SingleTickerProviderStateMixin {
               transform: m,
               child: Stack(fit: StackFit.expand, children: [
                 child!,
-                Positioned(top: 26, left: 26, child: Opacity(opacity: p.clamp(0.0, 1.0), child: const _Stamp('SHORTLIST', C.good, -0.2))),
-                Positioned(top: 26, right: 26, child: Opacity(opacity: (-p).clamp(0.0, 1.0), child: const _Stamp('SKIP', C.bad, 0.2))),
+                Positioned(top: 26, left: 26, child: Opacity(opacity: p.clamp(0.0, 1.0), child: _Stamp('SHORTLIST', C.good, -0.2))),
+                Positioned(top: 26, right: 26, child: Opacity(opacity: (-p).clamp(0.0, 1.0), child: _Stamp('SKIP', C.bad, 0.2))),
               ]),
             );
           },
@@ -370,8 +370,8 @@ class _JobCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(34),
         border: Border.all(color: C.line),
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF1A1A1E), Color(0xFF0A0A0C)]),
-        boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 24, offset: Offset(0, 12))],
+        color: C.surface,
+        boxShadow: C.dark ? const [BoxShadow(color: Color(0x99000000), blurRadius: 24, offset: Offset(0, 12))] : C.shadow,
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [_Avatar('${job['company']}', size: 54), const Spacer(), if (job['classification'] != null) Pill('${job['classification']}', color: scoreColor(s), filled: true)]),
@@ -382,7 +382,7 @@ class _JobCard extends StatelessWidget {
                   tag: 'job-${job['id']}',
                   child: Material(
                     color: Colors.transparent,
-                    child: DotRing(size: 150, dots: 40, progress: s == null ? 0 : s / 100, color: scoreColor(s), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(s == null ? '--' : '${s.round()}%', style: T.display.copyWith(color: scoreColor(s))), const Text('MATCH', style: T.label)])),
+                    child: DotRing(size: 150, dots: 40, progress: s == null ? 0 : s / 100, color: scoreColor(s), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(s == null ? '--' : '${s.round()}%', style: T.display.copyWith(color: scoreColor(s))), Text('MATCH', style: T.label)])),
                   ),
                 )
               : DotRing(size: 150, dots: 40, progress: s == null ? 0 : s / 100, color: scoreColor(s)),
@@ -390,16 +390,16 @@ class _JobCard extends StatelessWidget {
         const Spacer(),
         Text('${job['title']}', maxLines: 3, overflow: TextOverflow.ellipsis, style: T.h1),
         const SizedBox(height: 6),
-        Text('${job['company']}', style: const TextStyle(fontSize: 16, color: C.muted)),
+        Text('${job['company']}', style: TextStyle(fontSize: 16, color: C.muted)),
         const SizedBox(height: 14),
         Wrap(spacing: 8, runSpacing: 8, children: [
           if (job['location'] != null) Pill('${job['location']}'),
-          if (job['remote'] == true) const Pill('Remote', color: C.good),
+          if (job['remote'] == true) Pill('Remote', color: C.good),
           if (sal.isNotEmpty) Pill(sal, color: C.text),
           if (job['experience_required'] != null) Pill('${job['experience_required']} yrs'),
         ]),
         const SizedBox(height: 8),
-        const Center(child: Text('Tap for details', style: T.small)),
+        Center(child: Text('Tap for details', style: T.small)),
       ]),
     );
   }

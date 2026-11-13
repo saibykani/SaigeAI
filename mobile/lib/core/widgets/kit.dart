@@ -31,44 +31,46 @@ class FeatureScaffold extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: C.bg,
-        body: SafeArea(
-          bottom: false,
-          child: Column(children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-              child: Row(children: [
-                Pressable(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: C.surface2, border: Border.all(color: C.line)),
-                    child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                  ),
+  Widget build(BuildContext context) {
+    final h = HeroScope.maybeOf(context);
+    return Scaffold(
+      backgroundColor: C.bg,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, _) => [
+          SliverAppBar.large(
+            backgroundColor: C.bg,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
+            expandedHeight: subtitle == null ? 112 : 128,
+            automaticallyImplyLeading: false,
+            leading: !Navigator.of(context).canPop() ? null : Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Pressable(
+                onTap: () => Navigator.of(context).maybePop(),
+                child: Container(
+                  margin: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: C.surface2),
+                  child: Icon(Icons.arrow_back_ios_new_rounded, size: 17, color: C.text),
                 ),
-                const SizedBox(width: 14),
-                if (HeroScope.maybeOf(context) case final h?) ...[
-                  Hero(
-                    tag: h.tag,
-                    child: Container(width: 44, height: 44, decoration: BoxDecoration(shape: BoxShape.circle, color: h.color.withValues(alpha: 0.16), border: Border.all(color: h.color.withValues(alpha: 0.5))), child: Icon(h.icon, color: h.color, size: 22)),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(title, style: T.h1.copyWith(fontSize: 23), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    if (subtitle != null) Text(subtitle!, style: T.small, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ]),
-                ),
-                ?trailing,
-              ]),
+              ),
             ),
-            Expanded(child: child),
-          ]),
-        ),
-      );
+            title: Text(title, style: T.h1.copyWith(fontSize: 26), maxLines: 1, overflow: TextOverflow.ellipsis),
+            actions: [
+              if (h != null)
+                Hero(
+                  tag: h.tag,
+                  child: Container(width: 40, height: 40, decoration: BoxDecoration(shape: BoxShape.circle, color: h.color.withValues(alpha: 0.18)), child: Icon(h.icon, color: h.color, size: 21)),
+                ),
+              if (trailing != null) Padding(padding: const EdgeInsets.only(left: 8), child: trailing),
+              const SizedBox(width: 16),
+            ],
+          ),
+          if (subtitle != null) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 6), child: Text(subtitle!, style: T.small))),
+        ],
+        body: child,
+      ),
+    );
+  }
 }
 
 /// Score in a DotRing with a count-up number.
@@ -126,7 +128,7 @@ class ChipRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                   border: Border.all(color: on ? C.primary : C.line),
                 ),
-                child: Text(labels?[o] ?? o, style: TextStyle(color: on ? Colors.white : C.muted, fontWeight: FontWeight.w600, fontSize: 13.5)),
+                child: Text(labels?[o] ?? o, style: TextStyle(color: on ? C.onPrimary : C.muted, fontWeight: FontWeight.w600, fontSize: 13.5)),
               ),
             );
           },
@@ -159,9 +161,9 @@ class LabeledField extends StatelessWidget {
 
 /// Thin progress bar that animates to [value] (0..1).
 class BarFill extends StatelessWidget {
-  const BarFill({super.key, required this.value, this.color = C.primary, this.height = 8});
+  const BarFill({super.key, required this.value, this.color, this.height = 8});
   final double value;
-  final Color color;
+  final Color? color;
   final double height;
   @override
   Widget build(BuildContext context) => ClipRRect(
@@ -174,7 +176,7 @@ class BarFill extends StatelessWidget {
             tween: Tween(begin: 0, end: value.clamp(0.0, 1.0)),
             duration: const Duration(milliseconds: 900),
             curve: const SpringCurve(damping: 9, freq: 2.4),
-            builder: (context, v, _) => FractionallySizedBox(widthFactor: v.clamp(0.0, 1.0), child: Container(color: color)),
+            builder: (context, v, _) => FractionallySizedBox(widthFactor: v.clamp(0.0, 1.0), child: Container(color: color ?? C.primary)),
           ),
         ),
       );

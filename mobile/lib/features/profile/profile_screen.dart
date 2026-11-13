@@ -13,6 +13,7 @@ import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/scan_loader.dart';
 import '../../core/widgets/ui.dart';
 import '../more/more_hub.dart';
+import '../settings/settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -94,9 +95,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context) => Padding(
         padding: EdgeInsets.fromLTRB(20, 24, 20, 24 + MediaQuery.viewInsetsOf(context).bottom),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Server', style: T.h2),
+          Text('Server', style: T.h2),
           const SizedBox(height: 6),
-          const Text('Use the web host with /api so sign-in cookies stay first-party.', style: T.small),
+          Text('Use the web host with /api so sign-in cookies stay first-party.', style: T.small),
           const SizedBox(height: 14),
           TextField(controller: c, keyboardType: TextInputType.url),
           const SizedBox(height: 14),
@@ -123,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             sliver: SliverList.list(children: [
-              const Stagger(index: 0, child: Text('Profile', style: T.display)),
+              Stagger(index: 0, child: Text('Profile', style: T.display)),
               const SizedBox(height: 18),
               Stagger(
                 index: 1,
@@ -133,7 +134,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       listenable: _setup,
                       builder: (context, _) {
                         final comp = ((_setup.data?['completeness'] as num?) ?? 0).toDouble();
-                        return DotRing(size: 108, dots: 34, progress: comp / 100, child: Column(mainAxisSize: MainAxisSize.min, children: [CountUp(value: comp, suffix: '%', style: T.h2), const Text('DONE', style: T.label)]));
+                        return DotRing(size: 108, dots: 34, progress: comp / 100, child: Column(mainAxisSize: MainAxisSize.min, children: [CountUp(value: comp, suffix: '%', style: T.h2), Text('DONE', style: T.label)]));
                       },
                     ),
                     const SizedBox(width: 18),
@@ -154,7 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: GlassCard(
                   onTap: () => pushDepth(context, (_) => const MoreHub()),
                   border: C.primary.withValues(alpha: 0.5),
-                  child: const Row(children: [
+                  child: Row(children: [
                     Icon(Icons.apps_rounded, color: C.primary, size: 30),
                     SizedBox(width: 14),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Everything in Saige', style: T.h2), Text('ATS coach, resume health, job search, inbox, goals, learning, mock interview', style: T.small)])),
@@ -162,13 +163,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ]),
                 ),
               ),
-              SectionTitle('Resumes', trailing: Pressable(onTap: _upload, child: const Pill('Upload', color: C.primary, filled: true))),
+              SectionTitle('Resumes', trailing: Pressable(onTap: _upload, child: Pill('Upload', color: C.primary, filled: true))),
               ListenableBuilder(
                 listenable: _resumes,
                 builder: (context, _) {
                   final list = _resumes.data;
-                  if (list == null) return _resumes.error != null ? ErrorState(error: _resumes.error!, onRetry: _resumes.load) : const Padding(padding: EdgeInsets.all(30), child: Center(child: DotRing(size: 40)));
-                  if (list.isEmpty) return GlassCard(onTap: _upload, child: const Row(children: [Icon(Icons.upload_file_rounded, color: C.primary), SizedBox(width: 12), Expanded(child: Text('Upload your resume (PDF, DOCX or TXT). Saige reads it and fills your profile with only what is in the file.', style: T.small))]));
+                  if (list == null) return _resumes.error != null ? ErrorState(error: _resumes.error!, onRetry: _resumes.load) : Padding(padding: EdgeInsets.all(30), child: Center(child: DotRing(size: 40)));
+                  if (list.isEmpty) return GlassCard(onTap: _upload, child: Row(children: [Icon(Icons.upload_file_rounded, color: C.primary), SizedBox(width: 12), Expanded(child: Text('Upload your resume (PDF, DOCX or TXT). Saige reads it and fills your profile with only what is in the file.', style: T.small))]));
                   return Column(children: [
                     for (final (i, r) in list.indexed)
                       Padding(
@@ -179,7 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             radius: R.md,
                             padding: const EdgeInsets.all(14),
                             child: Row(children: [
-                              const Icon(Icons.description_outlined, color: C.muted),
+                              Icon(Icons.description_outlined, color: C.muted),
                               const SizedBox(width: 12),
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${r['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)), Text('${r['kind']}  ·  v${r['version_count'] ?? 1}  ·  ${timeAgo('${r['updated_at']}')}', style: T.small)])),
                             ]),
@@ -193,10 +194,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               GlassCard(
                 padding: EdgeInsets.zero,
                 child: Column(children: [
+                  _Row(icon: Icons.tune_rounded, title: 'Settings', sub: 'Theme, language, automation, privacy', onTap: () => pushDepth(context, (_) => const SettingsScreen())),
+                  Divider(height: 1, color: C.line),
                   _Row(icon: Icons.dns_outlined, title: 'Server', sub: AppConfig.baseUrl, onTap: _server),
-                  const Divider(height: 1, color: C.line),
+                  Divider(height: 1, color: C.line),
                   _Row(icon: Icons.privacy_tip_outlined, title: 'Truth guard', sub: 'Saige never invents skills, titles or numbers. Unknown stays unknown.'),
-                  const Divider(height: 1, color: C.line),
+                  Divider(height: 1, color: C.line),
                   _Row(icon: Icons.logout_rounded, title: 'Sign out', color: C.bad, onTap: () async {
                     thump();
                     await Session.I.logout();
@@ -204,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ]),
               ),
               const SizedBox(height: 16),
-              const Center(child: Text('Saige AI 1.0  ·  Google sign-in coming soon', style: T.small)),
+              Center(child: Text('Saige AI 1.0  ·  Google sign-in coming soon', style: T.small)),
             ]),
           ),
         ]),
@@ -214,7 +217,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               tween: Tween(begin: 0, end: 1),
               duration: const Duration(milliseconds: 300),
               builder: (context, v, child) => Opacity(opacity: v, child: child),
-              child: ColoredBox(color: const Color(0xF2000000), child: Center(child: ScanLoader(label: _scanLabel))),
+              child: ColoredBox(color: C.bg.withValues(alpha: 0.94), child: Center(child: ScanLoader(label: _scanLabel))),
             ),
           ),
       ]),
@@ -239,7 +242,7 @@ class _Row extends StatelessWidget {
             Icon(icon, color: color ?? C.muted),
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: color)), if (sub != null) Text(sub!, style: T.small, maxLines: 2, overflow: TextOverflow.ellipsis)])),
-            if (onTap != null && color == null) const Icon(Icons.chevron_right_rounded, color: C.muted),
+            if (onTap != null && color == null) Icon(Icons.chevron_right_rounded, color: C.muted),
           ]),
         ),
       );
