@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     # Optional Telegram bot (create one with @BotFather) for free notification alerts.
     telegram_bot_token: str | None = None
     telegram_bot_username: str | None = None
+    # Optional Web Push (phone notifications from the installed PWA). Generate keys: see docs/DEPLOYMENT.md.
+    vapid_public_key: str | None = None
+    vapid_private_key: str | None = None
+    vapid_subject: str = "mailto:info.saigeai@gmail.com"
     # Optional WhatsApp Business Cloud API (Meta) for two-way chat with Saige.
     whatsapp_token: str | None = None
     whatsapp_phone_number_id: str | None = None

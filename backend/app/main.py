@@ -43,6 +43,7 @@ from app.resumes.router import router as resumes_router
 from app.scheduler.router import router as scheduler_router
 from app.services.rate_limit import client_key, write_limiter
 from app.services.telegram import router as telegram_router
+from app.services.webpush import router as push_router
 from app.services.whatsapp_cloud import router as whatsapp_cloud_router
 from app.services.whatsapp_cloud import webhook_router as whatsapp_webhook_router
 from app.studio.router import router as studio_router
@@ -143,6 +144,7 @@ def create_app() -> FastAPI:
               applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router, linkedin_posts_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
               recruiters_router, extension_router, suggestions_router, growth_router, connectors_router, portfolio_router, telegram_router,
+              push_router,
               learning_router, whatsapp_cloud_router, whatsapp_webhook_router, admin_router, hiring_router,
               mock_interview_router):
         api.include_router(r)

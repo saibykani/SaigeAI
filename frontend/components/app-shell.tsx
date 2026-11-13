@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { Wordmark } from "@/components/brand";
 import { useT } from "@/components/i18n";
 import { Loader3D } from "@/components/loader3d";
+import { InstallCard } from "@/components/pwa";
 import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
 import { AssistantBubble, Orb } from "@/components/assistant";
@@ -255,6 +256,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         {/* key on pathname replays the entrance animation on every navigation */}
         <main id="main" tabIndex={-1} key={pathname} className="animate-rise relative outline-none w-full max-w-[1440px] flex-1 px-4 py-6 md:px-6 md:py-7">
+          <InstallCard />
           <SubNav pathname={pathname}>{children}</SubNav>
         </main>
         {pathname !== "/assistant" && <AssistantBubble />}

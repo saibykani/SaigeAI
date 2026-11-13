@@ -23,4 +23,7 @@ async def notify(
     from app.services import telegram
 
     await telegram.mirror(db, user_id, title, body, link)
+    from app.services import webpush
+
+    await webpush.mirror(db, user_id, title, body, link, kind)
     return doc["_id"]

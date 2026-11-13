@@ -13,3 +13,5 @@ python-docx>=1.1
 anthropic>=1.8
 cryptography>=43
 tzdata>=2024.1
+py-vapid>=1.9
+http-ece>=1.2

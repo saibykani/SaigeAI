@@ -218,3 +218,11 @@ Your Google Cloud project is in **Testing** mode, so only listed test users can 
 - Change the Atlas password and the Google client secret if they were ever shared.
 - Every write request is rate-limited to 180 per minute per session (or per client address), and feature
   limits are stricter. Limits are in-memory per instance: move them to Redis if you scale out.
+
+**Phone notifications / installable app (optional):** generate VAPID keys from `backend/` with
+
+```
+python -c "import base64;from py_vapid import Vapid02 as V;from cryptography.hazmat.primitives import serialization as s;v=V();v.generate_keys();b=lambda x:base64.urlsafe_b64encode(x).decode().rstrip(chr(61));print('VAPID_PUBLIC_KEY='+b(v.public_key.public_bytes(s.Encoding.X962,s.PublicFormat.UncompressedPoint)));print('VAPID_PRIVATE_KEY='+b(v.private_key.private_numbers().private_value.to_bytes(32,'big')))"
+```
+
+Set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT=mailto:info.saigeai@gmail.com` on the `saige-ai-api` Vercel project. Users enable it in Settings > Integrations > Phone notifications. See `docs/ANDROID_APP.md` for the Android APK.

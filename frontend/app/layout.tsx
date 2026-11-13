@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Google_Sans, Google_Sans_Code } from "next/font/google";
 
 import { DEFAULT_THEME, themeBootScript } from "@/components/theme-config";
 import { LanguageProvider } from "@/components/i18n";
+import { PwaRegister } from "@/components/pwa";
 import { AuthProvider } from "@/hooks/use-auth";
 
 import "./globals.css";
@@ -13,7 +14,10 @@ const googleSansCode = Google_Sans_Code({ subsets: ["latin"], variable: "--font-
 export const metadata: Metadata = {
   title: { default: "Saige AI", template: "%s · Saige AI" },
   description: "AI career command center: profile, resumes, jobs and applications in one place.",
+  appleWebApp: { capable: true, title: "Saige", statusBarStyle: "black" },
 };
+
+export const viewport: Viewport = { themeColor: "#000000" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -23,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body className="app-backdrop font-sans antialiased">
+        <PwaRegister />
         <LanguageProvider><AuthProvider>{children}</AuthProvider></LanguageProvider>
       </body>
     </html>

@@ -8,6 +8,7 @@ import { Notice, PageHeader } from "@/components/app-shell";
 import { GmailConnectCard } from "@/components/gmail-app-password";
 import { CalendarFeedCard, GithubCard } from "@/components/connectors";
 import { CodingCard, DriveCard, TelegramCard } from "@/components/connectors-more";
+import { PhoneNotificationsCard } from "@/components/pwa";
 import { WhatsAppChatCard } from "@/components/whatsapp-cloud";
 import { HiringPortalsCard } from "@/components/hiring-portals";
 import { Badge } from "@/components/ui/badge";
@@ -145,6 +146,7 @@ export default function IntegrationsPage() {
         </div>
       )}
 
+      <PhoneNotificationsCard />
       <TelegramCard />
       <WhatsAppChatCard />
       <CalendarFeedCard />
