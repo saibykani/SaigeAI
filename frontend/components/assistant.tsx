@@ -1,9 +1,11 @@
 "use client";
 
-import { ArrowUp, Loader2, Trash2, X } from "lucide-react";
+import { ArrowUp, Ear, Loader2, Mic, Square, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { useT } from "@/components/i18n";
+import { useVoiceAssistant } from "@/hooks/use-voice-assistant";
 import { request } from "@/services/api";
 import { cn } from "@/utils/cn";
 
@@ -46,24 +48,26 @@ function useChat() {
     return () => window.removeEventListener("saige-chat", on);
   }, []);
 
-  async function send(text: string) {
+  async function send(text: string, opts?: { language?: string; voice?: boolean }): Promise<string | null> {
     const q = text.trim();
-    if (!q || busy) return;
+    if (!q || busy) return null;
     const next: Msg[] = [...msgs, { role: "user", content: q }];
     setMsgs(next);
     save(next);
     setBusy(true);
     try {
       const r = await request<{ reply: string; engine: string; actions: Msg["actions"] }>("/assistant/chat", {
-        method: "POST", body: { messages: next.slice(-16).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })) },
+        method: "POST", body: { messages: next.slice(-16).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })), language: opts?.language ?? "en", voice: !!opts?.voice },
       });
       const done: Msg[] = [...next, { role: "assistant", content: r.reply, actions: r.actions, engine: r.engine }];
       setMsgs(done);
       save(done);
+      return r.reply;
     } catch (e) {
       const done: Msg[] = [...next, { role: "assistant", content: e instanceof Error ? e.message : "Something went wrong. Try again." }];
       setMsgs(done);
       save(done);
+      return null;
     } finally {
       setBusy(false);
     }
@@ -133,7 +137,10 @@ function Bubble({ m }: { m: Msg }) {
 /** The chat itself (used full-page and in the corner panel). */
 export function Chat({ compact = false }: { compact?: boolean }) {
   const { msgs, busy, send, clear } = useChat();
+  const { t, lang } = useT();
   const [text, setText] = useState("");
+  const voice = useVoiceAssistant(lang, (q) => send(q, { language: lang, voice: true }));
+  const active = voice.state !== "idle";
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs, busy]);
 
@@ -149,7 +156,7 @@ export function Chat({ compact = false }: { compact?: boolean }) {
             </div>
             <div className={cn("grid w-full gap-2", !compact && "sm:grid-cols-2")}>
               {SUGGESTIONS.slice(0, compact ? 4 : 6).map((s) => (
-                <button key={s} type="button" onClick={() => send(s)} className="lift rounded-2xl border px-3 py-2.5 text-left text-sm hover:bg-muted">{s}</button>
+                <button key={s} type="button" onClick={() => send(s, { language: lang })} className="lift rounded-2xl border px-3 py-2.5 text-left text-sm hover:bg-muted">{s}</button>
               ))}
             </div>
           </div>
@@ -158,12 +165,37 @@ export function Chat({ compact = false }: { compact?: boolean }) {
         {busy && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Orb size={28} spinning /> Thinking…</div>}
         <div ref={end} />
       </div>
-      <form onSubmit={(e) => { e.preventDefault(); void send(text); setText(""); }} className="flex items-end gap-2 border-t p-3">
+      {(active || voice.error || !voice.supported) && (
+        <div className="flex items-center gap-2 border-t px-4 py-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+          {active && <span className={cn("size-2 shrink-0 rounded-full", voice.state === "listening" || voice.state === "wake" ? "animate-pulse" : "")} style={{ background: "var(--tone-green)" }} />}
+          <span className="min-w-0 flex-1 truncate">
+            {voice.error ? t(voice.error)
+              : voice.state === "wake" ? t("Listening for “Hey Saige”…")
+              : voice.state === "listening" ? (voice.transcript || t("Listening…"))
+              : voice.state === "thinking" ? t("Thinking…")
+              : voice.state === "speaking" ? t("Speaking…")
+              : !voice.supported ? t("Voice input isn't supported in this browser. Type your question instead.") : ""}
+          </span>
+          {voice.supported && (
+            <button type="button" onClick={() => voice.setWake(!voice.wake)} aria-pressed={voice.wake} aria-label={t("Hey Saige wake word")}
+              className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5", voice.wake && "bg-muted font-medium text-foreground")}>
+              <Ear className="size-3" /> {t("Hey Saige")}
+            </button>
+          )}
+        </div>
+      )}
+      <form onSubmit={(e) => { e.preventDefault(); void send(text, { language: lang }); setText(""); }} className="flex items-end gap-2 border-t p-3">
         {msgs.length > 0 && (
           <button type="button" onClick={clear} aria-label="Clear chat" className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted"><Trash2 className="size-4" /></button>
         )}
+        {voice.supported && (
+          <button type="button" onClick={voice.toggle} aria-label={t(active ? "Stop" : "Speak to Saige")} title={t("Speak to Saige")}
+            className={cn("grid size-10 shrink-0 place-items-center rounded-full border hover:bg-muted", voice.state === "listening" && "animate-pulse")}>
+            {voice.state === "listening" || voice.state === "speaking" ? <Square className="size-4" /> : <Mic className="size-4" />}
+          </button>
+        )}
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1} placeholder="Ask Saige anything about your job search…"
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(text); setText(""); } }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(text, { language: lang }); setText(""); } }}
           className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border bg-transparent px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--tone-purple)]" />
         <button type="submit" disabled={busy || !text.trim()} aria-label="Send"
           className="grid size-10 shrink-0 place-items-center rounded-full text-[#0b0b0c] disabled:opacity-40" style={{ background: "var(--tone-purple)" }}>

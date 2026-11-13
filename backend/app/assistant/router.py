@@ -12,9 +12,10 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 from pymongo import DESCENDING
 
+from app.assistant import voice as v
 from app.auth.deps import db_dep, get_current_user
 from app.database import collections as c
-from app.profiles.service import get_profile
+from app.profiles.service import completeness, get_profile
 from app.services.rate_limit import RateLimiter
 from app.utils import utcnow
 
@@ -29,6 +30,8 @@ class Msg(BaseModel):
 
 class ChatIn(BaseModel):
     messages: list[Msg] = Field(min_length=1, max_length=30)
+    language: str = Field(default="en", pattern="^(en|hi|te|ta|kn|ml)$")
+    voice: bool = False  # speakable reply: short, no markdown
 
 
 async def context(db: AsyncIOMotorDatabase, uid: str) -> dict:
@@ -42,6 +45,15 @@ async def context(db: AsyncIOMotorDatabase, uid: str) -> dict:
     emails = [e async for e in db[c.EMAILS].find({"user_id": uid, "hidden": {"$ne": True}}, {"subject": 1, "category": 1, "sender": 1})
               .sort("received_at", DESCENDING).limit(8)]
     drafts = await db[c.OUTREACH].count_documents({"user_id": uid, "status": "draft"})
+    now = utcnow()
+    day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    emails_today = await db[c.EMAILS].count_documents({"user_id": uid, "hidden": {"$ne": True}, "received_at": {"$gte": day}})
+    replies_today = await db[c.EMAILS].count_documents({"user_id": uid, "hidden": {"$ne": True}, "received_at": {"$gte": day},
+                                                        "category": {"$in": ["Offer", "Rejection", "Interview Invitation", "Interview Reschedule",
+                                                                  "Coding Test", "Assessment", "Recruiter Outreach", "Follow-up"]}})
+    followups_due = await db[c.FOLLOWUPS].count_documents({"user_id": uid, "status": {"$in": ["scheduled", "due"]}, "due_at": {"$lte": now}})
+    score, missing = completeness(p.model_dump(mode="json"))
+    sized = await db[c.JOB_FEED].aggregate([{"$match": {"_id": uid}}, {"$project": {"n": {"$size": {"$ifNull": ["$items", []]}}}}]).to_list(1)
     return {
         "profile": {"name": p.personal.name, "role": p.personal.current_designation, "years": p.personal.total_experience_years,
                     "location": p.personal.current_location, "country": p.personal.country,
@@ -53,6 +65,9 @@ async def context(db: AsyncIOMotorDatabase, uid: str) -> dict:
         "upcoming_interviews": [{"company": i.get("company"), "role": i.get("role"), "at": i["scheduled_at"].isoformat()} for i in upcoming],
         "recent_emails": [{"subject": e["subject"][:100], "category": e["category"]} for e in emails],
         "reply_drafts_waiting": drafts,
+        "jobs_total": sized[0]["n"] if sized else 0,
+        "emails_today": emails_today, "replies_today": replies_today, "followups_due": followups_due,
+        "completeness": score, "missing": missing[:5],
     }
 
 
@@ -122,14 +137,22 @@ async def chat(body: ChatIn, user: dict = Depends(get_current_user), db: AsyncIO
 
     from app.agents.llm import get_provider
 
-    ctx = await context(db, user["_id"])
+    ctx = await context(db, user["_id"])  # only this user's records
     question = body.messages[-1].content
     provider = get_provider()
     reply, engine = None, "builtin"
+    system = SYSTEM.format(records=json.dumps(ctx, default=str)[:12000])
+    if body.language != "en":
+        system += f"\nAlways reply in {v.LANG_NAMES[body.language]}, in its native script."
+    if body.voice:
+        system += "\nYour reply will be spoken aloud: plain sentences only, no markdown, lists or links, at most 3 short sentences."
     if provider is not None and hasattr(provider, "chat"):
-        reply = await provider.chat(system=SYSTEM.format(records=json.dumps(ctx, default=str)[:12000]),
+        reply = await provider.chat(system=system,
                                     messages=[m.model_dump() for m in body.messages[-16:]])
         engine = "claude" if reply else engine
     if not reply:
-        reply = builtin(question, ctx)
+        intent = v.detect_intent(question) if (body.voice or body.language != "en") else None
+        reply = v.answer(intent or "help", ctx, body.language) if (intent or body.language != "en") else builtin(question, ctx)
+    if body.voice:
+        reply = v.speakable(reply)
     return {"reply": reply, "engine": engine, "actions": actions_for(question + " " + reply)}
