@@ -20,6 +20,7 @@ from app.careers.router import router as careers_router
 from app.config import get_settings
 from app.connectors.router import router as connectors_router
 from app.database import mongo
+from app.debrief.router import router as debrief_router
 from app.email.router import router as email_router
 from app.extension.router import router as extension_router
 from app.growth.router import router as growth_router
@@ -32,6 +33,7 @@ from app.logging_setup import configure_logging, request_id_var
 from app.ml.router import router as ml_router
 from app.mock_interview.router import router as mock_interview_router
 from app.notifications.router import router as notifications_router
+from app.offers.router import router as offers_router
 from app.portals.router import router as portals_router
 from app.portfolio.router import router as portfolio_router
 from app.privacy.router import audit_router
@@ -145,10 +147,11 @@ def create_app() -> FastAPI:
               interview_brief_router,
               applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router, linkedin_posts_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
-              recruiters_router, extension_router, suggestions_router, growth_router, connectors_router, portfolio_router, telegram_router,
+              recruiters_router, extension_router, suggestions_router, growth_router, offers_router,
+              connectors_router, portfolio_router, telegram_router,
               push_router,
               learning_router, whatsapp_cloud_router, whatsapp_webhook_router, admin_router, hiring_router,
-              mock_interview_router):
+              mock_interview_router, debrief_router):
         api.include_router(r)
     app.include_router(api)
     return app

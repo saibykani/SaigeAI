@@ -5,6 +5,16 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "2.0",
+    date: "2026-11-14T21:00:00+05:30",
+    size: "19.2 MB",
+    notes: [
+      "Interview debrief: speak or type how it went; Saige saves the questions they asked to your question bank, plus what went well and what to improve",
+      "Thank-you email drafted from your debrief, sent from your Gmail only after you confirm",
+      "Debrief button on past interviews and in the side menu",
+    ],
+  },
+  {
     version: "1.9",
     date: "2026-11-14T19:30:00+05:30",
     size: "19.1 MB",

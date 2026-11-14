@@ -12,6 +12,7 @@ import '../growth/insights_screen.dart';
 import '../growth/learning_screen.dart';
 import '../inbox/inbox_screen.dart';
 import '../interviews/interviews_screen.dart';
+import '../interviews/debrief_screen.dart';
 import '../mock/mock_setup_screen.dart';
 import '../network/linkedin_posts_screen.dart';
 import '../network/outreach_screen.dart';
@@ -161,6 +162,7 @@ List<_Sec> _sections() {
         _It('interviews', 'Interviews', Icons.event_available_rounded, C.good, build: () => const InterviewsScreen()),
         _It('inbox', 'Inbox', Icons.mark_email_unread_rounded, C.bad, build: () => const InboxScreen()),
         _It('mock', 'Mock interview', Icons.record_voice_over_rounded, C.violet, build: () => const MockSetupScreen()),
+        _It('debrief', 'Interview debrief', Icons.rate_review_rounded, C.warn, build: () => const DebriefScreen()),
       ]),
       _Sec('resume', 'Resume & ATS', Icons.description_rounded, [
         _It('resumes', 'My resumes', Icons.folder_copy_rounded, C.primary, build: () => const ProfileScreen()),

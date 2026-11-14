@@ -8,6 +8,7 @@ import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/ui.dart';
+import 'debrief_screen.dart';
 import 'interview_day_screen.dart';
 
 class InterviewsScreen extends StatefulWidget {
@@ -120,6 +121,7 @@ class _Upcoming extends StatelessWidget {
         ),
         Column(spacing: 8, children: [
           Pressable(onTap: () => pushDepth(context, (_) => InterviewDayScreen(interviewId: '${i['id']}')), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), decoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(99)), child: Text('Prepare', style: TextStyle(color: C.primary, fontWeight: FontWeight.w700)))),
+          if (d != null && d.isBefore(DateTime.now())) Pressable(onTap: () => pushDepth(context, (_) => DebriefScreen(interview: i)), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), decoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(99)), child: Text('Debrief', style: TextStyle(color: C.primary, fontWeight: FontWeight.w700)))),
           if (url != null && url.isNotEmpty) Pressable(onTap: () => _open(url), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), decoration: BoxDecoration(color: C.primary, borderRadius: BorderRadius.circular(99)), child: Text('Join', style: TextStyle(color: C.onPrimary, fontWeight: FontWeight.w700)))),
         ]),
       ]),
