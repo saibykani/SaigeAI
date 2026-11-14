@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../shell/app_drawer.dart';
 import '../../core/motion.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
@@ -73,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Stagger(
                     index: 0,
                     child: Row(children: [
+                      const MenuButton(),
                       Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(_greet, style: T.small),

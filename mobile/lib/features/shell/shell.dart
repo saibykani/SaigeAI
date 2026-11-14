@@ -7,9 +7,8 @@ import '../applications/applications_screen.dart';
 import '../assistant/assistant_screen.dart';
 import '../home/home_screen.dart';
 import '../jobs/jobs_screen.dart';
-import '../more/more_hub.dart';
-import '../profile/profile_screen.dart';
 import '../roles/hiring_screen.dart';
+import 'app_drawer.dart';
 
 /// Lets any screen switch tabs (e.g. Home -> Applications).
 class ShellNav {
@@ -52,28 +51,24 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin {
       ? const [
           (Icons.groups_outlined, Icons.groups_rounded, 'Hiring'),
           (Icons.auto_awesome_outlined, Icons.auto_awesome_rounded, 'Saige'),
-          (Icons.apps_outlined, Icons.apps_rounded, 'More'),
-          (Icons.person_outline_rounded, Icons.person_rounded, 'Me'),
         ]
       : const [
           (Icons.home_outlined, Icons.home_rounded, 'Home'),
           (Icons.style_outlined, Icons.style_rounded, 'Jobs'),
           (Icons.view_kanban_outlined, Icons.view_kanban_rounded, 'Pipeline'),
           (Icons.auto_awesome_outlined, Icons.auto_awesome_rounded, 'Saige'),
-          (Icons.person_outline_rounded, Icons.person_rounded, 'Me'),
         ];
 
   Widget _page(int i) {
     if (!_visited.contains(i)) return const SizedBox.shrink();
     if (Session.I.isRecruiter) {
-      return switch (i) { 0 => const HiringScreen(embedded: true), 1 => const AssistantScreen(), 2 => const MoreHub(), _ => const ProfileScreen() };
+      return switch (i) { 0 => const HiringScreen(embedded: true), _ => const AssistantScreen() };
     }
     return switch (i) {
       0 => const HomeScreen(),
       1 => const JobsScreen(),
       2 => const ApplicationsScreen(),
-      3 => const AssistantScreen(),
-      _ => const ProfileScreen(),
+      _ => const AssistantScreen(),
     };
   }
 
@@ -81,8 +76,13 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final idx = ShellNav.index.value;
     return Scaffold(
+      key: DrawerNav.key,
       backgroundColor: C.bg,
       extendBody: true,
+      drawerEdgeDragWidth: 24,
+      drawerScrimColor: Colors.black.withValues(alpha: 0.42),
+      onDrawerChanged: (o) => DrawerNav.open.value = o,
+      drawer: AppDrawer(tabIndex: ShellNav.index, onTab: ShellNav.go),
       body: AnimatedBuilder(
         animation: _swap,
         child: IndexedStack(index: idx, children: [for (var i = 0; i < _ShellState._tabs.length; i++) _page(i)]),

@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../shell/app_drawer.dart';
 import '../../core/motion.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
@@ -83,7 +84,7 @@ class _HiringScreenState extends State<HiringScreen> {
       return SafeArea(
         bottom: false,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 12), child: Text('Hiring', style: T.display)),
+          Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 12), child: Row(children: [const MenuButton(), Text('Hiring', style: T.display)])),
           Expanded(child: body),
         ]),
       );

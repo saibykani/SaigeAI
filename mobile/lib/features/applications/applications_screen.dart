@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../shell/app_drawer.dart';
 import '../../core/api.dart';
 import '../../core/motion.dart';
 import '../../core/resource.dart';
@@ -81,6 +82,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
             child: Row(children: [
+              const MenuButton(),
               Expanded(child: Text('Pipeline', style: T.display)),
               Pressable(
                 onTap: () => pushDepth(context, (_) => const InterviewsScreen()),

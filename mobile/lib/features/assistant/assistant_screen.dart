@@ -4,6 +4,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import '../shell/app_drawer.dart';
 import '../../core/api.dart';
 import '../../core/config.dart';
 import '../../core/motion.dart';
@@ -160,7 +161,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
     } else if (h.contains('application')) {
       ShellNav.go(2);
     } else if (h.contains('profile') || h.contains('resume')) {
-      ShellNav.go(4);
+      openProfile(context);
     }
   }
 
@@ -171,6 +172,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
             child: Row(children: [
+              const MenuButton(),
               Expanded(child: Text('Saige', style: T.display)),
               IconButton(
                 tooltip: 'Speak replies',

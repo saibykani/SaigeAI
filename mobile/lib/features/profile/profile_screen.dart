@@ -12,7 +12,6 @@ import '../../core/widgets/confetti.dart';
 import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/scan_loader.dart';
 import '../../core/widgets/ui.dart';
-import '../more/more_hub.dart';
 import '../settings/settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -117,14 +116,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final u = Session.I.user;
-    return SafeArea(
+    final page = SafeArea(
       bottom: false,
       child: Stack(children: [
         LogoRefreshView(onRefresh: _refresh, slivers: [
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             sliver: SliverList.list(children: [
-              Stagger(index: 0, child: Text('Profile', style: T.display)),
+              Stagger(
+                index: 0,
+                child: Row(children: [
+                  if (Navigator.of(context).canPop())
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Pressable(
+                        onTap: () => Navigator.of(context).maybePop(),
+                        child: Container(width: 44, height: 44, decoration: BoxDecoration(shape: BoxShape.circle, color: C.surface2), child: Icon(Icons.arrow_back_ios_new_rounded, size: 17, color: C.text)),
+                      ),
+                    ),
+                  Text('Profile', style: T.display),
+                ]),
+              ),
               const SizedBox(height: 18),
               Stagger(
                 index: 1,
@@ -146,20 +158,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Pill(Session.I.isRecruiter ? 'Recruiter' : 'Job seeker', color: C.primary, filled: true),
                       ]),
                     ),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Stagger(
-                index: 2,
-                child: GlassCard(
-                  onTap: () => pushDepth(context, (_) => const MoreHub()),
-                  border: C.primary.withValues(alpha: 0.5),
-                  child: Row(children: [
-                    Icon(Icons.apps_rounded, color: C.primary, size: 30),
-                    SizedBox(width: 14),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Everything in Saige', style: T.h2), Text('ATS coach, resume health, job search, inbox, goals, learning, mock interview', style: T.small)])),
-                    Icon(Icons.chevron_right_rounded, color: C.muted),
                   ]),
                 ),
               ),
@@ -207,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ]),
               ),
               const SizedBox(height: 16),
-              Center(child: Text('Saige AI 1.0  ·  Google sign-in coming soon', style: T.small)),
+              Center(child: Text('Saige AI 1.0', style: T.small)),
             ]),
           ),
         ]),
@@ -222,6 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
       ]),
     );
+    return Scaffold(backgroundColor: C.bg, body: page);
   }
 }
 

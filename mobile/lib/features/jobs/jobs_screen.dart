@@ -4,6 +4,7 @@ import 'package:flutter/physics.dart';
 
 import 'package:material_ui/material_ui.dart';
 
+import '../shell/app_drawer.dart';
 import '../../core/api.dart';
 import '../../core/motion.dart';
 import '../../core/resource.dart';
@@ -74,6 +75,7 @@ class _JobsScreenState extends State<JobsScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
             child: Row(children: [
+              const MenuButton(),
               Expanded(child: Text('Jobs', style: T.display)),
               if (_finding) Padding(padding: EdgeInsets.only(right: 12), child: DotRing(size: 28, dots: 10)) else _IconBtn(icon: Icons.travel_explore_rounded, onTap: _find),
               const SizedBox(width: 8),
