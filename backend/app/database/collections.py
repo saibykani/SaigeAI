@@ -16,6 +16,7 @@ JOB_MATCHES = "job_matches"
 COMPANIES = "companies"
 RECRUITERS = "recruiters"
 RECRUITER_CONTACTS = "recruiter_contacts"
+EMAIL_TEMPLATES = "email_templates"  # the user's own recruiter email templates
 
 APPLICATIONS = "applications"
 APPLICATION_ANSWERS = "application_answers"
@@ -81,7 +82,7 @@ USER_SCOPED = [
     JOB_FEED, JOB_ALERTS, PORTAL_LINKS, LINKEDIN_POSTS, CAREER_JOBS, CAREER_SCANS, ML_MODELS, ML_SAMPLES, ML_RUNS, GOALS, SAVED_OFFERS,
     CALENDAR_FEEDS, PORTFOLIOS,
     MOCK_INTERVIEWS, LEARNING_PATHS, WHATSAPP_SESSIONS, PUSH_SUBSCRIPTIONS,
-    RECRUITER_JOBS, TALENT_REQUESTS, DEBRIEFS, QUESTION_BANK,
+    RECRUITER_JOBS, TALENT_REQUESTS, DEBRIEFS, QUESTION_BANK, EMAIL_TEMPLATES,
 ]
 
 # Exported to the user but excluded from the JSON export (binary / security material).

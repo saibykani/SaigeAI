@@ -24,6 +24,7 @@ from app.database import collections as c
 from app.email import outbound
 from app.jobs.dedupe import company_key
 from app.profiles.service import get_profile
+from app.recruiters.company_types import auto_company_type, effective_type
 from app.schemas.profile import Profile
 from app.schemas.recruiter import ContactIn, ContactUpdate, DraftIn
 from app.services.audit import log_action
@@ -67,7 +68,7 @@ def contact_out(d: dict) -> dict:
         "id": d["_id"], "name": d["name"], "company": d["company"], "email": d.get("email"), "phone": d.get("phone"),
         "linkedin_url": d.get("linkedin_url"), "title": d.get("title"), "role": d.get("role", "recruiter"),
         "tags": d.get("tags", []), "notes": d.get("notes"), "source": d.get("source", "manual"),
-        "unsubscribed": d.get("unsubscribed", False),
+        "unsubscribed": d.get("unsubscribed", False), "company_type": effective_type(d), "company_type_custom": bool(d.get("ctype_user")),
         "last_contacted_at": d["last_contacted_at"].isoformat() if d.get("last_contacted_at") else None,
         "created_at": d["created_at"].isoformat(),
     }
@@ -108,8 +109,8 @@ async def create_contact(db: AsyncIOMotorDatabase, user_id: str, body: ContactIn
     now = utcnow()
     doc = {"_id": new_id(), "user_id": user_id, **body.model_dump(mode="json"),
            "email_key": email_key(body.email), "linkedin_key": linkedin_key(body.linkedin_url), "phone_key": phone_key(body.phone),
-           "company_key": company_key(body.company), "unsubscribed": False, "last_contacted_at": None,
-           "created_at": now, "updated_at": now}
+           "company_key": company_key(body.company), "ctype": auto_company_type(body.company, body.email), "ctype_user": None,
+           "unsubscribed": False, "last_contacted_at": None, "created_at": now, "updated_at": now}
     await db[c.RECRUITER_CONTACTS].insert_one(doc)
     await log_action(db, user_id=user_id, action="recruiter.added", entity="recruiter_contact", entity_id=doc["_id"],
                      details={"company": body.company, "source": body.source})
@@ -137,6 +138,7 @@ async def update_contact(db: AsyncIOMotorDatabase, user_id: str, contact_id: str
         patch["phone_key"] = phone_key(patch["phone"])
     if patch.get("company"):
         patch["company_key"] = company_key(patch["company"])
+        patch["ctype"] = auto_company_type(patch["company"], patch.get("email"))
     await db[c.RECRUITER_CONTACTS].update_one({"_id": contact_id}, {"$set": {**patch, "updated_at": utcnow()}})
     return await get_contact(db, user_id, contact_id)
 
@@ -773,6 +775,7 @@ async def stats(db: AsyncIOMotorDatabase, user_id: str) -> dict:
         "by_status": by_status, "contacts": await db[c.RECRUITER_CONTACTS].count_documents({"user_id": user_id}),
         "reply_rate": round(100 * by_status.get("replied", 0) / delivered) if delivered else None,
         "followups_due": due,
+        "queued_bulk": await db[c.OUTREACH].count_documents({"user_id": user_id, "status": "approved", "queued": True}),
     }
 
 

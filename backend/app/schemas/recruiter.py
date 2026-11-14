@@ -65,3 +65,43 @@ class DraftIn(_M):
 class OutreachEdit(_M):
     subject: str = Field(..., min_length=1, max_length=200)
     body: str = Field(..., min_length=1, max_length=5000)
+
+
+CompanyTypeValue = Literal["service", "product", "startup", "unknown"]
+TemplateKind = Literal["cold", "referral", "followup", "thank_you", "hiring_manager"]
+
+
+class CompanyTypePatch(_M):
+    company_type: CompanyTypeValue | None = None  # null clears the override (back to the curated list)
+
+
+class ContactFilter(_M):
+    q: str | None = Field(default=None, max_length=100)
+    company: str | None = Field(default=None, max_length=160)
+    company_type: CompanyTypeValue | None = None
+    has_email: bool | None = None
+    contacted: bool | None = None
+    source: str | None = Field(default=None, max_length=20)
+
+
+class EmailTemplateIn(_M):
+    name: str = Field(..., min_length=1, max_length=80)
+    subject: str = Field(..., min_length=1, max_length=200)
+    body: str = Field(..., min_length=1, max_length=5000)
+    kind: TemplateKind = "cold"
+    attach_resume: bool = False
+
+
+class EmailTemplateUpdate(_M):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    subject: str | None = Field(default=None, min_length=1, max_length=200)
+    body: str | None = Field(default=None, min_length=1, max_length=5000)
+    kind: TemplateKind | None = None
+    attach_resume: bool | None = None
+
+
+class BulkIn(_M):
+    template_id: str = Field(..., max_length=80)
+    contact_ids: list[str] | None = Field(default=None, max_length=200)
+    filter: ContactFilter | None = None  # "select all matching filter" (first 200 matches)
+    confirm: bool = False  # explicit approval; required to send or queue

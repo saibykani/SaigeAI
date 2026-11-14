@@ -6,17 +6,19 @@ import { useEffect, useMemo, useState } from "react";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { CountKpi, RateKpi } from "@/components/kpi";
 import { OutreachCard, ROLE_LABEL } from "@/components/outreach";
+import { ContactsSection } from "@/components/recruiter-contacts";
+import { EmailTemplatesManager } from "@/components/recruiter-templates";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
-import type { ContactRole, Outreach, OutreachKind, OutreachStats, OutreachTemplate, RecruiterContact } from "@/types/api";
+import type { ContactRole, Outreach, OutreachKind, OutreachStats, OutreachTemplate, PagedContacts, RecruiterContact } from "@/types/api";
 import { cn } from "@/utils/cn";
 import { formatDate, formatDateTime } from "@/utils/format";
 
-type Tab = "queue" | "sent" | "contacts" | "find" | "templates";
+type Tab = "queue" | "sent" | "find" | "templates" | "emailtpl" | "add";
 type Msg = { tone: "success" | "error" | "warning"; text: string } | null;
 
 const TEMPLATE_TONE: Record<string, string> = {
@@ -165,7 +167,9 @@ function CapMeter({ stats }: { stats: OutreachStats }) {
 }
 
 export default function RecruitersPage() {
-  const contacts = useApi<RecruiterContact[]>("/recruiters");
+  const contactsPage = useApi<PagedContacts>("/recruiters?paged=1&page_size=100");
+  const contacts = { data: contactsPage.data?.items ?? null, reload: contactsPage.reload };
+  const [rev, setRev] = useState(0);
   const outreach = useApi<Outreach[]>("/outreach");
   const stats = useApi<OutreachStats>("/outreach/stats");
   const tpls = useApi<OutreachTemplate[]>("/outreach/templates");
@@ -187,7 +191,7 @@ export default function RecruitersPage() {
   const [source, setSource] = useState<string>("all");
   const [draftFor, setDraftFor] = useState<{ contact: RecruiterContact; kind: OutreachKind; context: string } | null>(null);
 
-  const reload = () => { void contacts.reload(); void outreach.reload(); void stats.reload(); };
+  const reload = () => { setRev((n) => n + 1); void contacts.reload(); void outreach.reload(); void stats.reload(); };
   const run = async (fn: () => Promise<unknown>, ok?: string) => {
     setMsg(null);
     try {
@@ -201,20 +205,44 @@ export default function RecruitersPage() {
 
   const queue = useMemo(() => (outreach.data ?? []).filter((o) => o.status === "draft" || o.status === "approved"), [outreach.data]);
   const sent = useMemo(() => (outreach.data ?? []).filter((o) => !["draft", "approved", "cancelled"].includes(o.status)), [outreach.data]);
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return (contacts.data ?? []).filter((c) => (source === "all" || c.source === source)
-      && (!needle || `${c.name} ${c.company} ${c.title ?? ""} ${c.email ?? ""} ${c.phone ?? ""}`.toLowerCase().includes(needle)));
-  }, [contacts.data, q, source]);
-
   const s = stats.data;
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: "queue", label: "Queue", count: queue.length },
     { id: "sent", label: "Sent & replies", count: sent.length },
-    { id: "contacts", label: "Contacts", count: contacts.data?.length },
     { id: "find", label: "Find people" },
+    { id: "emailtpl", label: "Bulk email templates" },
     { id: "templates", label: "Email & WhatsApp templates" },
+    { id: "add", label: "Add & import" },
   ];
+
+  const draftSlot = draftFor ? (
+              <Card className="animate-rise">
+                <CardHeader><CardTitle className="text-base">Draft for {draftFor.contact.name}</CardTitle></CardHeader>
+                <CardContent className="grid gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Type">
+                      <Select value={draftFor.kind} onChange={(e) => setDraftFor({ ...draftFor, kind: e.target.value as OutreachKind })}>
+                        <option value="cold">Cold email to HR / recruiter</option>
+                        <option value="hiring_manager">Email to hiring manager</option>
+                        <option value="referral">Referral request (employee)</option>
+                        <option value="employee_intro">Informational chat (employee)</option>
+                        <option value="linkedin_note">LinkedIn connection note</option>
+                        <option value="thank_you">Thank-you</option>
+                      </Select>
+                    </Field>
+                    <Field label="How you know them (optional)"><Input value={draftFor.context} maxLength={600} placeholder="e.g. We worked together at Acme" onChange={(e) => setDraftFor({ ...draftFor, context: e.target.value })} /></Field>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => run(async () => {
+                      await request("/outreach/draft", { method: "POST", body: { contact_id: draftFor.contact.id, kind: draftFor.kind, context: draftFor.context || null } });
+                      setDraftFor(null);
+                      setTab("queue");
+                    }, "Draft ready in the queue.")}>Create draft</Button>
+                    <Button variant="ghost" onClick={() => setDraftFor(null)}>Cancel</Button>
+                  </div>
+                </CardContent>
+              </Card>
+  ) : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -223,7 +251,7 @@ export default function RecruitersPage() {
         description="Your own contacts, truth-checked messages, and follow-ups that stop the moment someone replies. You send every message yourself."
         actions={
           <>
-            <Button onClick={() => { setTab("contacts"); setShowAdd(true); }}><UserPlus /> Add contact</Button>
+            <Button onClick={() => { setTab("add"); setShowAdd(true); }}><UserPlus /> Add contact</Button>
             <Button variant="outline" onClick={() => run(async () => {
               const r = await request<{ created: number; from_inbox: number; from_jobs: number; duplicates: number }>("/recruiters/sync", { method: "POST" });
               setMsg({ tone: "success", text: `Synced: ${r.from_inbox} new from your inbox, ${r.from_jobs} from job postings (${r.duplicates} already saved).` });
@@ -233,11 +261,32 @@ export default function RecruitersPage() {
       />
       {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
 
+      <ContactsSection
+        rev={rev}
+        onChanged={reload}
+        onDraft={(c) => setDraftFor({ contact: c, kind: c.role === "referral" || c.role === "alumni" ? "referral" : "cold", context: "" })}
+        onDelete={(c) => { if (confirm(`Delete ${c.name} and their message history?`)) void run(() => request(`/recruiters/${c.id}`, { method: "DELETE" })); }}
+        slot={draftSlot}
+      />
+
+      {s && (s.queued_bulk ?? 0) > 0 && (
+        <Card className="animate-rise p-4">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-medium">{s.queued_bulk} approved emails are Ready to send tomorrow.</span>
+            <span className="text-muted-foreground">{s.remaining_today} left in today&apos;s cap.</span>
+            <Button size="sm" disabled={s.remaining_today === 0 || !s.can_send_from_saige} onClick={() => { if (confirm(`Send up to ${s.remaining_today} queued emails now? They were approved when you queued them.`)) void run(async () => {
+              const r = await request<{ sent: number; still_queued: number }>("/recruiters/bulk/send-queued", { method: "POST", query: { confirm: "true" } });
+              setMsg({ tone: "success", text: `Sent ${r.sent}; ${r.still_queued} still queued.` });
+            }); }}>Send queued now</Button>
+          </div>
+        </Card>
+      )}
+
       {s && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <CapMeter stats={s} />
           <RateKpi label="Reply rate" value={s.reply_rate} hint="Replies ÷ delivered messages" icon={Reply} tone="green" delay={40} />
-          <CountKpi label="Contacts" value={s.contacts} hint={`${(contacts.data ?? []).filter((c) => c.role === "referral" || c.role === "alumni").length} referral · alumni`} icon={Users} tone="purple" delay={80} />
+          <CountKpi label="Contacts" value={s.contacts} hint={`${Object.entries(s.contacts_by_source).map(([k, v]) => `${v} ${k}`).join(" · ")}`} icon={Users} tone="purple" delay={80} />
           <CountKpi label="Follow-ups due" value={s.followups_due.length} hint="Day 3 · 7 · 14 after sending" icon={MailCheck} tone="orange" delay={120} />
         </div>
       )}
@@ -329,91 +378,10 @@ export default function RecruitersPage() {
         </div>
       )}
 
-      {tab === "contacts" && (
-        <div className="grid gap-6 xl:grid-cols-3">
-          <div className="flex flex-col gap-4 xl:col-span-2">
-            <div className="flex flex-wrap gap-1.5">
-              {[["all", "All", "green"], ["portal", "From LinkedIn / Naukri", "mint"], ["gmail", "From inbox", "red"], ["job", "From job postings", "orange"], ["manual", "Added by you", "purple"], ["csv", "CSV / LinkedIn export", "teal"]].map(([id, label, tone]) => {
-                const n = id === "all" ? (contacts.data?.length ?? 0) : (contacts.data ?? []).filter((c) => c.source === id).length;
-                return (
-                  <button key={id} onClick={() => setSource(id)} className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors", source === id ? "text-[#0b0b0c]" : "text-muted-foreground hover:text-foreground")} style={source === id ? { background: `var(--tone-${tone})`, borderColor: "transparent" } : undefined}>
-                    {label} <span className="opacity-70">{n}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <Input placeholder="Search name, company, title, email…" value={q} onChange={(e) => setQ(e.target.value)} className="h-11 rounded-full" />
-            {draftFor && (
-              <Card className="animate-rise">
-                <CardHeader><CardTitle className="text-base">Draft for {draftFor.contact.name}</CardTitle></CardHeader>
-                <CardContent className="grid gap-3">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Type">
-                      <Select value={draftFor.kind} onChange={(e) => setDraftFor({ ...draftFor, kind: e.target.value as OutreachKind })}>
-                        <option value="cold">Cold email to HR / recruiter</option>
-                        <option value="hiring_manager">Email to hiring manager</option>
-                        <option value="referral">Referral request (employee)</option>
-                        <option value="employee_intro">Informational chat (employee)</option>
-                        <option value="linkedin_note">LinkedIn connection note</option>
-                        <option value="thank_you">Thank-you</option>
-                      </Select>
-                    </Field>
-                    <Field label="How you know them (optional)"><Input value={draftFor.context} maxLength={600} placeholder="e.g. We worked together at Acme" onChange={(e) => setDraftFor({ ...draftFor, context: e.target.value })} /></Field>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={() => run(async () => {
-                      await request("/outreach/draft", { method: "POST", body: { contact_id: draftFor.contact.id, kind: draftFor.kind, context: draftFor.context || null } });
-                      setDraftFor(null);
-                      setTab("queue");
-                    }, "Draft ready in the queue.")}>Create draft</Button>
-                    <Button variant="ghost" onClick={() => setDraftFor(null)}>Cancel</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            {shown.length === 0 ? (
-              <Card className="flex flex-col items-center gap-3 py-12 text-center">
-                <Users className="size-7 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">No contacts yet. Add people you know, import a CSV, or pull recruiters from your inbox.</p>
-              </Card>
-            ) : (
-              <div className="overflow-hidden rounded-2xl border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr><th className="px-4 py-2.5">Name</th><th className="px-4 py-2.5">Company</th><th className="hidden px-4 py-2.5 md:table-cell">Role</th><th className="hidden px-4 py-2.5 lg:table-cell">Last contacted</th><th className="px-4 py-2.5" /></tr>
-                  </thead>
-                  <tbody>
-                    {shown.map((c) => (
-                      <tr key={c.id} className="border-t transition-colors hover:bg-muted/40">
-                        <td className="px-4 py-3">
-                          <p className="font-medium">{c.name}</p>
-                          <p className="text-xs text-muted-foreground">{c.title || c.email || c.linkedin_url || "—"}</p>
-                          <span className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
-                            {c.email && <a href={`mailto:${c.email}`} className="rounded-full border px-2 py-0.5 hover:bg-muted">✉ {c.email}</a>}
-                            {c.phone && <a href={`tel:${c.phone}`} className="rounded-full border px-2 py-0.5 hover:bg-muted">☎ {c.phone}</a>}
-                            {c.phone && <a href={`https://wa.me/${c.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="rounded-full px-2 py-0.5 font-medium text-[#0b0b0c]" style={{ background: "#25D366" }}>WhatsApp</a>}
-                            {c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" className="rounded-full border px-2 py-0.5 hover:bg-muted">LinkedIn</a>}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5"><Building2 className="size-3.5 text-muted-foreground" />{c.company}</span></td>
-                        <td className="hidden px-4 py-3 md:table-cell">
-                          <Badge variant="outline">{ROLE_LABEL[c.role]}</Badge>
-                          {c.unsubscribed && <Badge variant="muted" className="ml-1">Do not contact</Badge>}
-                        </td>
-                        <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">{c.last_contacted_at ? formatDateTime(c.last_contacted_at) : "Never"}</td>
-                        <td className="px-4 py-3 text-right">
-                          <Button size="sm" variant="outline" disabled={c.unsubscribed} onClick={() => setDraftFor({ contact: c, kind: c.role === "referral" || c.role === "alumni" ? "referral" : "cold", context: "" })}>Draft</Button>
-                          <Button size="sm" variant="ghost" onClick={() => { if (confirm(`Delete ${c.name} and their message history?`)) void run(() => request(`/recruiters/${c.id}`, { method: "DELETE" })); }}>Delete</Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+      {tab === "emailtpl" && <EmailTemplatesManager />}
 
-          <div className="flex flex-col gap-4">
+      {tab === "add" && (
+        <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base"><UserPlus className="size-4" /> Add contact</CardTitle>
@@ -463,7 +431,6 @@ export default function RecruitersPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
         </div>
       )}
     </div>

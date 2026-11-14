@@ -6,8 +6,20 @@ from pymongo import DESCENDING
 
 from app.auth.deps import db_dep, get_current_user
 from app.database import collections as c
+from app.recruiters import bulk
 from app.recruiters import service as svc
-from app.schemas.recruiter import ContactIn, ContactUpdate, CsvImport, DraftIn, OutreachEdit, OutreachStatus
+from app.schemas.recruiter import (
+    BulkIn,
+    CompanyTypePatch,
+    ContactIn,
+    ContactUpdate,
+    CsvImport,
+    DraftIn,
+    EmailTemplateIn,
+    EmailTemplateUpdate,
+    OutreachEdit,
+    OutreachStatus,
+)
 
 router = APIRouter(tags=["recruiters"])
 
@@ -16,16 +28,17 @@ router = APIRouter(tags=["recruiters"])
 
 @router.get("/recruiters")
 async def list_contacts(q: str | None = Query(None, max_length=100), company: str | None = None, source: str | None = None,
+                        company_type: Literal["service", "product", "startup", "unknown"] | None = None,
+                        has_email: bool | None = None, contacted: bool | None = None,
+                        paged: bool = False, page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=100),
+                        sort: Literal["recent", "name", "company"] = "recent",
                         user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    query: dict = {"user_id": user["_id"]}
-    if company:
-        query["company_key"] = svc.company_key(company)
-    if source:
-        query["source"] = source
-    docs = await db[c.RECRUITER_CONTACTS].find(query).sort("updated_at", DESCENDING).to_list(1000)
-    if q:
-        needle = q.lower()
-        docs = [d for d in docs if needle in f"{d['name']} {d['company']} {d.get('title') or ''} {d.get('email') or ''}".lower()]
+    """A plain list (first 1000, used by the mobile app) or, with paged=1, {items, total, page, page_size}."""
+    filters = {"q": q, "company": company, "company_type": company_type, "has_email": has_email, "contacted": contacted, "source": source}
+    if paged:
+        return await bulk.list_page(db, user["_id"], filters, page=page, page_size=page_size, sort=sort)
+    await bulk.ensure_types(db, user["_id"])
+    docs = await db[c.RECRUITER_CONTACTS].find(bulk.build_query(user["_id"], **filters)).sort("updated_at", DESCENDING).to_list(1000)
     return [svc.contact_out(d) for d in docs]
 
 
@@ -35,6 +48,13 @@ async def add_contact(body: ContactIn, user: dict = Depends(get_current_user), d
     if not created:
         raise HTTPException(status.HTTP_409_CONFLICT, {"message": "You already have this contact", "id": doc["_id"]})
     return svc.contact_out(doc)
+
+
+@router.patch("/recruiters/{contact_id}")
+async def patch_company_type(contact_id: str, body: CompanyTypePatch, user: dict = Depends(get_current_user),
+                             db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Override a contact's company type (null goes back to the curated list)."""
+    return await bulk.set_company_type(db, user["_id"], contact_id, body.company_type)
 
 
 @router.put("/recruiters/{contact_id}")
@@ -70,12 +90,51 @@ async def sync_contacts(user: dict = Depends(get_current_user), db: AsyncIOMotor
 
 
 @router.get("/recruiters/companies")
-async def companies(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    rows = await db[c.RECRUITER_CONTACTS].aggregate([
-        {"$match": {"user_id": user["_id"]}},
-        {"$group": {"_id": "$company_key", "company": {"$first": "$company"}, "contacts": {"$sum": 1}}},
-        {"$sort": {"contacts": -1}}]).to_list(500)
-    return [{"company": r["company"], "contacts": r["contacts"]} for r in rows]
+async def companies(q: str | None = Query(None, max_length=100), limit: int = Query(500, ge=1, le=500),
+                    user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    return await bulk.companies(db, user["_id"], q, limit)
+
+
+# ---- bulk email to HR contacts (templates, preview, approved send within the caps)
+
+@router.get("/recruiters/email-templates")
+async def email_templates(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    return await bulk.list_templates(db, user["_id"])
+
+
+@router.post("/recruiters/email-templates", status_code=201)
+async def create_email_template(body: EmailTemplateIn, user: dict = Depends(get_current_user),
+                                db: AsyncIOMotorDatabase = Depends(db_dep)):
+    return await bulk.save_template(db, user["_id"], body.model_dump())
+
+
+@router.put("/recruiters/email-templates/{template_id}")
+async def edit_email_template(template_id: str, body: EmailTemplateUpdate, user: dict = Depends(get_current_user),
+                              db: AsyncIOMotorDatabase = Depends(db_dep)):
+    return await bulk.save_template(db, user["_id"], body.model_dump(exclude_unset=True), template_id)
+
+
+@router.delete("/recruiters/email-templates/{template_id}", status_code=204)
+async def remove_email_template(template_id: str, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    await bulk.delete_template(db, user["_id"], template_id)
+    return Response(status_code=204)
+
+
+@router.post("/recruiters/bulk/preview")
+async def bulk_preview(body: BulkIn, limit: int = Query(10, ge=1, le=50), user: dict = Depends(get_current_user),
+                       db: AsyncIOMotorDatabase = Depends(db_dep)):
+    return await bulk.preview(db, user["_id"], body, limit)
+
+
+@router.post("/recruiters/bulk/send")
+async def bulk_send(body: BulkIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Needs confirm=true (the user's approval). Sends what the caps allow now and queues the rest, approved, for the next send."""
+    return await bulk.send(db, user["_id"], body)
+
+
+@router.post("/recruiters/bulk/send-queued")
+async def bulk_send_queued(confirm: bool = False, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    return await bulk.send_queued(db, user["_id"], confirm)
 
 
 @router.get("/recruiters/find-people")

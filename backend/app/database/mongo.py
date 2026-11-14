@@ -53,7 +53,7 @@ def close() -> None:
 
 
 # Bump when ensure_indexes changes. Serverless cold starts then skip ~45 create_index round trips.
-INDEX_VERSION = 13
+INDEX_VERSION = 14
 
 
 async def ensure_indexes_once(db: AsyncIOMotorDatabase) -> None:
@@ -78,7 +78,7 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[c.ML_RUNS].create_index([("user_id", ASCENDING), ("trained_at", DESCENDING)])
     await db[c.CAREER_JOBS].create_index([("user_id", ASCENDING), ("company_id", ASCENDING), ("last_seen", ASCENDING)])
     await db[c.CAREER_SCANS].create_index("user_id")
-    await db[c.RESUMES].create_index([("user_id", ASCENDING), ("updated_at", DESCENDING)])
+    await db[c.RESUMES].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
     await db[c.RESUME_VERSIONS].create_index([("resume_id", ASCENDING), ("version", DESCENDING)])
     await db[c.AUDIT_LOGS].create_index([("user_id", ASCENDING), ("timestamp", DESCENDING)])
     await db[c.NOTIFICATIONS].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
@@ -105,6 +105,9 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[c.SYSTEM_SETTINGS].create_index("user_id", unique=True)
     await db[c.RECRUITER_CONTACTS].create_index([("user_id", ASCENDING), ("company_key", ASCENDING)])
     await db[c.RECRUITER_CONTACTS].create_index([("user_id", ASCENDING), ("email_key", ASCENDING)])
+    await db[c.RECRUITER_CONTACTS].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+    await db[c.RECRUITER_CONTACTS].create_index([("user_id", ASCENDING), ("ctype", ASCENDING), ("company_key", ASCENDING)])
+    await db[c.EMAIL_TEMPLATES].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
     await db[c.OUTREACH].create_index([("user_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
     await db[c.OUTREACH].create_index([("user_id", ASCENDING), ("sent_at", DESCENDING)])
     await db[c.API_TOKENS].create_index("token_hash", unique=True)

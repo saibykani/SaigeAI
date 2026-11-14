@@ -687,10 +687,59 @@ export interface RecruiterContact {
   role: ContactRole;
   tags: string[];
   notes: string | null;
-  source: "manual" | "csv" | "gmail" | "job";
+  source: "manual" | "csv" | "gmail" | "job" | "portal";
   unsubscribed: boolean;
+  company_type?: CompanyType;
+  company_type_custom?: boolean;
   last_contacted_at: string | null;
   created_at: string;
+}
+
+export type CompanyType = "service" | "product" | "startup" | "unknown";
+
+export interface PagedContacts {
+  items: RecruiterContact[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CompanyCount {
+  company: string;
+  contacts: number;
+  company_type: CompanyType;
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  kind: "cold" | "referral" | "followup" | "thank_you" | "hiring_manager";
+  attach_resume: boolean;
+  builtin: boolean;
+}
+
+export interface BulkPreview {
+  template_id: string;
+  selected: number;
+  eligible: number;
+  send_now: number;
+  queued: number;
+  skipped: { contact_id: string; name: string; company: string; reason: string }[];
+  skipped_count: number;
+  paused: boolean;
+  attach_resume: boolean;
+  max_per_action: number;
+  quota: { daily_limit: number; sent_today: number; remaining_today: number; per_company_weekly_cap: number; can_send_from_saige: boolean };
+  previews: { contact_id: string; name: string; company: string; to: string; subject: string; body: string; send_now: boolean }[];
+}
+
+export interface BulkResult {
+  sent: number;
+  queued: number;
+  failed: number;
+  skipped_count: number;
 }
 
 export interface Outreach {
@@ -728,6 +777,7 @@ export interface OutreachStats {
   by_status: Partial<Record<OutreachStatus, number>>;
   contacts: number;
   reply_rate: number | null;
+  queued_bulk?: number;
   followups_due: { followup_id: string; outreach_id: string; contact_id: string; contact_name: string | null; company: string | null; subject: string; sequence: number; due_at: string }[];
 }
 
