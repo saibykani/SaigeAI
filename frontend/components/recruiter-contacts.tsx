@@ -258,13 +258,11 @@ export function ContactsSection({ rev, onChanged, onDraft, onDelete, slot }: {
               <tr>
                 <th className="w-10 px-4 py-2.5"><input type="checkbox" checked={pageAllPicked} onChange={togglePage} aria-label={t("Select page")} /></th>
                 <th className="px-4 py-2.5">{t("Name")}</th><th className="px-4 py-2.5">{t("Company")}</th>
-                <th className="hidden px-4 py-2.5 md:table-cell">{t("Company type")}</th>
                 <th className="hidden px-4 py-2.5 lg:table-cell">{t("Last contacted")}</th><th className="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {items.map((c) => {
-                const type = c.company_type ?? "unknown";
                 return (
                   <tr key={c.id} className="border-t transition-colors hover:bg-muted/40">
                     <td className="px-4 py-3"><input type="checkbox" checked={allMatching || picked.has(c.id)} onChange={() => toggle(c.id)} aria-label={c.name} /></td>
@@ -272,20 +270,13 @@ export function ContactsSection({ rev, onChanged, onDraft, onDelete, slot }: {
                       <p className="font-medium">{c.name}</p>
                       <p className="text-xs text-muted-foreground">{c.title || c.email || c.linkedin_url || "—"}</p>
                       <span className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
+                        {c.unsubscribed && <Badge variant="muted">{t("Do not contact")}</Badge>}
                         {c.email && <a href={`mailto:${c.email}`} className="rounded-full border px-2 py-0.5 hover:bg-muted">✉ {c.email}</a>}
                         {c.phone && <a href={`tel:${c.phone}`} className="rounded-full border px-2 py-0.5 hover:bg-muted">☎ {c.phone}</a>}
                         {c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" className="rounded-full border px-2 py-0.5 hover:bg-muted">LinkedIn</a>}
                       </span>
                     </td>
                     <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5"><Building2 className="size-3.5 text-muted-foreground" />{c.company}</span></td>
-                    <td className="hidden px-4 py-3 md:table-cell">
-                      <Select value={c.company_type_custom ? type : "auto"} onChange={(e) => void setType(c, e.target.value)} aria-label={t("Company type")}
-                        className="h-8 w-auto rounded-full text-xs" style={{ color: `var(--tone-${TYPE_TONE[type]})` }}>
-                        <option value="auto">{t(TYPE_LABEL[type])}{c.company_type_custom ? "" : ` (${t("auto")})`}</option>
-                        {TYPES.map((x) => <option key={x} value={x}>{t(TYPE_LABEL[x])}</option>)}
-                      </Select>
-                      <div className="mt-1 flex gap-1"><Badge variant="outline">{ROLE_LABEL[c.role]}</Badge>{c.unsubscribed && <Badge variant="muted">{t("Do not contact")}</Badge>}</div>
-                    </td>
                     <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">{c.last_contacted_at ? formatDateTime(c.last_contacted_at) : t("Never")}</td>
                     <td className="px-4 py-3 text-right">
                       <Button size="sm" variant="outline" disabled={c.unsubscribed} onClick={() => onDraft(c)}>{t("Draft")}</Button>

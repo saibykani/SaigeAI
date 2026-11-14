@@ -18,7 +18,7 @@ import type { ContactRole, Outreach, OutreachKind, OutreachStats, OutreachTempla
 import { cn } from "@/utils/cn";
 import { formatDate, formatDateTime } from "@/utils/format";
 
-type Tab = "queue" | "sent" | "find" | "templates" | "emailtpl" | "add";
+type Tab = "contacts" | "queue" | "sent" | "find" | "templates" | "emailtpl" | "add";
 type Msg = { tone: "success" | "error" | "warning"; text: string } | null;
 
 const TEMPLATE_TONE: Record<string, string> = {
@@ -173,7 +173,7 @@ export default function RecruitersPage() {
   const outreach = useApi<Outreach[]>("/outreach");
   const stats = useApi<OutreachStats>("/outreach/stats");
   const tpls = useApi<OutreachTemplate[]>("/outreach/templates");
-  const [tab, setTab] = useState<Tab>("queue");
+  const [tab, setTab] = useState<Tab>("contacts");
   useEffect(() => { if (new URLSearchParams(window.location.search).get("tab") === "find") setTab("find"); }, []);
   const [msg, setMsg] = useState<Msg>(null);
   const [form, setForm] = useState(EMPTY);
@@ -207,6 +207,7 @@ export default function RecruitersPage() {
   const sent = useMemo(() => (outreach.data ?? []).filter((o) => !["draft", "approved", "cancelled"].includes(o.status)), [outreach.data]);
   const s = stats.data;
   const TABS: { id: Tab; label: string; count?: number }[] = [
+    { id: "contacts", label: "Contacts", count: s?.contacts },
     { id: "queue", label: "Queue", count: queue.length },
     { id: "sent", label: "Sent & replies", count: sent.length },
     { id: "find", label: "Find people" },
@@ -261,13 +262,34 @@ export default function RecruitersPage() {
       />
       {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
 
-      <ContactsSection
+      {s && (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <CapMeter stats={s} />
+          <RateKpi label="Reply rate" value={s.reply_rate} hint="Replies ÷ delivered messages" icon={Reply} tone="green" delay={40} />
+          <CountKpi label="Contacts" value={s.contacts} hint={`${Object.entries(s.contacts_by_source).map(([k, v]) => `${v} ${k}`).join(" · ")}`} icon={Users} tone="purple" delay={80} />
+          <CountKpi label="Follow-ups due" value={s.followups_due.length} hint="Day 3 · 7 · 14 after sending" icon={MailCheck} tone="orange" delay={120} />
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-1 rounded-full border bg-card/60 p-1 self-start">
+        {TABS.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={cn("inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm transition-colors", tab === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+            {t.label}
+            {!!t.count && <span className={cn("rounded-full px-1.5 text-[11px]", tab === t.id ? "bg-black/15" : "bg-muted")}>{t.count}</span>}
+          </button>
+        ))}
+      </div>
+
+      {tab === "contacts" && (
+        <ContactsSection
         rev={rev}
         onChanged={reload}
         onDraft={(c) => setDraftFor({ contact: c, kind: c.role === "referral" || c.role === "alumni" ? "referral" : "cold", context: "" })}
         onDelete={(c) => { if (confirm(`Delete ${c.name} and their message history?`)) void run(() => request(`/recruiters/${c.id}`, { method: "DELETE" })); }}
         slot={draftSlot}
       />
+      )}
+
 
       {s && (s.queued_bulk ?? 0) > 0 && (
         <Card className="animate-rise p-4">
@@ -282,14 +304,6 @@ export default function RecruitersPage() {
         </Card>
       )}
 
-      {s && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <CapMeter stats={s} />
-          <RateKpi label="Reply rate" value={s.reply_rate} hint="Replies ÷ delivered messages" icon={Reply} tone="green" delay={40} />
-          <CountKpi label="Contacts" value={s.contacts} hint={`${Object.entries(s.contacts_by_source).map(([k, v]) => `${v} ${k}`).join(" · ")}`} icon={Users} tone="purple" delay={80} />
-          <CountKpi label="Follow-ups due" value={s.followups_due.length} hint="Day 3 · 7 · 14 after sending" icon={MailCheck} tone="orange" delay={120} />
-        </div>
-      )}
 
       {s && !s.can_send_from_saige && (
         <Notice>Want Saige to send approved emails for you? <a className="font-medium underline" href="/integrations#gmail-connect">Connect Gmail with an App Password</a>. Until then, open each message in Gmail and send it yourself.</Notice>
@@ -317,14 +331,6 @@ export default function RecruitersPage() {
         </Card>
       )}
 
-      <div className="flex flex-wrap gap-1 rounded-full border bg-card/60 p-1 self-start">
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={cn("inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm transition-colors", tab === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
-            {t.label}
-            {!!t.count && <span className={cn("rounded-full px-1.5 text-[11px]", tab === t.id ? "bg-black/15" : "bg-muted")}>{t.count}</span>}
-          </button>
-        ))}
-      </div>
 
       {tab === "queue" && (
         <div className="flex flex-col gap-4">
