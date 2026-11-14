@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../core/voice.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -92,9 +93,7 @@ class _InterviewRoomState extends State<InterviewRoom> {
     }
     try {
       await _tts.stop();
-      await _tts.setLanguage(mockLocales[_lang] ?? 'en-IN');
-      await _tts.setSpeechRate(0.46);
-      await _tts.setPitch(1.05);
+      await useHumanVoice(_tts, mockLocales[_lang] ?? 'en-IN');
       await _tts.speak(q);
     } catch (_) {
       // No TTS engine: keep the mouth moving for a plausible reading time, then hand over.

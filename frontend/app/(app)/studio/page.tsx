@@ -58,6 +58,23 @@ function Builder() {
   const started = useRef(false);
   const [detected, setDetected] = useState(false);
   const [link, setLink] = useState("");
+  const [letter, setLetter] = useState<{ id: string; text: string } | null>(null);
+  const [letterBusy, setLetterBusy] = useState(false);
+
+  async function writeLetter() {
+    if (!jd.trim()) {
+      setMsg({ tone: "info", text: "The cover letter needs the pasted job description." });
+      return;
+    }
+    setLetterBusy(true);
+    try {
+      setLetter(await request<{ id: string; text: string }>("/cover-letters/from-jd", { method: "POST", body: { jd_text: jd, title, company } }));
+    } catch (e) {
+      setMsg({ tone: "error", text: e instanceof Error ? e.message : "Couldn't write the cover letter." });
+    } finally {
+      setLetterBusy(false);
+    }
+  }
   const [linkBusy, setLinkBusy] = useState(false);
 
   async function fetchLink() {
@@ -263,11 +280,31 @@ function Builder() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Download</CardTitle><CardDescription>Saved as First_Last_{localDate()}_{(result.company || "Company").replace(/\W+/g, "_")}</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Download</CardTitle><CardDescription>Saved as Your_Full_Name_{localDate()}_{(result.company || "Company").replace(/\W+/g, "_")}</CardDescription></CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {(tpl.data?.formats ?? []).map((f) => (
                   <Button key={f.id} variant={f.id === "pdf" ? "default" : "outline"} size="sm" onClick={() => void download(f.id)}><Download /> {f.name}</Button>
                 ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><FileText className="size-5 text-primary" /> Cover letter</CardTitle>
+                <CardDescription>One click, for the same job. Written only from your verified profile.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!letter ? (
+                  <Button size="sm" onClick={() => void writeLetter()} disabled={letterBusy}><Sparkles /> {letterBusy ? "Writing…" : "Write cover letter"}</Button>
+                ) : (
+                  <>
+                    <Textarea rows={10} value={letter.text} readOnly />
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(letter.text)}>Copy</Button>
+                      <Button size="sm" variant="outline" onClick={() => void downloadFile(`/cover-letters/${letter.id}/docx`, "cover-letter.docx")}><Download /> Word</Button>
+                      <Button size="sm" variant="ghost" onClick={() => void writeLetter()} disabled={letterBusy}>{letterBusy ? "Writing…" : "Write again"}</Button>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>

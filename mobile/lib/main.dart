@@ -1,3 +1,4 @@
+import 'features/shell/welcome_reveal.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'core/config.dart';
@@ -40,11 +41,12 @@ class _Root extends StatefulWidget {
 
 class _RootState extends State<_Root> {
   bool _ready = false;
+  bool _sawAuth = false; // the welcome hand-off plays only after an actual sign-in, not on app start
 
   @override
   void initState() {
     super.initState();
-    Future.wait([Session.I.bootstrap(), Future<void>.delayed(const Duration(milliseconds: 1900))]).then((_) {
+    Future.wait([Session.I.bootstrap()]).then((_) {
       if (mounted) setState(() => _ready = true);
     });
   }
@@ -57,8 +59,9 @@ class _RootState extends State<_Root> {
           if (!_ready) {
             page = const SplashScreen(key: ValueKey('splash'));
           } else if (Session.I.state == AuthState.signedIn) {
-            page = const Shell(key: ValueKey('shell'));
+            page = _sawAuth ? const WelcomeReveal(key: ValueKey('shell'), child: Shell()) : const Shell(key: ValueKey('shell'));
           } else {
+            _sawAuth = true;
             page = const AuthScreen(key: ValueKey('auth'));
           }
           return AnimatedSwitcher(

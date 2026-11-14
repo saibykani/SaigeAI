@@ -174,15 +174,11 @@ async def interview_emails(user: dict = Depends(get_current_user), db: AsyncIOMo
     return [svc.email_out(e) for e in docs]
 
 
-@router.post("/emails/sync-interviews")
-async def sync_interview_emails(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    """Deep search of the connected mailbox (last 6 months) for interview mail, then the regular sync."""
-    uid = user["_id"]
+async def scan_interview_mail(db: AsyncIOMotorDatabase, uid: str) -> dict | None:
+    """Deep search of the connected mailbox (last 6 months) for interview mail. None when Gmail isn't connected or sync is paused."""
     integ = await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "gmail"})
-    if not integ:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Connect Gmail first (Integrations)")
-    if not await is_allowed(db, uid, "gmail_sync"):
-        raise HTTPException(status.HTTP_423_LOCKED, "Gmail sync is paused. Resume it in Automation settings.")
+    if not integ or not await is_allowed(db, uid, "gmail_sync"):
+        return None
     stats: dict = {}
     async with agent_run(db, "gmail_interview_scan", uid, {"provider": "gmail"}) as run:
         known = {e["gmail_id"] async for e in db[c.EMAILS].find({"user_id": uid, "gmail_id": {"$ne": None}}, {"gmail_id": 1})}
@@ -200,7 +196,19 @@ async def sync_interview_emails(user: dict = Depends(get_current_user), db: Asyn
     await log_action(db, user_id=uid, action="email.interview_scan", entity="email", details=run.output)
     if found:
         await notify(db, user_id=uid, kind="gmail_sync", title=f"Found {found} interview email(s)", link="/interviews")
-    return {**run.output, "emails": await interview_emails(user, db)}
+    return run.output
+
+
+@router.post("/emails/sync-interviews")
+async def sync_interview_emails(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Deep search of the connected mailbox (last 6 months) for interview mail."""
+    uid = user["_id"]
+    if not await db[c.INTEGRATIONS].find_one({"user_id": uid, "provider": "gmail"}, {"_id": 1}):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Connect Gmail first (Integrations)")
+    out = await scan_interview_mail(db, uid)
+    if out is None:
+        raise HTTPException(status.HTTP_423_LOCKED, "Gmail sync is paused. Resume it in Automation settings.")
+    return {**out, "emails": await interview_emails(user, db)}
 
 
 async def _fetch(integ: dict, query: str, limit: int, skip: set[str], stats: dict) -> list[dict]:

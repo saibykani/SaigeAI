@@ -61,3 +61,28 @@ async def test_claude_gets_language_and_voice_instruction(client, auth):
         assert "Tamil" in Fake.seen and "spoken" in Fake.seen and r.json()["reply"] == "Ok done"
     finally:
         llm.set_provider(None)
+
+
+async def test_interviews_today_checks_gmail_and_answers_conversationally(client, db, auth, monkeypatch):
+    from datetime import timedelta
+
+    from app.utils import utcnow
+
+    me = (await client.get("/api/auth/me", headers=auth)).json()
+    soon = utcnow().replace(hour=23, minute=0, second=0, microsecond=0)
+    await db["interviews"].insert_one({"_id": "iv1", "user_id": me["id"], "company": "PayCo", "role": "SDET", "scheduled_at": soon,
+                                       "status": "upcoming"})
+    await db["interviews"].insert_one({"_id": "iv2", "user_id": "someone-else", "company": "Other", "role": "X",
+                                       "scheduled_at": soon + timedelta(minutes=5), "status": "upcoming"})
+    calls = []
+
+    async def fake_scan(db_, uid):
+        calls.append(uid)
+        return {"scanned": 3, "interview_emails": 0}
+
+    monkeypatch.setattr("app.email.router.scan_interview_mail", fake_scan)
+    msg = {"messages": [{"role": "user", "content": "Any interviews today? check my gmail"}]}
+    r = await client.post("/api/assistant/chat", headers=auth, json=msg)
+    assert r.status_code == 200, r.text
+    reply = r.json()["reply"]
+    assert calls == [me["id"]] and "checked your Gmail" in reply and "PayCo" in reply and "Other" not in reply

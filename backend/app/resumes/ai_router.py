@@ -304,6 +304,42 @@ async def cover_letter(job_id: str, user: dict = Depends(get_current_user), db: 
     return _letter_out(doc)
 
 
+class LetterFromJD(BaseModel):
+    jd_text: str = Field(min_length=30, max_length=60000)
+    title: str = Field(default="", max_length=200)
+    company: str = Field(default="", max_length=120)
+
+
+@router.post("/cover-letters/from-jd", status_code=201)
+async def cover_letter_from_jd(body: LetterFromJD, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """One-click cover letter for a pasted job description (used right after building an ATS resume). Verified facts only."""
+    from app.jobs.jd_parser import analyze_jd
+    from app.studio import analyzer
+
+    uid = user["_id"]
+    profile = await get_profile(db, uid)
+    if not profile.personal.name and not profile.knowledge.experience:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Complete your master profile first.")
+    title = body.title.strip() or analyzer.extract_title(body.jd_text) or "the role"
+    company = body.company.strip() or analyzer.extract_company(body.jd_text) or "your company"
+    jd = analyze_jd(title, body.jd_text)
+    job = {"title": title, "company": company}
+    matched = _matched(profile, jd)
+    text_body, greeting = tailor.template_cover_letter(profile, job, jd, matched)
+    text_body, engine = await tailor.llm_polish("letter", profile, title, company, matched, text_body)
+    text = tailor.cover_letter_text(greeting, text_body, profile.personal.name)
+    validation = _validate_letter(text, profile)
+    if validation["status"] != "PASSED":
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": validation["violations"]})
+    now = utcnow()
+    doc = {"_id": new_id(), "user_id": uid, "job_id": None, "resume_id": None, "title": title, "company": company,
+           "text": text, "validation": validation, "engine": engine, "created_at": now, "updated_at": now}
+    await db[c.COVER_LETTERS].insert_one(doc)
+    await log_action(db, user_id=uid, action="cover_letter.generated", entity="cover_letter", entity_id=doc["_id"],
+                     details={"source": "jd", "company": company, "engine": engine})
+    return {**_letter_out(doc), "title": title, "company": company}
+
+
 async def _owned_letter(db, uid: str, letter_id: str) -> dict:
     d = await db[c.COVER_LETTERS].find_one({"_id": letter_id, "user_id": uid})
     if not d:
@@ -339,8 +375,14 @@ async def delete_letter(letter_id: str, user: dict = Depends(get_current_user), 
 @router.get("/cover-letters/{letter_id}/docx")
 async def letter_download(letter_id: str, user: dict = Depends(get_current_user),
                           db: AsyncIOMotorDatabase = Depends(db_dep)):
+    from datetime import date
+
+    from app.studio import render
+
     d = await _owned_letter(db, user["_id"], letter_id)
-    return _docx_response(letter_docx(d["text"]), "cover-letter.docx")
+    name = (await get_profile(db, user["_id"])).personal.name
+    fname = render.filename(name, f"Cover_Letter_{d.get('company') or ''}", date.today().isoformat(), "docx") if name else "cover-letter.docx"
+    return _docx_response(letter_docx(d["text"]), fname)
 
 
 @router.get("/jobs/{job_id}/documents")

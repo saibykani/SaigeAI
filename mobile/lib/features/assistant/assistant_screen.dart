@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../../core/voice.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -136,7 +137,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
       _toEnd();
       if ((voice || _speak) && reply.isNotEmpty) {
         _setState(OrbState.speaking);
-        await _tts.setLanguage(_langs[_lang].$3);
+        await useHumanVoice(_tts, _langs[_lang].$3);
         await _tts.speak(reply);
       } else {
         _setState(OrbState.idle);

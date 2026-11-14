@@ -163,3 +163,15 @@ async def test_other_users_cannot_access_documents(client, auth):
     other = await register(client, email="ravi@example.com", name="Ravi")
     assert (await client.get(f"/api/cover-letters/{letter['id']}", headers=other)).status_code == 404
     assert (await client.post(f"/api/jobs/{job['id']}/cover-letter", headers=other)).status_code == 404
+
+
+async def test_cover_letter_from_pasted_jd_uses_verified_facts_and_named_file(client, auth):
+    from tests.job_fixtures import SDET_JD
+
+    await client.put("/api/profile", headers=auth, json=PROFILE)
+    r = await client.post("/api/cover-letters/from-jd", headers=auth, json={"jd_text": SDET_JD, "title": "Senior SDET", "company": "PayCo"})
+    assert r.status_code == 201, r.text
+    letter = r.json()
+    assert "PayCo" in letter["text"] and letter["company"] == "PayCo"
+    d = await client.get(f"/api/cover-letters/{letter['id']}/docx", headers=auth)
+    assert d.status_code == 200 and "Cover_Letter_PayCo" in d.headers["content-disposition"]

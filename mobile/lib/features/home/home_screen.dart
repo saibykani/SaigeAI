@@ -14,6 +14,9 @@ import '../interviews/interviews_screen.dart';
 import '../jobs/job_detail_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../shell/shell.dart';
+import '../mock/mock_setup_screen.dart';
+import '../resume/ats_coach_screen.dart';
+import '../search/find_jobs_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,6 +49,15 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  String _summary(int interviews, int matches, int approvals) {
+    final bits = [
+      if (interviews > 0) '$interviews interview${interviews == 1 ? '' : 's'} coming up',
+      if (matches > 0) '$matches strong match${matches == 1 ? '' : 'es'}',
+      if (approvals > 0) '$approvals to approve',
+    ];
+    return bits.isEmpty ? 'Here is your search at a glance.' : bits.join(' · ');
+  }
+
   String get _greet {
     final h = DateTime.now().hour;
     return h < 5 ? 'Late night' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -75,41 +87,32 @@ class _HomeScreenState extends State<HomeScreen> {
                     index: 0,
                     child: Row(children: [
                       const MenuButton(),
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(_greet, style: T.small),
-                          Text(Session.I.firstName, style: T.display),
-                        ]),
-                      ),
+                      const Spacer(),
                       _Bell(onTap: () => pushDepth(context, (_) => const NotificationsScreen())),
                     ]),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 10),
                   Stagger(
                     index: 1,
-                    child: GlassCard(
-                      child: Row(children: [
-                        DotRing(
-                          size: 118,
-                          dots: 36,
-                          progress: comp / 100,
-                          child: Column(mainAxisSize: MainAxisSize.min, children: [
-                            CountUp(value: comp, suffix: '%', style: T.h1),
-                            Text('PROFILE', style: T.label),
-                          ]),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(children: [
-                            _Stat('Applied', totals['applications_sent'], C.text),
-                            const SizedBox(height: 14),
-                            _Stat('Interviews', totals['interviews'], C.warn),
-                            const SizedBox(height: 14),
-                            _Stat('Strong matches', totals['strong_matches'], C.good),
-                          ]),
-                        ),
-                      ]),
+                    child: _Hero(
+                      greet: _greet,
+                      name: Session.I.firstName,
+                      summary: _summary(ints.length, matches.length, approvals),
+                      completeness: comp,
+                      applied: totals['applications_sent'],
+                      interviews: totals['interviews'],
+                      strong: totals['strong_matches'],
                     ),
+                  ),
+                  const SizedBox(height: 18),
+                  Stagger(
+                    index: 2,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      _Action('Find jobs', Icons.travel_explore_rounded, C.blue, () => pushDepth(context, (_) => const FindJobsScreen())),
+                      _Action('ATS resume', Icons.description_rounded, C.good, () => pushDepth(context, (_) => const AtsCoachScreen())),
+                      _Action('Mock interview', Icons.record_voice_over_rounded, C.violet, () => pushDepth(context, (_) => const MockSetupScreen())),
+                      _Action('Ask Saige', Icons.auto_awesome_rounded, C.warn, () => ShellNav.go(3)),
+                    ]),
                   ),
                   if (approvals > 0 || followups > 0) ...[
                     const SizedBox(height: 14),
@@ -138,11 +141,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   Stagger(
                     index: 3,
                     child: Row(children: [
-                      Expanded(child: _Mini('Jobs today', today['jobs_found'], Icons.travel_explore_rounded)),
+                      Expanded(child: _Mini('Jobs today', today['jobs_found'], Icons.travel_explore_rounded, tint: C.blue)),
                       const SizedBox(width: 10),
-                      Expanded(child: _Mini('Replies', today['replies'], Icons.mark_email_read_outlined)),
+                      Expanded(child: _Mini('Replies', today['replies'], Icons.mark_email_read_outlined, tint: C.good)),
                       const SizedBox(width: 10),
-                      Expanded(child: _Mini('Response', health['response_rate'], Icons.speed_rounded, suffix: '%')),
+                      Expanded(child: _Mini('Response', health['response_rate'], Icons.speed_rounded, suffix: '%', tint: C.violet)),
                     ]),
                   ),
                   const SectionTitle('Next interview'),
@@ -234,34 +237,25 @@ class _Bell extends StatelessWidget {
       );
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat(this.label, this.value, this.color);
-  final String label;
-  final dynamic value;
-  final Color color;
-  @override
-  Widget build(BuildContext context) => Row(children: [
-        Container(width: 4, height: 28, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 12),
-        CountUp(value: (value as num?) ?? 0, style: T.h1),
-        const SizedBox(width: 10),
-        Expanded(child: Text(label, style: T.small, maxLines: 1, overflow: TextOverflow.ellipsis)),
-      ]);
-}
-
 class _Mini extends StatelessWidget {
-  const _Mini(this.label, this.value, this.icon, {this.suffix = ''});
+  const _Mini(this.label, this.value, this.icon, {this.suffix = '', this.tint});
   final String label;
   final dynamic value;
   final IconData icon;
   final String suffix;
+  final Color? tint;
   @override
   Widget build(BuildContext context) => GlassCard(
         padding: const EdgeInsets.all(14),
         radius: R.md,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, size: 20, color: C.muted),
-          const SizedBox(height: 10),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(color: (tint ?? C.muted).withValues(alpha: 0.14), borderRadius: BorderRadius.circular(11)),
+            child: Icon(icon, size: 19, color: tint ?? C.muted),
+          ),
+          const SizedBox(height: 12),
           value == null ? Text('--', style: T.h1) : CountUp(value: value as num, suffix: suffix, style: T.h1),
           Text(label, style: T.small),
         ]),
@@ -394,5 +388,111 @@ class _Tip extends StatelessWidget {
             ]),
           ),
         ]),
+      );
+}
+
+
+const _months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const _days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/// The elegant top card: today's date, greeting, a one-line summary and the profile ring with three key numbers.
+class _Hero extends StatelessWidget {
+  const _Hero({required this.greet, required this.name, required this.summary, required this.completeness,
+      required this.applied, required this.interviews, required this.strong});
+  final String greet, name, summary;
+  final double completeness;
+  final dynamic applied, interviews, strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final date = '${_days[now.weekday - 1]}, ${now.day} ${_months[now.month - 1]}';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+      decoration: BoxDecoration(
+        color: C.primarySoft,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: C.primary.withValues(alpha: 0.12)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(date.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1.1, color: C.primary)),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('$greet,', style: TextStyle(fontSize: 17, color: C.muted, fontWeight: FontWeight.w500)),
+              Text(name.isEmpty ? 'there' : name,
+                  style: TextStyle(fontSize: 34, height: 1.1, fontWeight: FontWeight.w700, letterSpacing: -1, color: C.text)),
+              const SizedBox(height: 8),
+              Text(summary, style: TextStyle(fontSize: 14.5, color: C.text.withValues(alpha: 0.75), height: 1.35)),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          DotRing(
+            size: 96,
+            dots: 30,
+            progress: completeness / 100,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              CountUp(value: completeness, suffix: '%', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: C.text)),
+              Text('PROFILE', style: T.label),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 18),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(color: C.surface, borderRadius: BorderRadius.circular(18), boxShadow: C.shadow),
+          child: Row(children: [
+            _HeroStat('Applied', applied, C.blue),
+            Container(width: 1, height: 30, color: C.line),
+            _HeroStat('Interviews', interviews, C.warn),
+            Container(width: 1, height: 30, color: C.line),
+            _HeroStat('Strong matches', strong, C.good),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat(this.label, this.value, this.color);
+  final String label;
+  final dynamic value;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: Column(children: [
+          CountUp(value: (value as num?) ?? 0, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: color)),
+          const SizedBox(height: 2),
+          Text(label, style: T.small, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ]),
+      );
+}
+
+/// Google-style round quick action: tinted rounded icon + label.
+class _Action extends StatelessWidget {
+  const _Action(this.label, this.icon, this.color, this.onTap);
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Pressable(
+        onTap: onTap,
+        scale: 0.92,
+        child: SizedBox(
+          width: 78,
+          child: Column(children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+              child: Icon(icon, color: color, size: 26),
+            ),
+            const SizedBox(height: 8),
+            Text(label, textAlign: TextAlign.center, maxLines: 2, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: C.text)),
+          ]),
+        ),
       );
 }

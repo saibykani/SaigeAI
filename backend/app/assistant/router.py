@@ -71,6 +71,8 @@ async def context(db: AsyncIOMotorDatabase, uid: str) -> dict:
     }
 
 
+SYSTEM_STYLE = ("Talk like a warm, natural human assistant: conversational, friendly, concise, address the user by first name "
+                "sometimes, no robotic phrasing. ")
 SYSTEM = """You are Saige, the AI career assistant inside Saige AI, helping one job seeker.
 Use ONLY the facts in <records> about the user. Never invent skills, employers, numbers or results; if something
 isn't in the records, say you don't know and suggest where to add it (Profile). Be concise, warm and practical.
@@ -131,6 +133,68 @@ def builtin(question: str, ctx: dict) -> str:
             "For drafted messages and interview prep, the full AI mode turns on when the server has an Anthropic API key.")
 
 
+_IV_RX = re.compile(r"interview|इंटरव्यू|ఇంటర్వ్యూ|நேர்காணல்|ಸಂದರ್ಶನ|ಇಂಟರ್ವ್ಯೂ|അഭിമുഖം|ഇന്റർവ്യൂ|meeting|call scheduled", re.I)
+_MAIL_RX = re.compile(r"gmail|mail|inbox|email|check|scan|today|tomorrow|aaj|ఈరోజు|இன்று|ಇಂದು|ഇന്ന്|आज", re.I)
+
+
+async def interview_brief(db: AsyncIOMotorDatabase, uid: str, check_mail: bool) -> dict:
+    """Interviews from the Interviews list plus interview emails (after an optional fresh Gmail scan), split into today / upcoming."""
+    from datetime import datetime, timedelta
+
+    from app.email.router import INTERVIEW_CATEGORIES, scan_interview_mail
+
+    scanned = None
+    if check_mail:
+        try:
+            scanned = await scan_interview_mail(db, uid)
+        except Exception:  # noqa: BLE001 - Gmail errors shouldn't break the chat
+            scanned = None
+    now = utcnow()
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    items: list[dict] = []
+    async for i in db[c.INTERVIEWS].find({"user_id": uid, "scheduled_at": {"$gte": start}, "status": {"$in": ["upcoming", "rescheduled"]}}):
+        items.append({"company": i.get("company") or "", "role": i.get("role") or "", "at": i["scheduled_at"], "link": i.get("meeting_url"),
+                      "source": "interviews"})
+    q = {"user_id": uid, "hidden": {"$ne": True}, "category": {"$in": INTERVIEW_CATEGORIES}}
+    async for e in db[c.EMAILS].find(q).sort("received_at", -1).limit(60):
+        at = (e.get("extracted") or {}).get("interview_at")
+        try:
+            when = datetime.fromisoformat(at) if at else None
+        except ValueError:
+            when = None
+        if when and when.tzinfo:
+            when = when.replace(tzinfo=None)
+        if when and when >= start:
+            items.append({"company": (e.get("extracted") or {}).get("sender_name") or e.get("sender", ""), "role": e.get("subject", ""), "at": when,
+                          "link": (e.get("extracted") or {}).get("meeting_url"), "source": "gmail"})
+    seen, uniq = set(), []
+    for it in sorted(items, key=lambda x: x["at"]):
+        key = (it["at"].strftime("%Y%m%d%H%M"), (it["company"] or "")[:12].lower())
+        if key not in seen:
+            seen.add(key)
+            uniq.append(it)
+    end = start + timedelta(days=1)
+    return {"scanned": scanned, "today": [x for x in uniq if x["at"] < end], "upcoming": [x for x in uniq if x["at"] >= end][:5]}
+
+
+def _iv_reply(b: dict, first: str) -> str:
+    """Friendly, conversational English answer about today's interviews."""
+    hi = f"Sure {first}, " if first else "Sure, "
+    checked = "I just checked your Gmail. " if b["scanned"] is not None else ""
+    if b["scanned"] is not None and b["scanned"].get("interview_emails"):
+        checked = f"I just checked your Gmail and found {b['scanned']['interview_emails']} new interview email(s). "
+    fmt = lambda x: f"{x['company'] or 'a company'} at {x['at'].strftime('%I:%M %p').lstrip('0')}"  # noqa: E731
+    if b["today"]:
+        rows = "; ".join(fmt(x) for x in b["today"])
+        more = " There's a meeting link in the Interviews tab." if any(x.get("link") for x in b["today"]) else ""
+        return f"{hi}{checked}You have {len(b['today'])} interview(s) today: {rows}.{more} Good luck, you've got this!"
+    nxt = b["upcoming"][0] if b["upcoming"] else None
+    tail = f" Your next one is with {nxt['company'] or 'a company'} on {nxt['at'].strftime('%a %d %b at %I:%M %p')}." if nxt else ""
+    if b["scanned"] is None:
+        checked = "Gmail isn't connected (or sync is paused), so I only checked your Interviews list. "
+    return f"{hi}{checked}Nothing is scheduled for today.{tail}"
+
+
 @router.post("/chat", dependencies=[Depends(limiter.dependency("assistant"))])
 async def chat(body: ChatIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     import json
@@ -139,9 +203,14 @@ async def chat(body: ChatIn, user: dict = Depends(get_current_user), db: AsyncIO
 
     ctx = await context(db, user["_id"])  # only this user's records
     question = body.messages[-1].content
+    brief = None
+    if _IV_RX.search(question):  # "any interviews today? check my gmail" -> scan the mailbox first
+        brief = await interview_brief(db, user["_id"], check_mail=bool(_MAIL_RX.search(question)))
+        ctx["interviews_today"] = [{**x, "at": x["at"].isoformat()} for x in brief["today"]]
+        ctx["gmail_checked_now"] = brief["scanned"] is not None
     provider = get_provider()
     reply, engine = None, "builtin"
-    system = SYSTEM.format(records=json.dumps(ctx, default=str)[:12000])
+    system = SYSTEM_STYLE + SYSTEM.format(records=json.dumps(ctx, default=str)[:12000])
     if body.language != "en":
         system += f"\nAlways reply in {v.LANG_NAMES[body.language]}, in its native script."
     if body.voice:
@@ -150,6 +219,9 @@ async def chat(body: ChatIn, user: dict = Depends(get_current_user), db: AsyncIO
         reply = await provider.chat(system=system,
                                     messages=[m.model_dump() for m in body.messages[-16:]])
         engine = "claude" if reply else engine
+    if not reply and brief is not None and body.language == "en":
+        first = ((await get_profile(db, user["_id"])).personal.name or "").split(" ")[0]
+        reply = _iv_reply(brief, first)
     if not reply:
         intent = v.detect_intent(question) if (body.voice or body.language != "en") else None
         reply = v.answer(intent or "help", ctx, body.language) if (intent or body.language != "en") else builtin(question, ctx)
