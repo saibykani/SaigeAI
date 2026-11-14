@@ -89,7 +89,11 @@ class DetectIn(BaseModel):
 @router.post("/detect")
 async def detect(body: DetectIn, user: dict = Depends(get_current_user)):
     """Company and role read from a pasted job description, to pre-fill the form."""
-    return {"company": analyzer.extract_company(body.jd_text) or "", "title": analyzer.extract_title(body.jd_text) or ""}
+    from app.jobs.deadline import extract_deadline
+
+    d = extract_deadline(body.jd_text)
+    return {"company": analyzer.extract_company(body.jd_text) or "", "title": analyzer.extract_title(body.jd_text) or "",
+            "deadline": d.isoformat() if d else None}
 
 
 class LinkIn(BaseModel):

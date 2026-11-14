@@ -280,7 +280,10 @@ async def _followups(db: AsyncIOMotorDatabase, uid: str, now: datetime) -> dict:
         from app.growth.router import notify_ghosting
 
         ghosted = await notify_ghosting(db, uid)
-    return {"newly_due": due.modified_count, "due": n, "ghosted": ghosted}
+    from app.jobs import deadline
+
+    closing = await deadline.remind(db, uid, now)
+    return {"newly_due": due.modified_count, "due": n, "ghosted": ghosted, "deadlines": closing}
 
 
 async def _morning_report(db: AsyncIOMotorDatabase, uid: str, run_date: date) -> dict:

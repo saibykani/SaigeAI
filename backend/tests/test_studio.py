@@ -119,7 +119,7 @@ def test_polish_repairs_imported_resume_artefacts():
 async def test_detect_company_and_role_from_pasted_jd(client, auth):
     jd = "Senior SDET - Payments\nRazorpay is hiring a Senior SDET to own test automation for payments at razorpay.com."
     r = await client.post("/api/studio/detect", headers=auth, json={"jd_text": jd})
-    assert r.status_code == 200 and r.json() == {"company": "Razorpay", "title": "Senior SDET"}
+    assert r.status_code == 200 and r.json() == {"company": "Razorpay", "title": "Senior SDET", "deadline": None}
 
 
 def test_resume_filename_uses_full_name():

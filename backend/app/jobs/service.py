@@ -86,7 +86,7 @@ def normalize(job: JobIn, jd: JDAnalysis, user_id: str) -> dict:
         "skills": jd.skills, "description": job.description,
         "requirements": jd.requirements, "nice_to_have": jd.nice_to_have,
         "application_url": url, "url_key": url_key,
-        "posted_date": job.posted_date, "deadline": job.deadline,
+        "posted_date": job.posted_date, "deadline": job.deadline or _jd_deadline(job.description),
         "sources": [_source_ref(job, url_key)],
         "analysis": jd.model_dump(), "match": None, "status": "new",
         "created_at": now, "updated_at": now,
@@ -238,3 +238,11 @@ async def list_jobs(db: AsyncIOMotorDatabase, user_id: str, *, status_: str | No
     total = await db[c.JOBS].count_documents(query)
     docs = await db[c.JOBS].find(query).sort(order).skip(offset).limit(limit).to_list(length=limit)
     return {"total": total, "items": [job_summary(d) for d in docs]}
+
+
+def _jd_deadline(text: str | None) -> str | None:
+    """Deadline written in the posting text, as ISO date (only when the source gave none)."""
+    from app.jobs.deadline import extract_deadline
+
+    d = extract_deadline(text or "")
+    return d.isoformat() if d else None

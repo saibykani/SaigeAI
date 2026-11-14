@@ -58,6 +58,17 @@ function Setup({ onStart, onOpen }: { onStart: (s: Session) => void; onOpen: (s:
   const history = useApi<SessionRow[]>("/mock-interview/sessions");
   const [source, setSource] = useState<"role" | "jd" | "app">("role");
   const [form, setForm] = useState({ role: "", jd_text: "", application_id: "", interview_type: "mixed", difficulty: "medium", num_questions: 8, language: "en", persona: "priya" });
+  // Opened from the resume builder ("Practise this interview"): the JD and role arrive via sessionStorage.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("saige-mock-jd");
+      if (!raw) return;
+      sessionStorage.removeItem("saige-mock-jd");
+      const p = JSON.parse(raw) as { jd: string; title?: string };
+      setSource("jd");
+      setForm((f) => ({ ...f, jd_text: p.jd, role: p.title || f.role, interview_type: "technical" }));
+    } catch { /* private mode */ }
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof form, v: string | number) => setForm((f) => ({ ...f, [k]: v }));

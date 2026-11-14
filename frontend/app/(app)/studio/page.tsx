@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, Download, FileText, Sparkles, XCircle } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
@@ -43,6 +43,7 @@ function scoreTone(s: number) {
 
 function Builder() {
   const params = useSearchParams();
+  const router = useRouter();
   const tpl = useApi<StudioTemplates>("/studio/templates");
   const history = useApi<StudioResumeRow[]>("/studio/resumes");
   const [company, setCompany] = useState("");
@@ -57,6 +58,7 @@ function Builder() {
   const [gallery, setGallery] = useState<Gallery[]>([]);
   const started = useRef(false);
   const [detected, setDetected] = useState(false);
+  const [deadline, setDeadline] = useState<string | null>(null);
   const [link, setLink] = useState("");
   const [letter, setLetter] = useState<{ id: string; text: string } | null>(null);
   const [letterBusy, setLetterBusy] = useState(false);
@@ -97,11 +99,12 @@ function Builder() {
   useEffect(() => {
     if (jd.trim().length < 60 || careerJob) return;
     const t = setTimeout(async () => {
-      const r = await request<{ company: string; title: string }>("/studio/detect", { method: "POST", body: { jd_text: jd } }).catch(() => null);
+      const r = await request<{ company: string; title: string; deadline: string | null }>("/studio/detect", { method: "POST", body: { jd_text: jd } }).catch(() => null);
       if (!r) return;
       if (r.company) setCompany((c) => c.trim() || r.company);
       if (r.title) setTitle((v) => v.trim() || r.title);
       setDetected(Boolean(r.company || r.title));
+      setDeadline(r.deadline);
     }, 500);
     return () => clearTimeout(t);
   }, [jd, careerJob]);
@@ -218,6 +221,7 @@ function Builder() {
               </div>
               <Textarea rows={10} value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste the full job description here" />
               {detected && (company || title) && <p className="mt-1.5 text-xs text-muted-foreground">Filled from the job description: {[title, company].filter(Boolean).join(" at ")}. Edit if needed.</p>}
+              {deadline && <p className="mt-1 text-xs font-medium text-primary">Applications close on {new Date(deadline).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}. Save the job to get a reminder.</p>}
             </Field>
           )}
           <div className="lg:col-span-2">
@@ -305,6 +309,18 @@ function Builder() {
                     </div>
                   </>
                 )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Practise this interview</CardTitle>
+                <CardDescription>A mock interview built from this job description and your own projects, with spoken questions and a score.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button size="sm" variant="outline" disabled={!jd.trim()} onClick={() => {
+                  try { sessionStorage.setItem("saige-mock-jd", JSON.stringify({ jd, title })); } catch { /* private mode */ }
+                  router.push("/mock-interview");
+                }}>Start mock interview</Button>
               </CardContent>
             </Card>
             <Card>
