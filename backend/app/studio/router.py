@@ -92,6 +92,21 @@ async def detect(body: DetectIn, user: dict = Depends(get_current_user)):
     return {"company": analyzer.extract_company(body.jd_text) or "", "title": analyzer.extract_title(body.jd_text) or ""}
 
 
+class LinkIn(BaseModel):
+    url: str = Field(min_length=10, max_length=600)
+
+
+@router.post("/fetch-jd")
+async def fetch_jd(body: LinkIn, user: dict = Depends(get_current_user)):
+    """Job description from a Greenhouse, Lever or Ashby job link (their official public APIs; nothing is scraped)."""
+    from app.studio import joblink
+
+    try:
+        return await joblink.fetch(body.url)
+    except joblink.JobLinkError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+
+
 @router.get("/templates")
 async def templates():
     return {"templates": [{"id": t.id, "name": t.name, "description": t.description} for t in render.TEMPLATES.values()],

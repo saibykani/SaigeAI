@@ -57,6 +57,24 @@ function Builder() {
   const [gallery, setGallery] = useState<Gallery[]>([]);
   const started = useRef(false);
   const [detected, setDetected] = useState(false);
+  const [link, setLink] = useState("");
+  const [linkBusy, setLinkBusy] = useState(false);
+
+  async function fetchLink() {
+    setLinkBusy(true);
+    setMsg(null);
+    try {
+      const r = await request<{ jd_text: string; title: string; company: string }>("/studio/fetch-jd", { method: "POST", body: { url: link.trim() } });
+      setJd(r.jd_text);
+      if (r.company) setCompany(r.company);
+      if (r.title) setTitle(r.title);
+      setDetected(true);
+    } catch (e) {
+      setMsg({ tone: "error", text: e instanceof Error ? e.message : "Couldn't fetch that job." });
+    } finally {
+      setLinkBusy(false);
+    }
+  }
 
   // Paste a JD → read the company and role from it and fill whichever field is still empty.
   useEffect(() => {
@@ -176,7 +194,11 @@ function Builder() {
           {careerJob ? (
             <div className="lg:col-span-2"><Notice tone="info">Using the job description from Career portals. <button type="button" className="underline" onClick={() => setCareerJob(null)}>Paste a different one</button></Notice></div>
           ) : (
-            <Field label="Job description" className="lg:col-span-2">
+            <Field label="Job description" className="lg:col-span-2" hint="Or paste a Greenhouse, Lever or Ashby job link and press Fetch">
+              <div className="mb-2 flex gap-2">
+                <Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://jobs.lever.co/company/… (optional)" />
+                <Button type="button" variant="outline" disabled={linkBusy || link.trim().length < 10} onClick={() => void fetchLink()}>{linkBusy ? "Fetching…" : "Fetch"}</Button>
+              </div>
               <Textarea rows={10} value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste the full job description here" />
               {detected && (company || title) && <p className="mt-1.5 text-xs text-muted-foreground">Filled from the job description: {[title, company].filter(Boolean).join(" at ")}. Edit if needed.</p>}
             </Field>

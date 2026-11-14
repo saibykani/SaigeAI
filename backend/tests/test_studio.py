@@ -125,3 +125,22 @@ async def test_detect_company_and_role_from_pasted_jd(client, auth):
 def test_resume_filename_uses_full_name():
     from app.studio import render
     assert render.filename("Asha Lakshmi Rao", "PayCo", "2026-11-13", "pdf") == "Asha_Lakshmi_Rao_2026-11-13_PayCo.pdf"
+
+
+async def test_fetch_jd_from_greenhouse_link(client, auth, monkeypatch):
+    import httpx
+
+    from app.studio import joblink
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/boards/payco/jobs/123"
+        return httpx.Response(200, json={"title": "Senior SDET", "company_name": "PayCo", "location": {"name": "Bengaluru"},
+                                         "content": "&lt;p&gt;Build test automation.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Playwright&lt;/li&gt;&lt;/ul&gt;"})
+
+    monkeypatch.setattr(joblink, "http_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    r = await client.post("/api/studio/fetch-jd", headers=auth, json={"url": "https://job-boards.greenhouse.io/payco/jobs/123"})
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["title"] == "Senior SDET" and out["company"] == "PayCo" and "Playwright" in out["jd_text"] and "<" not in out["jd_text"]
+    bad = await client.post("/api/studio/fetch-jd", headers=auth, json={"url": "https://www.linkedin.com/jobs/view/1"})
+    assert bad.status_code == 422
