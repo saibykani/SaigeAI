@@ -9,6 +9,7 @@ import { ScanLoader } from "@/components/scan-loader";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { AtsCoach } from "@/components/ats-coach";
 import { AtsScorer, ResumeHealth } from "@/components/ats-scorer";
+import { ResumeVersions } from "@/components/resume-versions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -138,6 +139,7 @@ export default function ResumesPage() {
         <div className="mt-6">
           <AtsCoach resumes={data.filter((r) => r.status === "active")} />
           <ResumeHealth resumes={data.filter((r) => r.status === "active")} />
+          <ResumeVersions />
           <AtsScorer resumes={data.filter((r) => r.status === "active")} />
         </div>
       )}

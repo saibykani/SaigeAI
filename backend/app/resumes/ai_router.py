@@ -430,3 +430,11 @@ async def ats_coach(body: AtsCoachIn, user: dict = Depends(get_current_user), db
     await log_action(db, user_id=uid, action="resume.ats_coach", entity="resume", entity_id=body.resume_id,
                      details={"role": body.role, "score": out["score"]})
     return {**out, "resume": resume["name"]}
+
+
+@router.get("/resume-versions")
+async def resume_versions(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Which resume version went to which company, and which versions got replies (your own records only)."""
+    from app.resumes import versions
+
+    return await versions.by_company(db, user["_id"])
