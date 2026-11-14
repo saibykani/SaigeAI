@@ -46,7 +46,7 @@ class _RootState extends State<_Root> {
   @override
   void initState() {
     super.initState();
-    Future.wait([Session.I.bootstrap()]).then((_) {
+    Future.wait([Session.I.bootstrap(), Future<void>.delayed(SplashScreen.duration)]).then((_) {
       if (mounted) setState(() => _ready = true);
     });
   }

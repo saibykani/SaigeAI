@@ -15,7 +15,7 @@ void main() {
     await tester.tap(find.text('New to Saige? Create account'));
     await tester.pump();
     expect(find.text('Create your account'), findsOneWidget);
-    expect(find.text('Recruiter'), findsOneWidget);
+    expect(find.text("I'm hiring"), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

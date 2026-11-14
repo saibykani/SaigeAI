@@ -5,6 +5,16 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "1.7",
+    date: "2026-11-14T16:30:00+05:30",
+    size: "18.9 MB",
+    notes: [
+      "Cinematic opening: hyperspace stars, the logo flies in from deep space with a 3D turn and a light sweep, then the name appears",
+      "Sign-in on the full-screen Milky Way galaxy (drag to turn it, tap to scatter stars) with a frosted glass panel",
+      "Full sign-in details: Google, email, role choice (job hunting / hiring), approval promise, terms and help contact",
+    ],
+  },
+  {
     version: "1.6",
     date: "2026-11-14T15:02:00+05:30",
     size: "19 MB",
