@@ -51,7 +51,7 @@ class ContactUpdate(_M):
 
 
 class CsvImport(_M):
-    csv: str = Field(..., min_length=1, max_length=500_000)
+    csv: str = Field(..., min_length=1, max_length=2_000_000)
 
 
 class DraftIn(_M):

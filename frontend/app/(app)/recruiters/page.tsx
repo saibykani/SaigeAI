@@ -175,6 +175,14 @@ export default function RecruitersPage() {
   const [form, setForm] = useState(EMPTY);
   const [showAdd, setShowAdd] = useState(false);
   const [csv, setCsv] = useState("");
+  async function importCsv(text: string, file?: string) {
+    await run(async () => {
+      setMsg({ tone: "success", text: `Importing${file ? ` ${file}` : ""}… this can take a few seconds for large files.` });
+      const r = await request<{ created: number; duplicates: number; errors: string[] }>("/recruiters/import-csv", { method: "POST", body: { csv: text } });
+      setCsv("");
+      setMsg({ tone: r.errors.length ? "warning" : "success", text: `Imported ${r.created}, skipped ${r.duplicates} duplicate(s)${r.errors.length ? `, ${r.errors.length} row(s) with errors: ${r.errors.slice(0, 3).join("; ")}` : ""}.` });
+    });
+  }
   const [q, setQ] = useState("");
   const [source, setSource] = useState<string>("all");
   const [draftFor, setDraftFor] = useState<{ contact: RecruiterContact; kind: OutreachKind; context: string } | null>(null);
@@ -443,14 +451,14 @@ export default function RecruitersPage() {
               <CardContent className="grid gap-3">
                 <Textarea rows={5} value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={"name,company,email\nPriya Nair,PayCo,priya@payco.com"} />
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button disabled={!csv.trim()} onClick={() => run(async () => {
-                    const r = await request<{ created: number; duplicates: number; errors: string[] }>("/recruiters/import-csv", { method: "POST", body: { csv } });
-                    setCsv("");
-                    setMsg({ tone: r.errors.length ? "warning" : "success", text: `Imported ${r.created}, skipped ${r.duplicates} duplicate(s)${r.errors.length ? `, ${r.errors.length} row(s) with errors: ${r.errors.slice(0, 3).join("; ")}` : ""}.` });
-                  })}>Import</Button>
-                  <label className="cursor-pointer text-xs font-medium hover:underline">
-                    or choose a file
-                    <input type="file" accept=".csv,text/csv" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setCsv(await f.text()); }} />
+                  <Button disabled={!csv.trim()} onClick={() => importCsv(csv)}>Import</Button>
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                    <Upload className="size-3.5" /> Choose a CSV file (imports right away)
+                    <input type="file" accept=".csv,text/csv" className="hidden" onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (f) await importCsv(await f.text(), f.name);
+                    }} />
                   </label>
                 </div>
               </CardContent>

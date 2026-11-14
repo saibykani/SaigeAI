@@ -152,6 +152,9 @@ CSV_ALIASES = {
 }
 
 
+CSV_MAX_ROWS = 5000
+
+
 async def import_csv(db: AsyncIOMotorDatabase, user_id: str, text: str) -> dict:
     text = text.lstrip("﻿")
     # LinkedIn's "Export connections" file starts with a few "Notes:" lines before the header row.
@@ -168,9 +171,21 @@ async def import_csv(db: AsyncIOMotorDatabase, user_id: str, text: str) -> dict:
     if (not split_name and "name" not in colmap) or "company" not in colmap:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "CSV needs at least 'name' and 'company' columns")
     result = {"created": 0, "duplicates": 0, "errors": []}
+    # Bulk path: one read of existing keys, in-memory de-duplication, batched inserts and a single audit entry,
+    # so a few thousand rows finish well inside the serverless time limit.
+    seen: set[tuple[str, str]] = set()
+    async for d in db[c.RECRUITER_CONTACTS].find({"user_id": user_id}, {"email_key": 1, "linkedin_key": 1, "phone_key": 1, "name": 1,
+                                                                        "company_key": 1}):
+        for k in ("email_key", "linkedin_key", "phone_key"):
+            if d.get(k):
+                seen.add((k, d[k]))
+        if d.get("name") and d.get("company_key"):
+            seen.add(("name", f"{d['name']}|{d['company_key']}"))
+    now = utcnow()
+    docs: list[dict] = []
     for i, row in enumerate(reader, start=2):
-        if i > 2001:
-            result["errors"].append("Stopped after 2000 rows")
+        if i > CSV_MAX_ROWS + 1:
+            result["errors"].append(f"Stopped after {CSV_MAX_ROWS} rows")
             break
         data = {f: (row.get(col) or "").strip() or None for f, col in colmap.items()}
         if split_name:
@@ -183,8 +198,24 @@ async def import_csv(db: AsyncIOMotorDatabase, user_id: str, text: str) -> dict:
         except ValueError as exc:
             result["errors"].append(f"Row {i}: {str(exc).splitlines()[0][:120]}")
             continue
-        _, created = await create_contact(db, user_id, body)
-        result["created" if created else "duplicates"] += 1
+        keys = [(k, v) for k, v in (("email_key", email_key(body.email)), ("linkedin_key", linkedin_key(body.linkedin_url)),
+                                    ("phone_key", phone_key(body.phone))) if v]
+        if not keys:
+            keys = [("name", f"{body.name}|{company_key(body.company)}")]
+        if any(k in seen for k in keys):
+            result["duplicates"] += 1
+            continue
+        seen.update(keys)
+        docs.append({"_id": new_id(), "user_id": user_id, **body.model_dump(mode="json"),
+                     "email_key": email_key(body.email), "linkedin_key": linkedin_key(body.linkedin_url), "phone_key": phone_key(body.phone),
+                     "company_key": company_key(body.company), "unsubscribed": False, "last_contacted_at": None,
+                     "created_at": now, "updated_at": now})
+    for j in range(0, len(docs), 500):
+        await db[c.RECRUITER_CONTACTS].insert_many(docs[j:j + 500], ordered=False)
+    result["created"] = len(docs)
+    if docs:
+        await log_action(db, user_id=user_id, action="recruiter.imported", entity="recruiter_contact",
+                         details={"source": "csv", "created": len(docs), "duplicates": result["duplicates"]})
     return result
 
 

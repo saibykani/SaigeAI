@@ -200,3 +200,13 @@ async def test_templates_and_new_kinds(client, auth, db):
     await client.post(f"/api/outreach/{ln['id']}/approve", headers=auth)
     await client.post(f"/api/outreach/{ln['id']}/mark-sent", headers=auth)
     assert await db[c.FOLLOWUPS].count_documents({"outreach_id": ln["id"]}) == 0  # no email follow-ups for a LinkedIn note
+
+
+async def test_bulk_csv_import_is_fast_and_dedupes(client, auth):
+    rows = "\n".join(f"HR Team (Co{i}),Co{i},hr{i}@co{i}.com,recruiter" for i in range(2500))
+    csv_text = "name,company,email,role\n" + rows + "\nDup,Co1,HR1@co1.com,recruiter\n"
+    r = await client.post("/api/recruiters/import-csv", headers=auth, json={"csv": csv_text})
+    assert r.status_code == 200, r.text
+    assert r.json()["created"] == 2500 and r.json()["duplicates"] == 1
+    again = await client.post("/api/recruiters/import-csv", headers=auth, json={"csv": csv_text})
+    assert again.json()["created"] == 0 and again.json()["duplicates"] == 2501
