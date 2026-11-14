@@ -7,7 +7,6 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
-import '../search/saved_jobs_screen.dart' show RefreshIndicatorList;
 import 'outreach_screen.dart';
 
 const _roles = {'recruiter': 'Recruiter', 'hiring_manager': 'Hiring manager', 'referral': 'Referral', 'alumni': 'Alumni', 'other': 'Other'};

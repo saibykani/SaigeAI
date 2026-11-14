@@ -8,13 +8,13 @@ import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
 
 /// Your own reply and interview rates per company and per source, with a plain tip for each.
-class CompanyInsightsScreen extends StatefulWidget {
-  const CompanyInsightsScreen({super.key});
+class CompanyInsightsBody extends StatefulWidget {
+  const CompanyInsightsBody({super.key});
   @override
-  State<CompanyInsightsScreen> createState() => _CompanyInsightsScreenState();
+  State<CompanyInsightsBody> createState() => _CompanyInsightsBodyState();
 }
 
-class _CompanyInsightsScreenState extends State<CompanyInsightsScreen> {
+class _CompanyInsightsBodyState extends State<CompanyInsightsBody> {
   String _days = 'all';
   late final Resource<Map<String, dynamic>> _r = Resource(() async => asMap(await Session.I.api.get('/analytics/companies', query: {if (_days != 'all') 'days': int.parse(_days)})));
   String? _open;
@@ -32,10 +32,7 @@ class _CompanyInsightsScreenState extends State<CompanyInsightsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => FeatureScaffold(
-        title: 'Company insights',
-        subtitle: 'What your applications really did',
-        child: Column(children: [
+  Widget build(BuildContext context) => Column(children: [
           const SizedBox(height: 6),
           ChipRow(options: const ['all', '30', '90', '180'], labels: const {'all': 'All time', '30': '30 days', '90': '90 days', '180': '180 days'}, value: _days, onChanged: (v) {
             setState(() => _days = v);
@@ -150,8 +147,7 @@ class _CompanyInsightsScreenState extends State<CompanyInsightsScreen> {
               },
             ),
           ),
-        ]),
-      );
+        ]);
 }
 
 class _Source extends StatelessWidget {

@@ -200,7 +200,7 @@ def job_summary(j: dict) -> dict:
         "currency": j.get("currency"), "experience_required": j.get("experience_required"),
         "status": j.get("status", "new"), "score": m.get("overall"),
         "classification": m.get("classification"), "posted_date": j.get("posted_date"),
-        "created_at": j["created_at"].isoformat(),
+        "deadline": j.get("deadline"), "created_at": j["created_at"].isoformat(),
     }
 
 

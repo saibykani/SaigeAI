@@ -5,6 +5,17 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "1.8",
+    date: "2026-11-14T18:00:00+05:30",
+    size: "19 MB",
+    notes: [
+      "Today feed on Home: interviews today/tomorrow with Join, approvals, jobs closing soon, follow-ups, best matches and a coach tip as swipeable action cards",
+      "Swipe right to act (approvals always ask first), swipe left to dismiss for today; “All caught up” when you're done",
+      "Livelier sign-in: floating 3D logo with a pulsing glow, shimmering wordmark and a light travelling around the glass panel; extra text removed",
+      "Simpler app: Saved jobs is now a filter in Jobs, Company insights and Salary are one Insights screen, fewer menu items",
+    ],
+  },
+  {
     version: "1.7",
     date: "2026-11-14T16:30:00+05:30",
     size: "18.9 MB",

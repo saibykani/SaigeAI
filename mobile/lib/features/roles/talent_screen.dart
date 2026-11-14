@@ -7,7 +7,6 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
-import '../search/saved_jobs_screen.dart' show RefreshIndicatorList;
 
 /// Job-seeker side of hiring: opt in to be found by recruiters and answer their interest requests.
 /// Nothing about you is shared with a recruiter until you accept.

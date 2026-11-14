@@ -7,7 +7,6 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
-import '../search/saved_jobs_screen.dart' show RefreshIndicatorList;
 
 /// Daily LinkedIn posts built from your verified skills. Publishing is your approval; connecting LinkedIn
 /// needs the web OAuth page, so that button opens the browser.

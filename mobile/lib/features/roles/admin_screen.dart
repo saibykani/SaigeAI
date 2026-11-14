@@ -7,7 +7,6 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
-import '../search/saved_jobs_screen.dart' show RefreshIndicatorList;
 
 /// Admin console: platform KPIs and the user list with role change and enable/disable.
 class AdminScreen extends StatefulWidget {

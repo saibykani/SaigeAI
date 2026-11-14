@@ -8,7 +8,6 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
-import '../search/saved_jobs_screen.dart' show RefreshIndicatorList;
 
 /// Recruiter experience: post jobs, find opted-in candidates ranked by skill match, send interest,
 /// and see answers. Candidates only share contact details after they accept.

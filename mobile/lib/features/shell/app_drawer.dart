@@ -7,8 +7,8 @@ import '../../core/theme.dart';
 import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
-import '../growth/company_insights_screen.dart';
 import '../growth/growth_screen.dart';
+import '../growth/insights_screen.dart';
 import '../growth/learning_screen.dart';
 import '../inbox/inbox_screen.dart';
 import '../interviews/interviews_screen.dart';
@@ -27,8 +27,6 @@ import '../roles/admin_screen.dart';
 import '../roles/talent_screen.dart';
 import '../search/careers_screen.dart';
 import '../search/find_jobs_screen.dart';
-import '../search/saved_jobs_screen.dart';
-import '../settings/integrations_screen.dart';
 import '../settings/settings_screen.dart';
 
 /// Shell-level handle for the side drawer (so any main screen's menu button can open it).
@@ -152,7 +150,6 @@ List<_Sec> _sections() {
     else
       _Sec('home', 'Home', Icons.home_rounded, [
         _It('dash', 'Dashboard', Icons.space_dashboard_rounded, C.primary, tab: 0),
-        _It('insights', 'Company insights', Icons.insights_rounded, C.teal, build: () => const CompanyInsightsScreen()),
         _It('notes', 'Notifications', Icons.notifications_active_rounded, C.warn, build: () => const NotificationsScreen(), badge: true),
       ]),
     if (!rec) ...[
@@ -160,7 +157,6 @@ List<_Sec> _sections() {
         _It('foryou', 'Jobs for you', Icons.style_rounded, C.violet, tab: 1),
         _It('find', 'Find jobs', Icons.travel_explore_rounded, C.teal, build: () => const FindJobsScreen()),
         _It('careers', 'Career portals', Icons.business_center_rounded, C.warn, build: () => const CareersScreen()),
-        _It('saved', 'Saved jobs', Icons.bookmarks_rounded, C.lime, build: () => const SavedJobsScreen()),
         _It('pipeline', 'Applications', Icons.view_kanban_rounded, C.blue, tab: 2),
         _It('interviews', 'Interviews', Icons.event_available_rounded, C.good, build: () => const InterviewsScreen()),
         _It('inbox', 'Inbox', Icons.mark_email_unread_rounded, C.bad, build: () => const InboxScreen()),
@@ -178,7 +174,6 @@ List<_Sec> _sections() {
       _It('recruiters', 'Recruiters', Icons.groups_rounded, C.violet, build: () => const RecruitersScreen()),
       _It('outreach', 'Outreach', Icons.send_rounded, C.blue, build: () => const OutreachScreen()),
       _It('ofollow', 'Outreach follow-ups', Icons.reply_all_rounded, C.warn, build: () => const OutreachScreen(initial: 'followups')),
-      _It('referrals', 'Referrals', Icons.handshake_rounded, C.good, build: () => const ReferralsScreen()),
       _It('lposts', 'LinkedIn posts', Icons.campaign_rounded, C.blue, build: () => const LinkedInPostsScreen()),
       _It('optim', 'Profile optimiser', Icons.auto_fix_high_rounded, C.teal, build: () => const ProfileOptimiserScreen()),
       if (!rec) _It('talent', 'Recruiters find me', Icons.visibility_rounded, C.lime, build: () => const TalentScreen()),
@@ -186,12 +181,11 @@ List<_Sec> _sections() {
     if (!rec)
       _Sec('growth', 'Growth', Icons.trending_up_rounded, [
         _It('goals', 'Weekly goals', Icons.flag_rounded, C.good, build: () => const GrowthScreen()),
-        _It('salary', 'Salary insight', Icons.payments_rounded, C.lime, build: () => const GrowthScreen(initial: 'salary')),
+        _It('insights', 'Insights', Icons.insights_rounded, C.teal, build: () => const InsightsScreen()),
         _It('ghost', 'Ghosting follow-ups', Icons.mark_chat_unread_rounded, C.warn, build: () => const GrowthScreen(initial: 'followups')),
       ]),
     _Sec('account', 'Account', Icons.manage_accounts_rounded, [
       _It('portfolio', 'Portfolio', Icons.web_rounded, C.violet, build: () => const PortfolioScreen()),
-      _It('integrations', 'Integrations', Icons.extension_rounded, C.teal, build: () => const IntegrationsScreen()),
       _It('settings', 'Settings', Icons.settings_rounded, C.primary, build: () => const SettingsScreen()),
       _It('help', 'Help', Icons.help_outline_rounded, C.muted, url: '/help'),
     ]),

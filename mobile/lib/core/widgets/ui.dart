@@ -234,3 +234,14 @@ String timeAgo(String? iso) {
 
 String prettyStatus(String? s) =>
     (s ?? '').split('_').map((w) => w.isEmpty ? w : w[0] + w.substring(1).toLowerCase()).join(' ');
+
+/// A bouncing list with the Saige logo pull-to-refresh.
+class RefreshIndicatorList extends StatelessWidget {
+  const RefreshIndicatorList({super.key, required this.onRefresh, required this.children});
+  final Future<void> Function() onRefresh;
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => LogoRefreshView(onRefresh: onRefresh, slivers: [
+        SliverPadding(padding: const EdgeInsets.fromLTRB(20, 4, 20, 0), sliver: SliverList.list(children: children)),
+      ]);
+}

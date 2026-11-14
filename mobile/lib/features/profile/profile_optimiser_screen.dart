@@ -7,7 +7,6 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
-import '../search/saved_jobs_screen.dart' show RefreshIndicatorList;
 
 /// LinkedIn and Naukri have no profile-edit API, so Saige prepares truthful, copy-ready changes.
 /// You copy each one into the site yourself, then mark it applied.

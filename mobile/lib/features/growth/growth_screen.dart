@@ -24,10 +24,10 @@ class _GrowthScreenState extends State<GrowthScreen> {
   @override
   Widget build(BuildContext context) => FeatureScaffold(
         title: 'Growth',
-        subtitle: 'Goals, follow-ups, salary',
+        subtitle: 'Weekly goals and follow-ups',
         child: Column(children: [
           const SizedBox(height: 6),
-          ChipRow(options: const ['goals', 'followups', 'salary'], labels: const {'goals': 'Weekly goals', 'followups': 'Follow-ups', 'salary': 'Salary insight'}, value: _tab, onChanged: (v) => setState(() => _tab = v)),
+          ChipRow(options: const ['goals', 'followups'], labels: const {'goals': 'Weekly goals', 'followups': 'Follow-ups'}, value: _tab, onChanged: (v) => setState(() => _tab = v)),
           const SizedBox(height: 8),
           Expanded(
             child: AnimatedSwitcher(
@@ -36,8 +36,7 @@ class _GrowthScreenState extends State<GrowthScreen> {
               transitionBuilder: (c, a) => FadeTransition(opacity: a, child: SlideTransition(position: Tween(begin: const Offset(0.05, 0), end: Offset.zero).animate(a), child: c)),
               child: switch (_tab) {
                 'goals' => const _Goals(key: ValueKey('g')),
-                'followups' => const _Followups(key: ValueKey('f')),
-                _ => const _Salary(key: ValueKey('s')),
+                _ => const _Followups(key: ValueKey('f')),
               },
             ),
           ),
@@ -273,13 +272,13 @@ class _FollowupsState extends State<_Followups> {
 
 // ---------------------------------------------------------------- salary
 
-class _Salary extends StatefulWidget {
-  const _Salary({super.key});
+class SalaryInsightBody extends StatefulWidget {
+  const SalaryInsightBody({super.key});
   @override
-  State<_Salary> createState() => _SalaryState();
+  State<SalaryInsightBody> createState() => _SalaryState();
 }
 
-class _SalaryState extends State<_Salary> {
+class _SalaryState extends State<SalaryInsightBody> {
   final _role = TextEditingController();
   late final Resource<Map<String, dynamic>> _r = Resource(() async => asMap(await Session.I.api.get('/growth/salary', query: {if (_role.text.trim().isNotEmpty) 'role': _role.text.trim()})));
 

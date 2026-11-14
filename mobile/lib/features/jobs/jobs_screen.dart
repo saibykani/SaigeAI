@@ -11,6 +11,7 @@ import '../../core/resource.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/dot_ring.dart';
+import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
 import 'job_detail_screen.dart';
 
@@ -22,10 +23,10 @@ class JobsScreen extends StatefulWidget {
 
 class _JobsScreenState extends State<JobsScreen> {
   final _jobs = Resource<List<Map<String, dynamic>>>(() async {
-    final r = await Session.I.api.get('/jobs', query: {'limit': 80, 'sort': 'score'});
+    final r = await Session.I.api.get('/jobs', query: {'limit': 150, 'sort': 'score'});
     return asList(asMap(r)['items']);
   });
-  bool _deck = true;
+  String _seg = 'deck'; // deck | all | saved
   bool _finding = false;
 
   @override
@@ -79,29 +80,34 @@ class _JobsScreenState extends State<JobsScreen> {
               Expanded(child: Text('Jobs', style: T.display)),
               if (_finding) Padding(padding: EdgeInsets.only(right: 12), child: DotRing(size: 28, dots: 10)) else _IconBtn(icon: Icons.travel_explore_rounded, onTap: _find),
               const SizedBox(width: 8),
-              _IconBtn(icon: _deck ? Icons.view_agenda_outlined : Icons.style_rounded, onTap: () => setState(() => _deck = !_deck)),
             ]),
           ),
+          ChipRow(options: const ['deck', 'all', 'saved'], labels: const {'deck': 'For you', 'all': 'All', 'saved': 'Saved'}, value: _seg, onChanged: (v) {
+            tick();
+            setState(() => _seg = v);
+          }),
+          const SizedBox(height: 8),
           Expanded(
             child: ResourceView<List<Map<String, dynamic>>>(
               resource: _jobs,
               builder: (context, all) {
                 final fresh = all.where((j) => j['status'] == 'new').toList();
-                if (_deck) {
+                if (_seg == 'deck') {
                   return fresh.isEmpty
                       ? EmptyState(icon: Icons.style_rounded, title: 'Deck cleared', body: 'Fetch fresh matches from job boards and company career pages. Nothing is applied without you.', action: 'Find fresh jobs', onAction: _find)
                       : _Deck(key: ValueKey(fresh.length > 40 ? 'many' : 'deck'), jobs: fresh, onDecision: _setStatus, onOpen: (j) => pushDepth(context, (_) => JobDetailScreen(jobId: '${j['id']}', heroTag: 'job-${j['id']}')));
                 }
+                final shown = _seg == 'saved' ? all.where((j) => j['status'] == 'saved' || j['status'] == 'shortlisted').toList() : all;
                 return LogoRefreshView(onRefresh: _jobs.load, slivers: [
-                  if (all.isEmpty)
-                    const SliverFillRemaining(hasScrollBody: false, child: EmptyState(icon: Icons.work_outline_rounded, title: 'No jobs yet', body: 'Tap the globe to fetch matches for your target roles.'))
+                  if (shown.isEmpty)
+                    SliverFillRemaining(hasScrollBody: false, child: _seg == 'saved' ? const EmptyState(icon: Icons.bookmark_border_rounded, title: 'Nothing saved yet', body: 'Swipe right on a job in For you, or save one from Today, and it shows up here.') : const EmptyState(icon: Icons.work_outline_rounded, title: 'No jobs yet', body: 'Tap the globe to fetch matches for your target roles.'))
                   else
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       sliver: SliverList.separated(
-                        itemCount: all.length,
+                        itemCount: shown.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (context, i) => Stagger(index: i, child: _JobRow(job: all[i])),
+                        itemBuilder: (context, i) => Stagger(index: i, child: _JobRow(job: shown[i])),
                       ),
                     ),
                 ]);

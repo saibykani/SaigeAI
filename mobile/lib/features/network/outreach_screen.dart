@@ -7,7 +7,6 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
-import '../search/saved_jobs_screen.dart' show RefreshIndicatorList;
 
 Color _statusColor(String s) => switch (s) { 'replied' => C.good, 'sent' => C.blue, 'approved' => C.violet, 'draft' => C.warn, 'bounced' => C.bad, _ => C.muted };
 
@@ -247,60 +246,4 @@ class _OutreachDetailState extends State<OutreachDetail> {
       ],
     ]);
   }
-}
-
-/// Outreach grouped per job or company: who you contacted and where it stands.
-class ReferralsScreen extends StatefulWidget {
-  const ReferralsScreen({super.key});
-  @override
-  State<ReferralsScreen> createState() => _ReferralsScreenState();
-}
-
-class _ReferralsScreenState extends State<ReferralsScreen> {
-  final _r = Resource<List<Map<String, dynamic>>>(() async => asList(await Session.I.api.get('/activity/referrals')));
-
-  @override
-  void initState() {
-    super.initState();
-    _r.load();
-  }
-
-  @override
-  void dispose() {
-    _r.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => FeatureScaffold(
-        title: 'Referrals',
-        subtitle: 'Who you reached out to, per job',
-        child: ResourceView<List<Map<String, dynamic>>>(
-          resource: _r,
-          builder: (context, l) {
-            if (l.isEmpty) return const EmptyState(icon: Icons.handshake_rounded, title: 'No referral runs yet', body: 'Draft a referral ask to someone at a company you applied to. It will be grouped here.');
-            return RefreshIndicatorList(onRefresh: _r.load, children: [
-              for (final (i, r) in l.indexed)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Stagger(
-                    index: i % 8,
-                    child: GlassCard(
-                      radius: R.md,
-                      padding: const EdgeInsets.all(14),
-                      onTap: r['url'] == null ? null : () => openUrl(context, '${r['url']}'),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Row(children: [Expanded(child: Text('${r['role'] ?? r['company'] ?? 'Company'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600))), Pill(prettyStatus('${r['status']}'), color: r['status'] == 'replied' ? C.good : C.muted, filled: true)]),
-                        if (r['role'] != null) Text('${r['company']}', style: T.small),
-                        const SizedBox(height: 8),
-                        Text('${r['sent']} sent  ·  ${r['replied']} replied  ·  ${r['drafts']} drafts', style: T.small),
-                        if ((r['people'] as List?)?.isNotEmpty ?? false) ...[const SizedBox(height: 4), Text((r['people'] as List).join(', '), maxLines: 2, overflow: TextOverflow.ellipsis, style: T.small)],
-                      ]),
-                    ),
-                  ),
-                ),
-            ]);
-          },
-        ),
-      );
 }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
@@ -18,7 +19,8 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _loop = AnimationController(vsync: this, duration: const Duration(seconds: 6));
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _pass = TextEditingController();
@@ -29,7 +31,14 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _error;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!MediaQuery.disableAnimationsOf(context) && !_loop.isAnimating) _loop.repeat();
+  }
+
+  @override
   void dispose() {
+    _loop.dispose();
     _name.dispose();
     _email.dispose();
     _pass.dispose();
@@ -148,21 +157,68 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: kb
                           ? const SizedBox.shrink()
                           : _fadeIn(0, Column(children: [
-                              const LogoMark(size: 64, radius: 0.26),
+                              AnimatedBuilder(
+                                animation: _loop,
+                                builder: (context, child) {
+                                  final a = _loop.value * 2 * math.pi;
+                                  return Transform(
+                                    alignment: Alignment.center,
+                                    transform: Matrix4.identity()
+                                      ..setEntry(3, 2, 0.002)
+                                      ..translateByDouble(0.0, math.sin(a) * 6, 0.0, 1.0)
+                                      ..rotateY(math.sin(a) * 0.35)
+                                      ..rotateX(math.cos(a) * 0.12),
+                                    child: Container(
+                                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), boxShadow: [
+                                        BoxShadow(color: Colors.white.withValues(alpha: 0.18 + 0.14 * math.sin(a * 2).abs()), blurRadius: 34, spreadRadius: 2),
+                                      ]),
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: const LogoMark(size: 64, radius: 0.26),
+                              ),
                               const SizedBox(height: 14),
-                              const Text('Saige AI', style: TextStyle(color: _txt, fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -0.6)),
+                              AnimatedBuilder(
+                                animation: _loop,
+                                builder: (context, child) => ShaderMask(
+                                  shaderCallback: (r) {
+                                    final x = -1.5 + 3.0 * ((_loop.value * 2) % 1.0);
+                                    return LinearGradient(
+                                      begin: Alignment(x - 0.6, 0),
+                                      end: Alignment(x + 0.6, 0),
+                                      colors: const [Colors.white, Color(0xFFFFE7B8), Colors.white],
+                                    ).createShader(r);
+                                  },
+                                  child: child,
+                                ),
+                                child: const Text('Saige AI', style: TextStyle(color: _txt, fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -0.6)),
+                              ),
                               const SizedBox(height: 4),
                               Text('Your truthful AI career agent', style: TextStyle(color: _sub, fontSize: 14.5)),
-                              const SizedBox(height: 14),
-                              const Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
-                                _Chip(Icons.auto_awesome_rounded, 'Smart job matches'),
-                                _Chip(Icons.description_rounded, 'ATS-ready resumes'),
-                                _Chip(Icons.verified_user_rounded, 'You approve every send'),
-                              ]),
                               const SizedBox(height: 22),
                             ])),
                     ),
-                    _fadeIn(1, ClipRRect(
+                    _fadeIn(1, AnimatedBuilder(
+                      animation: _loop,
+                      builder: (context, child) => Container(
+                        padding: const EdgeInsets.all(1.4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(29.4),
+                          gradient: SweepGradient(
+                            transform: GradientRotation(_loop.value * 2 * math.pi),
+                            colors: [
+                              Colors.white.withValues(alpha: 0.05),
+                              Colors.white.withValues(alpha: 0.55),
+                              const Color(0xFFFFD9A0).withValues(alpha: 0.35),
+                              Colors.white.withValues(alpha: 0.05),
+                              Colors.white.withValues(alpha: 0.05),
+                            ],
+                          ),
+                        ),
+                        child: child,
+                      ),
+                      child: ClipRRect(
                       borderRadius: BorderRadius.circular(28),
                       child: BackdropFilter(
                         filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
@@ -262,20 +318,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           ]),
                         ),
                       ),
-                    )),
-                    const SizedBox(height: 16),
-                    _fadeIn(2, Column(children: [
-                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(Icons.shield_outlined, size: 15, color: _sub),
-                        const SizedBox(width: 6),
-                        Text('Nothing is sent or applied without your approval', style: TextStyle(color: _sub, fontSize: 12.5)),
-                      ]),
-                      const SizedBox(height: 6),
-                      Text('By continuing you agree to the Terms and Privacy Policy.', textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11.5)),
-                      const SizedBox(height: 4),
-                      Text('Need help? info.saigeai@gmail.com', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11.5)),
-                    ])),
+                    ))),
                   ],
                 ),
               ),
@@ -285,26 +328,6 @@ class _AuthScreenState extends State<AuthScreen> {
       ),
     );
   }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip(this.icon, this.label);
-  final IconData icon;
-  final String label;
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
-        ]),
-      );
 }
 
 class _GoogleButton extends StatelessWidget {
