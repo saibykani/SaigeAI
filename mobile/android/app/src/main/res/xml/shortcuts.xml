@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="scan"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_scan"
+        android:shortcutShortLabel="@string/sc_scan_short"
+        android:shortcutLongLabel="@string/sc_scan_long">
+        <intent android:action="ai.saige.ROUTE" android:targetPackage="ai.saige" android:targetClass="ai.saige.saige_mobile.MainActivity">
+            <extra android:name="route" android:value="scan" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="pipeline"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_pipeline"
+        android:shortcutShortLabel="@string/sc_pipeline_short"
+        android:shortcutLongLabel="@string/sc_pipeline_long">
+        <intent android:action="ai.saige.ROUTE" android:targetPackage="ai.saige" android:targetClass="ai.saige.saige_mobile.MainActivity">
+            <extra android:name="route" android:value="pipeline" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="ask"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_ask"
+        android:shortcutShortLabel="@string/sc_ask_short"
+        android:shortcutLongLabel="@string/sc_ask_long">
+        <intent android:action="ai.saige.ROUTE" android:targetPackage="ai.saige" android:targetClass="ai.saige.saige_mobile.MainActivity">
+            <extra android:name="route" android:value="assistant" />
+            <extra android:name="mic" android:value="true" />
+        </intent>
+    </shortcut>
+</shortcuts>

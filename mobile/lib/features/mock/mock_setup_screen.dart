@@ -13,7 +13,8 @@ import 'mock_report_screen.dart';
 
 /// Set up a mock interview (role or saved job, type, difficulty, language) and see past sessions.
 class MockSetupScreen extends StatefulWidget {
-  const MockSetupScreen({super.key});
+  const MockSetupScreen({super.key, this.initialRole});
+  final String? initialRole;
   @override
   State<MockSetupScreen> createState() => _MockSetupScreenState();
 }
@@ -32,6 +33,7 @@ class _MockSetupScreenState extends State<MockSetupScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialRole != null) _role.text = widget.initialRole!;
     _history.load();
     _jobs.load();
   }

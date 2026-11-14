@@ -5,6 +5,17 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "2.1",
+    date: "2026-11-14T19:25:00+05:30",
+    size: "31 MB",
+    notes: [
+      "Home-screen widget: your next interview and today's new matches at a glance",
+      "Long-press the app icon: Ask Saige, Pipeline, Scan a job",
+      "Share to Saige: share a job from LinkedIn, Naukri or Chrome to score it, build an ATS resume, save it or practise the interview",
+      "Scan a printed job description with the camera (read on your phone)",
+    ],
+  },
+  {
     version: "2.0",
     date: "2026-11-14T21:00:00+05:30",
     size: "19.2 MB",

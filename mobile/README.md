@@ -83,3 +83,15 @@ active palette, so those widgets cannot be `const`. `ThemeController` (`theme_co
 - Fonts use the system Roboto; bundle Google Sans (license permitting) for exact brand parity.
 - Voice depends on the device speech engines; Indic recognition and TTS voices must be installed on the phone.
 - Offline mode shows designed error/empty states but does not cache data between launches.
+
+## Widget, shortcuts and Share-to-Saige
+
+- **Home-screen widget** (`SaigeWidgetProvider.kt`, `res/layout/saige_widget.xml`, light/dark colours in `values*/colors.xml`):
+  next interview and "N new matches today". Home writes the data through the `ai.saige/native` channel
+  (`lib/core/native_bridge.dart`) every time the dashboard loads. Tap opens Home; the interview box opens interview prep.
+- **Launcher shortcuts** (`res/xml/shortcuts.xml`): Ask Saige (starts the mic), Pipeline, Scan a job.
+- **Share to Saige**: share text/link/image from LinkedIn, Naukri or Chrome. `lib/features/jobs/job_share_screen.dart` fetches
+  only Greenhouse/Lever/Ashby links (`/studio/fetch-jd`); for anything else it uses the shared text and asks the user to paste the
+  description (no LinkedIn/Naukri page is ever loaded). Then detect, analyse, build ATS resume, save job (`/jobs/import`), practise.
+- **Scan a printed JD / shared screenshot**: camera (`image_picker`) + on-device OCR (`google_mlkit_text_recognition`, Latin).
+- A request that arrives while signed out stays pending in `NativeBridge` and runs once the Shell is shown after login.

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_desc">Next interview and new matches</string>
+    <string name="sc_ask_short">Ask Saige</string>
+    <string name="sc_ask_long">Ask Saige (voice)</string>
+    <string name="sc_pipeline_short">Pipeline</string>
+    <string name="sc_pipeline_long">Open pipeline</string>
+    <string name="sc_scan_short">Scan a job</string>
+    <string name="sc_scan_long">Scan a printed job description</string>
+</resources>

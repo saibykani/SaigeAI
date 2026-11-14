@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../shell/app_drawer.dart';
 import '../../core/motion.dart';
+import '../../core/native_bridge.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
@@ -32,8 +33,31 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _dash.addListener(_pushWidget);
     _dash.load();
     _tips.load();
+  }
+
+  /// Keeps the home-screen widget in step with the dashboard.
+  void _pushWidget() {
+    final d = _dash.data;
+    if (d == null) return;
+    final ints = asList(d['upcoming_interviews']);
+    final next = ints.isEmpty ? null : ints.first;
+    final at = next == null ? null : DateTime.tryParse('${next['scheduled_at']}')?.toLocal();
+    final n = (asMap(d['today'])['relevant_jobs'] as num?)?.toInt() ?? 0;
+    String when(DateTime t) {
+      const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      final now = DateTime.now();
+      final hm = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+      final same = t.year == now.year && t.month == now.month && t.day == now.day;
+      return same ? 'today $hm' : '${wd[t.weekday - 1]} $hm';
+    }
+    NativeBridge.I.updateWidget(
+      interview: next == null || at == null ? '' : '${next['company'] ?? 'Interview'} · ${when(at)}',
+      interviewId: next == null || at == null ? null : '${next['id']}',
+      matches: n == 1 ? '1 new match today' : '$n new matches today',
+    );
   }
 
   Future<void> _refresh() async {
@@ -43,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _dash.removeListener(_pushWidget);
     _dash.dispose();
     _tips.dispose();
     super.dispose();

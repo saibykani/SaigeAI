@@ -1,11 +1,14 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/motion.dart';
+import '../../core/native_bridge.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../applications/applications_screen.dart';
 import '../assistant/assistant_screen.dart';
 import '../home/home_screen.dart';
+import '../interviews/interview_day_screen.dart';
+import '../jobs/job_share_screen.dart';
 import '../jobs/jobs_screen.dart';
 import '../roles/hiring_screen.dart';
 import 'app_drawer.dart';
@@ -14,6 +17,10 @@ import 'app_drawer.dart';
 class ShellNav {
   static final ValueNotifier<int> index = ValueNotifier(0);
   static void go(int i) => index.value = i;
+
+  /// Set by the "Ask Saige" shortcut: the assistant starts listening when it opens.
+  static bool wantMic = false;
+  static final ValueNotifier<int> micTick = ValueNotifier(0);
 }
 
 class Shell extends StatefulWidget {
@@ -32,6 +39,33 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin {
     ShellNav.index.value = 0;
     ShellNav.index.addListener(_changed);
     Session.I.refreshUnread();
+    NativeBridge.I.pending.addListener(_launch);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _launch());
+  }
+
+  /// Shortcuts, the widget and share intents land here (only a signed-in Shell consumes them).
+  void _launch() {
+    if (!mounted || NativeBridge.I.pending.value == null) return;
+    final r = NativeBridge.I.take()!;
+    final recruiter = Session.I.isRecruiter;
+    if (r.kind == 'share') {
+      if (!recruiter) pushDepth(context, (_) => JobShareScreen(sharedText: r.text, imagePath: r.image));
+      return;
+    }
+    switch (r.route) {
+      case 'assistant':
+        ShellNav.wantMic = r.mic;
+        ShellNav.go(recruiter ? 1 : 3);
+        ShellNav.micTick.value++;
+      case 'pipeline':
+        if (!recruiter) ShellNav.go(2);
+      case 'scan':
+        if (!recruiter) pushDepth(context, (_) => const JobShareScreen(scan: true));
+      case 'interview':
+        if (r.id != null && !recruiter) pushDepth(context, (_) => InterviewDayScreen(interviewId: r.id));
+      default:
+        ShellNav.go(0);
+    }
   }
 
   void _changed() {
@@ -43,6 +77,7 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     ShellNav.index.removeListener(_changed);
+    NativeBridge.I.pending.removeListener(_launch);
     _swap.dispose();
     super.dispose();
   }

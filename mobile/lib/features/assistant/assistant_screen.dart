@@ -59,9 +59,17 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
   void initState() {
     super.initState();
     _msgs.add(_Msg('assistant', 'Hi ${Session.I.firstName}. Ask about your matches, applications or interviews. Tap the mic to talk.'));
+    ShellNav.micTick.addListener(_micRequest);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _micRequest());
     _tts.setCompletionHandler(() => _setState(OrbState.idle));
     _tts.setCancelHandler(() => _setState(OrbState.idle));
     _tts.setErrorHandler((_) => _setState(OrbState.idle));
+  }
+
+  void _micRequest() {
+    if (!ShellNav.wantMic || !mounted) return;
+    ShellNav.wantMic = false;
+    if (_state != OrbState.listening) _toggleMic();
   }
 
   void _setState(OrbState s) {
@@ -72,6 +80,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
   void dispose() {
     _stt.cancel();
     _tts.stop();
+    ShellNav.micTick.removeListener(_micRequest);
     _pulse.dispose();
     _level.dispose();
     _input.dispose();
