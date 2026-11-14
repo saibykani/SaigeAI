@@ -8,6 +8,7 @@ import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/ui.dart';
+import 'interview_day_screen.dart';
 
 class InterviewsScreen extends StatefulWidget {
   const InterviewsScreen({super.key});
@@ -117,7 +118,10 @@ class _Upcoming extends StatelessWidget {
             if (d != null) Text('${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}', style: T.small),
           ]),
         ),
-        if (url != null && url.isNotEmpty) Pressable(onTap: () => _open(url), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), decoration: BoxDecoration(color: C.primary, borderRadius: BorderRadius.circular(99)), child: const Text('Join', style: TextStyle(fontWeight: FontWeight.w700)))),
+        Column(spacing: 8, children: [
+          Pressable(onTap: () => pushDepth(context, (_) => InterviewDayScreen(interviewId: '${i['id']}')), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), decoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(99)), child: Text('Prepare', style: TextStyle(color: C.primary, fontWeight: FontWeight.w700)))),
+          if (url != null && url.isNotEmpty) Pressable(onTap: () => _open(url), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), decoration: BoxDecoration(color: C.primary, borderRadius: BorderRadius.circular(99)), child: Text('Join', style: TextStyle(color: C.onPrimary, fontWeight: FontWeight.w700)))),
+        ]),
       ]),
     );
   }
@@ -142,7 +146,11 @@ class _Mail extends StatelessWidget {
         const SizedBox(height: 4),
         Text('${m['sender']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: T.small),
         if (x['interview_date'] != null || x['round'] != null) ...[const SizedBox(height: 8), Text([if (x['round'] != null) '${x['round']}', if (x['interview_date'] != null) '${x['interview_date']}'].join('  ·  '), style: TextStyle(color: C.warn, fontSize: 13))],
-        if (link != null && link.isNotEmpty) ...[const SizedBox(height: 10), Align(alignment: Alignment.centerLeft, child: Pressable(onTap: () => _open(link), child: Pill('Join link', color: C.good, filled: true)))],
+        const SizedBox(height: 10),
+        Row(spacing: 8, children: [
+          Pressable(onTap: () => pushDepth(context, (_) => InterviewDayScreen(emailId: '${m['id']}')), child: Pill('Prepare', color: C.primary, filled: true)),
+          if (link != null && link.isNotEmpty) Pressable(onTap: () => _open(link), child: Pill('Join link', color: C.good, filled: true)),
+        ]),
       ]),
     );
   }

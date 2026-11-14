@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from app.activity.router import router as activity_router
 from app.admin.router import router as admin_router
 from app.analytics.router import router as analytics_router
+from app.applications.brief import router as interview_brief_router
 from app.applications.router import router as applications_router
 from app.assistant.router import router as assistant_router
 from app.auth.router import router as auth_router
@@ -141,6 +142,7 @@ def create_app() -> FastAPI:
 
     for r in (auth_router, profile_sync_router, profile_router, resume_ai_router, resumes_router, jobs_router, careers_router, studio_router,
               ml_router,
+              interview_brief_router,
               applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router, linkedin_posts_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
               recruiters_router, extension_router, suggestions_router, growth_router, connectors_router, portfolio_router, telegram_router,

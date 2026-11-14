@@ -5,6 +5,17 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "1.9",
+    date: "2026-11-14T19:30:00+05:30",
+    size: "19.1 MB",
+    notes: [
+      "Interview day mode: tap Prepare on any interview for a live countdown and a Join button that pulses when it's time",
+      "Your brief from the job description: what they want, your matching projects, skills to brush up and 8 likely questions",
+      "5-minute spoken warm-up: Saige asks 3 questions aloud, listens and shows what you said",
+      "Interview checklist you can tick (saved for each interview); works for interviews found only in Gmail too",
+    ],
+  },
+  {
     version: "1.8",
     date: "2026-11-14T18:00:00+05:30",
     size: "19 MB",

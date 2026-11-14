@@ -11,6 +11,7 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/ui.dart';
 import '../applications/application_detail_screen.dart';
+import '../interviews/interview_day_screen.dart';
 import '../interviews/interviews_screen.dart';
 import '../jobs/job_detail_screen.dart';
 import '../resume/ats_coach_screen.dart';
@@ -111,6 +112,8 @@ Future<List<TodayItem>> _build(Map<String, dynamic> dash, List<Map<String, dynam
   for (final (at, i) in ivs) {
     if (at.isBefore(now.subtract(const Duration(hours: 1))) || !at.isBefore(tomorrowEnd)) continue;
     final url = '${i['url'] ?? ''}';
+    final rawId = '${i['id']}';
+    final dayScreen = rawId.startsWith('m') ? InterviewDayScreen(emailId: rawId.substring(1)) : InterviewDayScreen(interviewId: rawId);
     items.add(TodayItem(
       id: 'int:${i['id']}',
       icon: Icons.event_available_rounded,
@@ -128,12 +131,12 @@ Future<List<TodayItem>> _build(Map<String, dynamic> dash, List<Map<String, dynam
         }
         return false;
       },
-      secondary: 'Prep',
+      secondary: 'Prepare',
       onSecondary: (c) async {
-        pushDepth(c, (_) => const InterviewsScreen());
+        pushDepth(c, (_) => dayScreen);
         return false;
       },
-      onOpen: () => pushDepth(ctx, (_) => const InterviewsScreen()),
+      onOpen: () => pushDepth(ctx, (_) => dayScreen),
     ));
   }
 
