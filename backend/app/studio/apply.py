@@ -80,7 +80,19 @@ def draft(profile: Profile, title: str, company: str, skills: list[str], text: s
     low = (text or "").lower()
     role = title or "the open"
     yrs = describe(p.total_experience_years) if p.total_experience_years else None
-    subject = subject_asked(text) or f"Application for {title or 'the role'}" + (f" – {p.name}" if p.name else "")
+    from app.studio.analyzer import clean_role
+
+    title = clean_role(title) or title
+    role = title or "the open"
+    # A clear, recruiter-friendly subject: role | years of experience | notice period | name (only verified values).
+    bits = [f"Application for {title or 'the role'}"]
+    if yrs:
+        bits.append(f"{yrs} experience")
+    if p.notice_period_days is not None:
+        bits.append("Immediate joiner" if p.notice_period_days == 0 else f"{p.notice_period_days} days notice")
+    if p.name:
+        bits.append(p.name)
+    subject = subject_asked(text) or " | ".join(bits)
     lines = ["Dear Hiring Team,", "",
              f"I came across your opening for {role} role" + (f" at {company}" if company else "") + " and would like to apply."]
     intro = []

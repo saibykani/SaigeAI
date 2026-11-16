@@ -2,6 +2,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel, Field
 from pymongo import DESCENDING
 
 from app.auth.deps import db_dep, get_current_user
@@ -100,6 +101,27 @@ async def companies(q: str | None = Query(None, max_length=100), limit: int = Qu
 @router.get("/recruiters/email-templates")
 async def email_templates(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     return await bulk.list_templates(db, user["_id"])
+
+
+class RenderIn(BaseModel):
+    template_id: str = Field(max_length=80)
+    company: str = Field(default="", max_length=120)
+    role: str = Field(default="", max_length=200)
+    hr_name: str = Field(default="", max_length=120)
+
+
+@router.post("/recruiters/email-templates/render")
+async def render_email_template(body: RenderIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Fill a template for one email (Apply by email): verified profile values only; missing ones are dropped."""
+    from app.profiles.service import get_profile
+    from app.recruiters import email_templates as et
+
+    tpl = next((t for t in await bulk.list_templates(db, user["_id"]) if t.get("id") == body.template_id), None)
+    if not tpl:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Template not found")
+    contact = {"name": body.hr_name, "company": body.company, "role_applied": body.role}
+    subject, text = et.render_for(tpl, await get_profile(db, user["_id"]), contact)
+    return {"subject": subject, "body": text, "attach_resume": tpl.get("attach_resume", False)}
 
 
 @router.post("/recruiters/email-templates", status_code=201)

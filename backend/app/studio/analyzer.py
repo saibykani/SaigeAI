@@ -51,7 +51,7 @@ def _requirement_rows(jd: JDAnalysis, have: set[str], years: float | None) -> li
 
 
 def analyze(profile: Profile, jd_text: str, title: str = "", company: str = "") -> dict:
-    title = (title or "").strip() or _guess_title(jd_text) or "This role"
+    title = (title or "").strip() or clean_role(_guess_title(jd_text)) or "This role"
     jd = analyze_jd(title, jd_text)
     p = profile.personal
     have = candidate_skills(profile)
@@ -248,4 +248,55 @@ def extract_company(text: str) -> str | None:
 
 def extract_title(text: str) -> str | None:
     """The role named in a job description, for pre-filling forms."""
-    return _guess_title(text) or None
+    return clean_role(_guess_title(text)) or infer_role(text)
+
+
+_ROLE_PREFIX = re.compile(r"^(?:#+\s*|(?:urgent(?:ly)?|immediate|hiring|now\s+hiring|we(?:'re|\s+are|'\s*re)\s+hiring(?:\s+for)?"
+                          r"|opening|job\s+opening|walk-?in|role)\b[\s:!\-–|]*)+", re.I)
+_ROLE_SUFFIX = re.compile(r"\s*(?:[|\-–—,(@]\s*(?:india|remote|hybrid|onsite|on-site|wfh|work from home|full[- ]time|contract|immediate joiner"
+                          r"|[A-Z][a-z]+(?:,\s*[A-Z][a-z]+)?)\)?\s*)+$")
+
+
+def clean_role(title: str | None) -> str:
+    """Exact role name from a job post title: drops hashtags, 'Hiring/Urgent' prefixes, emojis and trailing
+    location or work-mode tags ("#Performance Test Engineer | India" -> "Performance Test Engineer")."""
+    t = (title or "").replace("’", "'").replace("‘", "'")
+    t = re.sub(r"[^\w\s/&+.#()\-–|,@':]", " ", t)  # emojis and symbols
+    t = re.sub(r"#(\w)", r"\1", t)  # hashtag words keep their text
+    t = _ROLE_PREFIX.sub("", re.sub(r"\s+", " ", t).strip())
+    prev = None
+    while prev != t:
+        prev = t
+        t = _ROLE_SUFFIX.sub("", t).strip(" -–|,")
+    return t[:120]
+
+
+# When a post never states the title, the role is inferred from what the job asks for (first match wins, most specific first).
+_ROLE_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("Performance Test Engineer", ("jmeter", "loadrunner", "gatling", "k6", "performance testing", "load testing", "neoload")),
+    ("Mobile Automation Engineer", ("appium", "espresso", "xcuitest", "mobile automation")),
+    ("SDET", ("sdet", "software development engineer in test")),
+    ("QA Automation Engineer", ("selenium", "playwright", "cypress", "webdriverio", "test automation", "automation testing", "rest assured")),
+    ("API Test Engineer", ("api testing", "postman", "newman", "soapui")),
+    ("QA Engineer", ("manual testing", "test cases", "functional testing", "regression testing", "quality assurance", "qa engineer")),
+    ("DevOps Engineer", ("kubernetes", "terraform", "ci/cd pipelines", "devops", "ansible", "helm")),
+    ("Data Engineer", ("spark", "airflow", "etl", "data pipeline", "databricks", "snowflake")),
+    ("Data Scientist", ("machine learning", "deep learning", "pytorch", "tensorflow", "data science")),
+    ("Data Analyst", ("power bi", "tableau", "data analysis", "excel", "sql reporting")),
+    ("Frontend Developer", ("react", "angular", "vue", "next.js", "frontend")),
+    ("Java Developer", ("spring boot", "java developer", "hibernate", "microservices in java")),
+    ("Python Developer", ("django", "flask", "fastapi", "python developer")),
+    ("Full Stack Developer", ("full stack", "mern", "mean stack")),
+    ("Business Analyst", ("business analyst", "requirement gathering", "brd", "user stories")),
+]
+
+
+def infer_role(text: str) -> str | None:
+    """Best-fitting role from the skills a JD asks for, used only when the post gives no clear title."""
+    low = (text or "").lower()
+    best, hits = None, 0
+    for role, keys in _ROLE_RULES:
+        n = sum(1 for k in keys if re.search(rf"(?<![a-z]){re.escape(k)}(?![a-z])", low))
+        if n > hits:
+            best, hits = role, n
+    return best

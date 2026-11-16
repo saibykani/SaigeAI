@@ -8,7 +8,7 @@ import re
 
 from app.schemas.profile import Profile
 
-PLACEHOLDERS = ("hr_name", "company", "my_name", "my_role", "years", "top_skills", "phone", "linkedin", "portfolio")
+PLACEHOLDERS = ("hr_name", "company", "role", "my_name", "my_role", "years", "top_skills", "phone", "linkedin", "portfolio")
 
 BUILTIN: list[dict] = [
     {"id": "builtin:application", "name": "Job application (with resume)", "kind": "cold", "attach_resume": True,
@@ -17,6 +17,12 @@ BUILTIN: list[dict] = [
               "I work as {{my_role}}.\n\nExperience: {{years}} years\nKey skills: {{top_skills}}\n\n"
               "My resume is attached for your review. I would be glad to discuss how I can contribute to your team.\n\n"
               "Phone: {{phone}}\nLinkedIn: {{linkedin}}\nPortfolio: {{portfolio}}\n\nThank you for your time.\n\nBest regards,\n{{my_name}}")},
+    {"id": "builtin:apply_role", "name": "Apply for this role (with resume)", "kind": "cold", "attach_resume": True,
+     "subject": "Application for {{role}} at {{company}} - {{my_name}}",
+     "body": ("Dear {{hr_name}},\n\nI came across the {{role}} opening at {{company}} and would like to apply.\n"
+              "I currently work as {{my_role}}.\n\nExperience: {{years}} years\nKey skills: {{top_skills}}\n\n"
+              "I have attached my resume for your review and would welcome the chance to discuss how I can contribute.\n\n"
+              "Phone: {{phone}}\nLinkedIn: {{linkedin}}\nPortfolio: {{portfolio}}\n\nBest regards,\n{{my_name}}")},
     {"id": "builtin:referral", "name": "Referral request", "kind": "referral", "attach_resume": False,
      "subject": "Referral request at {{company}}",
      "body": ("Hi {{hr_name}},\n\nI hope you are doing well. I am {{my_name}}, {{my_role}}, and I am interested in roles at {{company}}.\n\n"
@@ -58,7 +64,8 @@ def values(profile: Profile, contact: dict) -> dict[str, str]:
     years = f"{p.total_experience_years:g}" if p.total_experience_years else ""
     return {"hr_name": hr_name(contact), "company": (contact.get("company") or "").strip(), "my_name": p.name or "",
             "my_role": p.current_designation or "", "years": years, "top_skills": ", ".join(skills[:5]), "phone": p.phone or "",
-            "linkedin": str(p.linkedin_url or ""), "portfolio": str(p.portfolio_url or "")}
+            "linkedin": str(p.linkedin_url or ""), "portfolio": str(p.portfolio_url or ""),
+            "role": (contact.get("role_applied") or "").strip()}
 
 
 def _tidy(text: str) -> str:

@@ -99,14 +99,14 @@ def test_template_rendering_never_invents():
 
 async def test_template_crud(client, auth):
     lst = (await client.get("/api/recruiters/email-templates", headers=auth)).json()
-    assert len(lst) == 5 and all(t["builtin"] for t in lst)
+    assert len(lst) == 6 and all(t["builtin"] for t in lst)
     t = (await client.post("/api/recruiters/email-templates", headers=auth,
                            json={"name": "Mine", "subject": "Hi {{company}}", "body": "Hello {{hr_name}}"})).json()
     assert (await client.put(f"/api/recruiters/email-templates/{t['id']}", headers=auth, json={"name": "Mine 2"})).json()["name"] == "Mine 2"
     assert (await client.put("/api/recruiters/email-templates/builtin:followup", headers=auth, json={"name": "x"})).status_code == 404
     assert (await client.delete("/api/recruiters/email-templates/builtin:followup", headers=auth)).status_code == 404
     assert (await client.delete(f"/api/recruiters/email-templates/{t['id']}", headers=auth)).status_code == 204
-    assert len((await client.get("/api/recruiters/email-templates", headers=auth)).json()) == 5
+    assert len((await client.get("/api/recruiters/email-templates", headers=auth)).json()) == 6
 
 
 async def test_bulk_send_respects_caps(client, auth, db, monkeypatch):
@@ -159,3 +159,13 @@ async def test_bulk_send_filter_attachment_and_pause(client, auth, db, monkeypat
     paused = await client.post("/api/recruiters/bulk/send", headers=auth,
                                json={"template_id": "builtin:followup", "filter": {"company_type": "product"}, "confirm": True})
     assert paused.status_code == 423 and len(sent) == 1
+
+
+async def test_render_template_for_apply_by_email(client, auth):
+    r = await client.post("/api/recruiters/email-templates/render", headers=auth,
+                          json={"template_id": "builtin:apply_role", "company": "Smtechpartner", "role": "Senior Performance Test Engineer"})
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert "Senior Performance Test Engineer" in out["subject"] and "Smtechpartner" in out["body"] and "{{" not in out["body"]
+    assert out["attach_resume"] is True
+    assert (await client.post("/api/recruiters/email-templates/render", headers=auth, json={"template_id": "nope"})).status_code == 404

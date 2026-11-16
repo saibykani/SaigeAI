@@ -1,12 +1,13 @@
 "use client";
 
-import { Download, Mail, Send, Sparkles } from "lucide-react";
+import { Download, Mail, Pencil, RotateCcw, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ScanLoader } from "@/components/scan-loader";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { ProgressRing } from "@/components/motion";
+import { ResumeEditor } from "@/components/resume-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +33,29 @@ export default function ApplyByEmailPage() {
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [busy, setBusy] = useState<"draft" | "send" | null>(null);
   const [msg, setMsg] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
+  const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [tplId, setTplId] = useState("");
+  const [editing, setEditing] = useState(false);
+  useEffect(() => { request<{ id: string; name: string }[]>("/recruiters/email-templates").then(setTemplates).catch(() => undefined); }, []);
+
+  async function applyTemplate(id: string) {
+    setTplId(id);
+    if (!id) return;
+    try {
+      const r = await request<{ subject: string; body: string }>("/recruiters/email-templates/render", {
+        method: "POST", body: { template_id: id, company: draft?.company || company, role: (draft && "title" in draft ? draft.title : "") || title },
+      });
+      setSubject(r.subject);
+      setBody(r.body);
+    } catch (e) {
+      setMsg({ tone: "error", text: e instanceof Error ? e.message : "Couldn't use that template." });
+    }
+  }
+
+  function clearAll() {
+    setPost(""); setCompany(""); setTitle(""); setAnswers({}); setDraft(null);
+    setTo(""); setSubject(""); setBody(""); setTplId(""); setEditing(false); setMsg(null);
+  }
 
   async function makeDraft() {
     setBusy("draft");
@@ -85,6 +109,7 @@ export default function ApplyByEmailPage() {
             <Button onClick={() => void makeDraft()} disabled={busy !== null || post.trim().length < 30}>
               <Sparkles /> {busy === "draft" ? "Building resume and email…" : "Draft resume & email"}
             </Button>
+            <Button variant="ghost" onClick={clearAll} disabled={busy !== null}><RotateCcw /> Clear</Button>
           </div>
         </CardContent>
       </Card>
@@ -125,6 +150,12 @@ export default function ApplyByEmailPage() {
               <Field label="To" hint={draft.emails_found.length > 1 ? `Also in the post: ${draft.emails_found.filter((e) => e !== to).join(", ")}` : undefined}>
                 <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="No email in the post: type the address" />
               </Field>
+              <Field label="Email template" hint="Fills the subject and message from your verified profile. Edit anything after.">
+                <select value={tplId} onChange={(e) => void applyTemplate(e.target.value)} className="h-10 w-full rounded-xl border bg-transparent px-3 text-sm">
+                  <option value="">Saige's draft for this post</option>
+                  {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </Field>
               <Field label="Subject"><Input value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
               <Field label="Message"><Textarea rows={16} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -159,8 +190,13 @@ export default function ApplyByEmailPage() {
                 <Button variant="outline" size="sm" onClick={() => void downloadFile(`/studio/resumes/${draft.id}/download?format=${format}&on=${localDate()}`, `resume.${format}`)}>
                   <Download /> Download {format.toUpperCase()}
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}><Pencil /> Edit resume</Button>
                 <Link href="/studio"><Button variant="ghost" size="sm">Change template in Resume builder</Button></Link>
               </div>
+              {editing && draft?.id && (
+                <ResumeEditor resumeId={draft.id} onClose={() => setEditing(false)}
+                  onSaved={() => setMsg({ tone: "success", text: "Resume saved. Downloads and the email attachment now use your edited version." })} />
+              )}
               <SkillConfirm required={draft.ats.missing_required} preferred={draft.ats.missing_preferred} onConfirmed={() => makeDraft()} />
               {draft.improve.length > 0 && <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">{draft.improve.slice(0, 3).map((t) => <li key={t}>{t}</li>)}</ul>}
             </CardContent>

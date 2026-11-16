@@ -60,7 +60,7 @@ async def _jd_source(db: AsyncIOMotorDatabase, uid: str, body: JDIn) -> tuple[st
     text = (body.jd_text or "").strip()
     if len(text) < 30:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Paste the job description (at least a few lines).")
-    return text, body.title.strip(), body.company.strip() or (analyzer.extract_company(text) or "")
+    return text, analyzer.clean_role(body.title), body.company.strip() or (analyzer.extract_company(text) or "")
 
 
 _ROLE_NOUN = re.compile(r"\b(engineer|developer|sdet|tester|analyst|manager|lead|architect|consultant|specialist|scientist|designer|"
@@ -167,7 +167,7 @@ async def generate(body: ResumeIn, user: dict = Depends(get_current_user), db: A
 
 
 async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, title: str, company: str) -> dict:
-    title = title or analyzer._guess_title(text)
+    title = title or (analyzer.extract_title(text) or "")
     jd = analyze_jd(title, text)
     from app.studio import projects as project_sync
 
