@@ -82,6 +82,28 @@ def _headline(profile) -> str | None:
     return role or None  # experience is in the summary; the line under the name is the role only
 
 
+def _short_role(title: str | None) -> str | None:
+    """'Software Development Engineer in Test (SDET)' -> 'SDET'; other titles unchanged."""
+    t = (title or "").strip()
+    m = re.search(r"\(([A-Z][A-Za-z0-9/&.\- ]{1,12})\)\s*$", t)
+    return m.group(1).strip() if m else (t or None)
+
+
+def _compose_headline(jd_role: str | None, profile) -> str | None:
+    """Line under your name: the JD's role first, then up to two related titles you actually hold or target
+    (current title, past titles, target roles from your profile). Nothing outside the JD and your profile is added."""
+    p = profile.personal
+    own = [p.current_designation, *(e.title for e in profile.knowledge.experience), *(profile.preferences.target_roles or [])]
+    parts: list[str] = []
+    for t in [jd_role, *own]:
+        short = _short_role(_role_headline(t) if t != jd_role else t)
+        if short and not any(short.lower() == x.lower() or short.lower() in x.lower() or x.lower() in short.lower() for x in parts):
+            parts.append(short)
+        if len(parts) == 3:
+            break
+    return " | ".join(parts) or _headline(profile)
+
+
 async def _learn(db: AsyncIOMotorDatabase, uid: str, career_job_id: str | None, kind: str) -> None:
     """Analysing or building a resume for a Career portals job tells Saige learning you want jobs like it."""
     if not career_job_id:
@@ -197,7 +219,7 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
     report = tailor.ats_report(parsed, jd)
     analysis = analyzer.analyze(profile, text, title, company)
     template = body.template if body.template in render.TEMPLATES else "modern"
-    headline = _role_headline(title) or _headline(profile)  # the line under your name targets the JD role
+    headline = _compose_headline(_role_headline(title) or _role_headline(analyzer.infer_role(text)), profile)
     now = utcnow()
     doc = {"_id": new_id(), "user_id": uid, "name": f"{title} · {company}"[:120] if company else title[:120], "kind": KIND,
            "status": "active", "file_id": None, "filename": None, "content_type": None, "size": None, "job_id": body.job_id,

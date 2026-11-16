@@ -1,12 +1,13 @@
 "use client";
 
-import { CheckCircle2, Download, FileText, Sparkles, XCircle } from "lucide-react";
+import { CheckCircle2, Download, FileText, Pencil, Sparkles, XCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
 import { Notice, PageHeader } from "@/components/app-shell";
 import { Loader3D } from "@/components/loader3d";
 import { ProgressRing } from "@/components/motion";
+import { ResumeEditor } from "@/components/resume-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,7 @@ function Builder() {
   const [preview, setPreview] = useState<string>("");
   const [gallery, setGallery] = useState<Gallery[]>([]);
   const started = useRef(false);
+  const [editing, setEditing] = useState(false);
   const [detected, setDetected] = useState(false);
   const [deadline, setDeadline] = useState<string | null>(null);
   const [link, setLink] = useState("");
@@ -289,7 +291,16 @@ function Builder() {
                 {(tpl.data?.formats ?? []).map((f) => (
                   <Button key={f.id} variant={f.id === "pdf" ? "default" : "outline"} size="sm" onClick={() => void download(f.id)}><Download /> {f.name}</Button>
                 ))}
+                <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}><Pencil /> Edit resume</Button>
               </CardContent>
+              {editing && (
+                <CardContent>
+                  <ResumeEditor resumeId={result.id} onClose={() => setEditing(false)} onSaved={async () => {
+                    try { setPreview((await request<{ html: string }>(`/studio/resumes/${result.id}?template=${template}`)).html); } catch { /* keep preview */ }
+                    setMsg({ tone: "success", text: "Resume saved as a new version. The preview and downloads use your edits." });
+                  }} />
+                </CardContent>
+              )}
             </Card>
             <Card>
               <CardHeader>
