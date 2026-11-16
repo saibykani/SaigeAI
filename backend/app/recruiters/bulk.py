@@ -161,6 +161,8 @@ async def plan(db: AsyncIOMotorDatabase, uid: str, body: BulkIn) -> dict:
     """Render the template for every selected contact, skip the ineligible and decide who goes now vs. queued."""
     now = utcnow()
     tpl = await get_template(db, uid, body.template_id)
+    if tpl.get("channel") == "linkedin":
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "LinkedIn notes are copied and sent on LinkedIn, not by email.")
     profile = await get_profile(db, uid)
     settings = await get_settings_doc(db, uid)
     contacts = await _contacts(db, uid, body)
@@ -291,3 +293,27 @@ async def send_queued(db: AsyncIOMotorDatabase, uid: str, confirm: bool) -> dict
 
 async def queued_count(db: AsyncIOMotorDatabase, uid: str) -> int:
     return await db[c.OUTREACH].count_documents({"user_id": uid, "status": "approved", "queued": True})
+
+
+async def notes(db: AsyncIOMotorDatabase, uid: str, body: BulkIn) -> list[dict]:
+    """LinkedIn notes/messages for the selected contacts, ready to copy. LinkedIn has no API for this, so nothing is sent."""
+    from urllib.parse import quote_plus
+
+    from app.profiles.service import get_profile
+    from app.recruiters import email_templates as et
+
+    tpl = await get_template(db, uid, body.template_id)
+    profile = await get_profile(db, uid)
+    out = []
+    for c_ in (await _contacts(db, uid, body))[:200]:
+        _, text = et.render_for(tpl, profile, c_)
+        if tpl.get("kind") == "linkedin_note" and "after connecting" not in tpl["name"].lower():
+            # Connection notes are one short paragraph (LinkedIn allows 300 characters); drop optional lines until it fits.
+            parts = [x.strip() for x in text.split("\n") if x.strip()]
+            while len(" ".join(parts)) > 300 and len(parts) > 2:
+                parts.pop(-2)
+            text = " ".join(parts)[:300]
+        search = "https://www.linkedin.com/search/results/people/?keywords=" + quote_plus(f"{c_.get('name') or ''} {c_.get('company') or ''}".strip())
+        out.append({"contact_id": c_["_id"], "name": c_.get("name"), "company": c_.get("company"), "text": text, "chars": len(text),
+                    "linkedin_url": c_.get("linkedin_url") or search})
+    return out

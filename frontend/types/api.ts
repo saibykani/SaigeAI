@@ -713,6 +713,7 @@ export interface CompanyCount {
 export interface EmailTemplate {
   id: string;
   name: string;
+  channel?: "email" | "linkedin";
   subject: string;
   body: string;
   kind: "cold" | "referral" | "followup" | "thank_you" | "hiring_manager";

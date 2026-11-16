@@ -23,6 +23,26 @@ BUILTIN: list[dict] = [
               "I currently work as {{my_role}}.\n\nExperience: {{years}} years\nKey skills: {{top_skills}}\n\n"
               "I have attached my resume for your review and would welcome the chance to discuss how I can contribute.\n\n"
               "Phone: {{phone}}\nLinkedIn: {{linkedin}}\nPortfolio: {{portfolio}}\n\nBest regards,\n{{my_name}}")},
+    {"id": "builtin:cold_hr", "name": "Cold email to HR", "kind": "cold", "attach_resume": True,
+     "subject": "{{my_role}} | {{years}} yrs | Interested in roles at {{company}}",
+     "body": ("Hi {{hr_name}},\n\nI hope you're doing well. I'm {{my_name}}, a {{my_role}} with {{years}} years of experience.\n"
+              "I'd love to be considered for any suitable openings at {{company}}.\n\nKey skills: {{top_skills}}\n\n"
+              "I've attached my resume. Could you let me know if there's a role that fits, or point me to the right person?\n\n"
+              "Thanks a lot,\n{{my_name}}\n{{phone}}\n{{linkedin}}")},
+    {"id": "builtin:cold_manager", "name": "Cold email to hiring manager", "kind": "hiring_manager", "attach_resume": True,
+     "subject": "{{my_role}} interested in your team at {{company}}",
+     "body": ("Hi {{hr_name}},\n\nI'm {{my_name}}, {{my_role}} with {{years}} years of hands-on experience in {{top_skills}}.\n"
+              "I've been following {{company}} and would love to contribute to your team.\n\n"
+              "If you have 10 minutes this week, I'd be grateful for a quick chat. My resume is attached.\n\n"
+              "Best regards,\n{{my_name}}\n{{linkedin}}")},
+    {"id": "builtin:li_connect", "name": "LinkedIn connection note (under 300 characters)", "kind": "linkedin_note", "channel": "linkedin",
+     "attach_resume": False, "subject": "",
+     "body": ("Hi {{hr_name}}, I'm {{my_name}}.\nI work as {{my_role}} with {{years}} years of experience.\nSkills: {{top_skills}}.\n"
+              "I'm interested in opportunities at {{company}} and would love to connect.")},
+    {"id": "builtin:li_message", "name": "LinkedIn message after connecting", "kind": "linkedin_note", "channel": "linkedin",
+     "attach_resume": False, "subject": "",
+     "body": ("Hi {{hr_name}}, thanks for connecting! I'm {{my_name}}, {{my_role}} with {{years}} years of experience in {{top_skills}}.\n"
+              "Are there any openings at {{company}} that would suit my profile? Happy to share my resume.\n\nThanks,\n{{my_name}}")},
     {"id": "builtin:referral", "name": "Referral request", "kind": "referral", "attach_resume": False,
      "subject": "Referral request at {{company}}",
      "body": ("Hi {{hr_name}},\n\nI hope you are doing well. I am {{my_name}}, {{my_role}}, and I am interested in roles at {{company}}.\n\n"
@@ -95,4 +115,4 @@ def render_for(tpl: dict, profile: Profile, contact: dict) -> tuple[str, str]:
 
 def template_out(d: dict, builtin: bool = False) -> dict:
     return {"id": d["id"] if builtin else d["_id"], "name": d["name"], "subject": d["subject"], "body": d["body"], "kind": d["kind"],
-            "attach_resume": bool(d.get("attach_resume")), "builtin": builtin}
+            "attach_resume": bool(d.get("attach_resume")), "builtin": builtin, "channel": d.get("channel") or "email"}

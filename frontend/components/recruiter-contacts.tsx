@@ -72,13 +72,21 @@ function BulkPanel({ selection, onClose, onDone }: { selection: { ids: string[] 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [notes, setNotes] = useState<{ contact_id: string; name: string; company: string; text: string; chars: number; linkedin_url: string }[] | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const isLinkedIn = templates.find((x) => x.id === templateId)?.channel === "linkedin";
   const body = useCallback(() => (selection.ids ? { template_id: templateId, contact_ids: selection.ids } : { template_id: templateId, filter: selection.filter }), [selection, templateId]);
   useEffect(() => { request<EmailTemplate[]>("/recruiters/email-templates").then(setTemplates).catch(() => undefined); }, []);
   useEffect(() => {
     setPreview(null);
+    setNotes(null);
     setErr(null);
+    if (isLinkedIn) {
+      request<NonNullable<typeof notes>>("/recruiters/bulk/notes", { method: "POST", body: body() }).then(setNotes).catch((e) => setErr(e instanceof Error ? e.message : "Could not prepare notes"));
+      return;
+    }
     request<BulkPreview>("/recruiters/bulk/preview", { method: "POST", body: body() }).then(setPreview).catch((e) => setErr(e instanceof Error ? e.message : "Could not preview"));
-  }, [body]);
+  }, [body, isLinkedIn]);
   async function send() {
     if (!preview) return;
     const ok = window.confirm(t("Send {n} email(s) now from your Gmail and save {m} for tomorrow? You approve every email in this preview.", { n: preview.send_now, m: preview.queued }));
@@ -108,7 +116,25 @@ function BulkPanel({ selection, onClose, onDone }: { selection: { ids: string[] 
           {preview?.attach_resume && <Badge variant="outline">{t("Resume attached")}</Badge>}
         </div>
         {err && <Notice tone="error">{err}</Notice>}
-        {!preview && !err && <div className="skeleton h-24 rounded-2xl" />}
+        {isLinkedIn && (
+          <Notice>{t("LinkedIn has no way for apps to send notes, so copy each note, open the person on LinkedIn and paste it into Connect → Add a note.")}</Notice>
+        )}
+        {isLinkedIn && notes && (
+          <div className="flex flex-col gap-2">
+            {notes.map((n) => (
+              <div key={n.contact_id} className="rounded-xl border p-3 text-sm">
+                <p className="flex flex-wrap items-center justify-between gap-2"><span><b>{n.name}</b> · {n.company}</span>
+                  <span className={n.chars > 300 ? "text-xs text-[var(--tone-red)]" : "text-xs text-muted-foreground"}>{n.chars}/300</span></p>
+                <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{n.text}</p>
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(n.text); setCopied(n.contact_id); }}>{copied === n.contact_id ? t("Copied") : t("Copy note")}</Button>
+                  <a href={n.linkedin_url} target="_blank" rel="noopener noreferrer"><Button size="sm" variant="ghost">{t("Open on LinkedIn")}</Button></a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!isLinkedIn && !preview && !err && <div className="skeleton h-24 rounded-2xl" />}
         {preview && q && (
           <>
             <div className="rounded-2xl border bg-muted/40 p-3 text-sm">
@@ -141,7 +167,7 @@ function BulkPanel({ selection, onClose, onDone }: { selection: { ids: string[] 
           </>
         )}
         <div className="flex gap-2">
-          <Button disabled={busy || !preview || preview.eligible === 0 || preview.paused} onClick={send}>{busy ? t("Sending…") : t("Approve and send")}</Button>
+          {!isLinkedIn && <Button disabled={busy || !preview || preview.eligible === 0 || preview.paused} onClick={send}>{busy ? t("Sending…") : t("Approve and send")}</Button>}
           <Button variant="ghost" onClick={onClose}>{t("Cancel")}</Button>
         </div>
       </CardContent>

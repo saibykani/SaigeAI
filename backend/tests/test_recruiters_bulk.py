@@ -99,14 +99,14 @@ def test_template_rendering_never_invents():
 
 async def test_template_crud(client, auth):
     lst = (await client.get("/api/recruiters/email-templates", headers=auth)).json()
-    assert len(lst) == 6 and all(t["builtin"] for t in lst)
+    assert len(lst) == 10 and all(t["builtin"] for t in lst)
     t = (await client.post("/api/recruiters/email-templates", headers=auth,
                            json={"name": "Mine", "subject": "Hi {{company}}", "body": "Hello {{hr_name}}"})).json()
     assert (await client.put(f"/api/recruiters/email-templates/{t['id']}", headers=auth, json={"name": "Mine 2"})).json()["name"] == "Mine 2"
     assert (await client.put("/api/recruiters/email-templates/builtin:followup", headers=auth, json={"name": "x"})).status_code == 404
     assert (await client.delete("/api/recruiters/email-templates/builtin:followup", headers=auth)).status_code == 404
     assert (await client.delete(f"/api/recruiters/email-templates/{t['id']}", headers=auth)).status_code == 204
-    assert len((await client.get("/api/recruiters/email-templates", headers=auth)).json()) == 6
+    assert len((await client.get("/api/recruiters/email-templates", headers=auth)).json()) == 10
 
 
 async def test_bulk_send_respects_caps(client, auth, db, monkeypatch):
@@ -169,3 +169,14 @@ async def test_render_template_for_apply_by_email(client, auth):
     assert "Senior Performance Test Engineer" in out["subject"] and "Smtechpartner" in out["body"] and "{{" not in out["body"]
     assert out["attach_resume"] is True
     assert (await client.post("/api/recruiters/email-templates/render", headers=auth, json={"template_id": "nope"})).status_code == 404
+
+
+async def test_linkedin_notes_are_copy_ready_and_never_emailed(client, auth):
+    c1 = (await client.post("/api/recruiters", headers=auth, json={"name": "Priya Nair", "company": "PayCo", "email": "priya@payco.com"})).json()
+    r = await client.post("/api/recruiters/bulk/notes", headers=auth, json={"template_id": "builtin:li_connect", "contact_ids": [c1["id"]]})
+    assert r.status_code == 200, r.text
+    note = r.json()[0]
+    assert note["chars"] <= 300 and "PayCo" in note["text"] and "{{" not in note["text"] and "linkedin.com" in note["linkedin_url"]
+    payload = {"template_id": "builtin:li_connect", "contact_ids": [c1["id"]], "confirm": True}
+    bad = await client.post("/api/recruiters/bulk/send", headers=auth, json=payload)
+    assert bad.status_code == 422

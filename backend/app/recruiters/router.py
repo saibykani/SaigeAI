@@ -142,6 +142,12 @@ async def remove_email_template(template_id: str, user: dict = Depends(get_curre
     return Response(status_code=204)
 
 
+@router.post("/recruiters/bulk/notes")
+async def bulk_notes(body: BulkIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """LinkedIn connection notes / messages for selected contacts, to copy and paste on LinkedIn."""
+    return await bulk.notes(db, user["_id"], body)
+
+
 @router.post("/recruiters/bulk/preview")
 async def bulk_preview(body: BulkIn, limit: int = Query(10, ge=1, le=50), user: dict = Depends(get_current_user),
                        db: AsyncIOMotorDatabase = Depends(db_dep)):
