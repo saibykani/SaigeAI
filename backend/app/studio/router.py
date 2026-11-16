@@ -63,6 +63,18 @@ async def _jd_source(db: AsyncIOMotorDatabase, uid: str, body: JDIn) -> tuple[st
     return text, body.title.strip(), body.company.strip() or (analyzer.extract_company(text) or "")
 
 
+_ROLE_NOUN = re.compile(r"\b(engineer|developer|sdet|tester|analyst|manager|lead|architect|consultant|specialist|scientist|designer|"
+                        r"administrator|associate|intern|executive|officer|programmer|qa|qe)s?\b", re.I)
+
+
+def _role_headline(title: str | None) -> str | None:
+    """The JD's job title as the line under your name, only when it really is a short role title (not a sentence from the JD)."""
+    t = re.sub(r"\s+", " ", (title or "")).strip(" -–|,.")
+    if not t or len(t.split()) > 7 or not _ROLE_NOUN.search(t) or re.search(r"\b(with|and|or|for|using|experience)\b", t, re.I):
+        return None
+    return t
+
+
 def _headline(profile) -> str | None:
     """The line under your name: your current role."""
     p, roles = profile.personal, profile.knowledge.experience
@@ -185,7 +197,7 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
     report = tailor.ats_report(parsed, jd)
     analysis = analyzer.analyze(profile, text, title, company)
     template = body.template if body.template in render.TEMPLATES else "modern"
-    headline = _headline(profile)
+    headline = _role_headline(title) or _headline(profile)  # the line under your name targets the JD role
     now = utcnow()
     doc = {"_id": new_id(), "user_id": uid, "name": f"{title} · {company}"[:120] if company else title[:120], "kind": KIND,
            "status": "active", "file_id": None, "filename": None, "content_type": None, "size": None, "job_id": body.job_id,
@@ -200,7 +212,7 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
 
     drive_link = None
     if await drive.drive_integration(db, uid):  # backup to the user's own Google Drive (best effort)
-        fname = render.filename(profile.personal.name or parsed.name, company, date.today().isoformat(), "pdf")
+        fname = render.filename(profile.personal.name or parsed.name, company, date.today().isoformat(), "pdf", _role_headline(title))
         drive_link = await drive.upload(db, uid, fname, render.render(parsed, template, "pdf", headline))
         if drive_link:
             await db[c.RESUMES].update_one({"_id": doc["_id"]}, {"$set": {"drive_link": drive_link}})
@@ -327,7 +339,8 @@ async def file_for(db: AsyncIOMotorDatabase, uid: str, resume_id: str, format: s
     tid = template if template in render.TEMPLATES else d.get("template") or "modern"
     data = render.render(parsed, tid, format, _hl(d))
     profile = await get_profile(db, uid)
-    fname = render.filename(profile.personal.name or parsed.name, d.get("company"), on or date.today().isoformat(), format)
+    fname = render.filename(profile.personal.name or parsed.name, d.get("company"), on or date.today().isoformat(), format,
+                            _role_headline(d.get("target_title")))
     await log_action(db, user_id=uid, action="studio.resume_downloaded", entity="resume", entity_id=resume_id,
                      details={"format": format, "template": tid})
     return data, fname
@@ -418,7 +431,8 @@ async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), 
     d, parsed = await _parsed(db, uid, body.resume_id)
     tid = body.template if body.template in render.TEMPLATES else d.get("template") or "modern"
     data = render.render(parsed, tid, body.format, _hl(d))
-    fname = render.filename(profile.personal.name or parsed.name, d.get("company"), body.on or date.today().isoformat(), body.format)
+    fname = render.filename(profile.personal.name or parsed.name, d.get("company"), body.on or date.today().isoformat(), body.format,
+                            _role_headline(d.get("target_title")))
     async with agent_run(db, "apply_by_email", uid, {"resume_id": body.resume_id, "to": body.to}) as run:
         try:
             mid = await outbound.send(gmail, profile.personal.name or "",

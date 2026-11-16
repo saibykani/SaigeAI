@@ -21,4 +21,4 @@ async def test_extension_builds_and_downloads_an_ats_resume(client, auth):
     assert r.status_code == 201, r.text
     assert r.json()["score"] > 0
     d = await client.get(f"/api/ext/studio/{r.json()['id']}/download?format=pdf&on=2026-11-12", headers=h)
-    assert d.status_code == 200 and d.content.startswith(b"%PDF") and "Asha_Rao_2026-11-12_Acme.pdf" in d.headers["content-disposition"]
+    assert d.status_code == 200 and d.content.startswith(b"%PDF") and "Asha_Rao_SDET_II_Acme_2026-11-12.pdf" in d.headers["content-disposition"]

@@ -44,7 +44,7 @@ async def test_generate_resume_preview_and_download_every_format(client, auth):
         assert d.status_code == 200, d.text
         assert d.content.startswith(magic)
         cd = d.headers["content-disposition"]
-        assert "Asha_Rao_2026-11-10_Acme_Corp." + fmt in cd
+        assert "Asha_Rao_SDET_II_Acme_Corp_2026-11-10." + fmt in cd
     one = (await client.get(f"/api/studio/resumes/{rid}?template=compact", headers=auth)).json()
     assert one["ats"]["score"] == g["ats"]["score"] and one["html"]
 

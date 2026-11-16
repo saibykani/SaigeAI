@@ -45,7 +45,7 @@ async def test_apply_by_email_asks_drafts_and_sends(client, auth, db, monkeypatc
     msg = FakeSMTP.sent[0]
     assert msg["To"] == "careers@acmelabs.io" and msg["Subject"] == "SDET Application - Bengaluru"
     att = next(msg.iter_attachments())
-    assert "_2026-11-11_Acme" in att.get_filename() and att.get_content().startswith(b"%PDF")
+    assert att.get_filename().endswith("_2026-11-11.pdf") and "Acme" in att.get_filename() and att.get_content().startswith(b"%PDF")
     assert await db[c.AGENT_RUNS].find_one({"agent_name": "apply_by_email", "status": "succeeded"})
     assert await db[c.NOTIFICATIONS].find_one({"kind": "application_emailed"})
     # a made-up claim in an edited email is blocked by the truth guard

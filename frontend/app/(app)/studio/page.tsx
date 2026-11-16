@@ -284,7 +284,7 @@ function Builder() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Download</CardTitle><CardDescription>Saved as Your_Full_Name_{localDate()}_{(result.company || "Company").replace(/\W+/g, "_")}</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Download</CardTitle><CardDescription>Saved as Your_Full_Name_{(result.title || "Role").replace(/\W+/g, "_")}_{(result.company || "Company").replace(/\W+/g, "_")}_{localDate()}</CardDescription></CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {(tpl.data?.formats ?? []).map((f) => (
                   <Button key={f.id} variant={f.id === "pdf" ? "default" : "outline"} size="sm" onClick={() => void download(f.id)}><Download /> {f.name}</Button>

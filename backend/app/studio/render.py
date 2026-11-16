@@ -457,9 +457,11 @@ def render(r: ParsedResume, template: str, fmt: str, headline: str | None = None
     return {"html": to_html, "md": to_md, "txt": to_txt}[fmt](r, t, headline).encode("utf-8")
 
 
-def filename(name: str | None, company: str | None, date: str, fmt: str) -> str:
-    """Full_Name_YYYY-MM-DD_Company.ext (the whole name, as written in the profile)"""
+def filename(name: str | None, company: str | None, date: str, fmt: str, role: str | None = None) -> str:
+    """Full_Name_Role_Company_YYYY-MM-DD.ext (the whole name as written in the profile; role from the JD when known)"""
     def clean(s: str) -> str:
         return re.sub(r"[^A-Za-z0-9]+", "_", s).strip("_")[:40]
     person = (name or "").strip() or "Resume"
+    if role:
+        return "_".join(p for p in (clean(person), clean(role), clean(company or ""), date) if p) + f".{fmt}"
     return "_".join(p for p in (clean(person), date, clean(company or "")) if p) + f".{fmt}"
