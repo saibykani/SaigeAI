@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { request } from "@/services/api";
 
@@ -36,10 +36,14 @@ export function useApi<T>(path: string | null) {
   const [data, setDataState] = useState<T | null>(cached ?? null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(path) && cached === undefined);
+  // What THIS component last rendered: the "unchanged" shortcut must be per component, otherwise a second component
+  // sharing the same in-flight request would skip setting its data and stay empty.
+  const shown = useRef<string | null>(cached !== undefined ? fingerprint(cached) : null);
 
   const setData = useCallback((next: T | null | ((prev: T | null) => T | null)) => {
     setDataState((prev) => {
       const value = typeof next === "function" ? (next as (p: T | null) => T | null)(prev) : next;
+      shown.current = null;
       if (path) {
         fingerprints.delete(path);
         if (value === null) cache.delete(path);
@@ -56,10 +60,13 @@ export function useApi<T>(path: string | null) {
     try {
       const fresh = await fetchShared<T>(path);
       const fp = fingerprint(fresh);
-      const unchanged = fp !== null && fp === fingerprints.get(path) && cache.has(path);
+      const unchanged = fp !== null && fp === shown.current;
       cache.set(path, fresh);
       if (fp !== null) fingerprints.set(path, fp);
-      if (!unchanged) setDataState(fresh);
+      if (!unchanged) {
+        shown.current = fp;
+        setDataState(fresh);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
