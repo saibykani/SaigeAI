@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.agents.llm import get_provider
 from app.jobs.matching import candidate_skills
+from app.resumes import craft
 from app.schemas.job import JDAnalysis
 from app.schemas.profile import Profile
 from app.schemas.resume import ParsedEducation, ParsedExperience, ParsedLinks, ParsedProject, ParsedResume
@@ -63,7 +64,7 @@ def order_skills(profile: Profile, jd: JDAnalysis) -> tuple[list[str], list[str]
     top = [by_key[_k(s)] for s in jd.required_skills if _k(s) in by_key]
     top += [by_key[_k(s)] for s in jd.preferred_skills if _k(s) in by_key and by_key[_k(s)] not in top]
     rest = [s for s in verified if s not in top]
-    return top + rest, top
+    return craft.dedupe_skills(top + rest), top
 
 
 _EXP_PHRASE = re.compile(r"\b\d+(?:\.\d+)?\s*\+?\s*(?:years?|yrs?)(?=\s+(?:of\s+)?(?:[\w-]+\s+){0,2}experience)", re.I)
@@ -84,31 +85,39 @@ def experience_phrase(profile: Profile) -> str | None:
     return f"{f'{yrs:.1f}'.removesuffix('.0')} years of experience{since}"
 
 
-def template_summary(profile: Profile, job_title: str, matched: list[str]) -> str | None:
+_GENERIC_ROLES = {"target role", "this role", "the role", "the open", ""}
+
+
+def template_summary(profile: Profile, job_title: str, matched: list[str], jd_text: str = "") -> str | None:
+    """3-4 lines: JD role + exact years, the JD skills the candidate has (most emphasised first), a domain match, and one
+    real result only when a profile bullet already carries a number. Every piece comes from the verified profile."""
+    from app.studio.analyzer import clean_role
+
     p, kb = profile.personal, profile.knowledge
-    parts: list[str] = []
     exp = experience_phrase(profile)
-    if kb.professional_summary:
-        text = kb.professional_summary.strip().rstrip(".") + "."
-        if exp and _EXP_PHRASE.search(text):
-            # "3 years of experience" / "3+ yrs experience" -> the exact figure from the role dates
-            text = _EXP_PHRASE.sub(exp.split(" of experience")[0], text, count=1)
-            text = text.replace(f"{exp.split(' of experience')[0]} of experience", exp, 1) if "(since" in exp else text
-        parts.append(text)
-        if exp and not re.search(r"\b(?:years?|yrs?)\b", kb.professional_summary, re.I):
-            role = p.current_designation or "Professional"
-            parts.insert(0, f"{role} with {exp}.")
-    elif p.current_designation:
-        parts.append(f"{p.current_designation}{f' with {exp}' if exp else ''}.")
-    # Name the job's skills the summary doesn't already mention (no repeats), and the role only when it's known.
-    said = " ".join(parts).lower()
-    extra = [s for s in matched if s.lower() not in said][:6]
-    if extra:
-        role = f", directly relevant to the {job_title} role" if job_title and job_title.lower() not in ("target role", "this role") else ""
-        parts.append(f"Hands-on experience with {', '.join(extra)}{role}.")
-    if kb.domains:
-        parts.append(f"Domain experience: {', '.join(kb.domains)}.")
-    return " ".join(parts) or None
+    role = clean_role(job_title) if (job_title or "").lower() not in _GENERIC_ROLES else ""
+    role = role or p.current_designation or ""
+    if not (matched or role or kb.professional_summary):
+        return None
+    parts: list[str] = []
+    if role:
+        parts.append(f"{role} with {exp}." if exp else f"{role}.")
+    elif exp:
+        parts.append(f"Professional with {exp}.")
+    top = craft.jd_emphasis(matched, jd_text)[:5] if jd_text else matched[:5]
+    if top:
+        parts.append(f"Hands-on with {', '.join(top[:-1])} and {top[-1]}." if len(top) > 1 else f"Hands-on with {top[0]}.")
+    low = (jd_text or "").lower()
+    doms = [d for d in kb.domains if (not jd_text) or d.lower() in low]
+    if doms:
+        parts.append(f"Domain experience: {', '.join(doms[:3])}.")
+    keys = {_k(s) for s in matched}
+    win = next(iter(b for b in craft.best_bullets(profile, keys, n=6) if craft.has_number(b)), None)
+    if win:
+        parts.append(f"Key result: {craft.lower_first(win.rstrip('.'))}.")
+    if len(parts) < 2 and kb.professional_summary:
+        parts.append(kb.professional_summary.strip().rstrip(".") + ".")
+    return craft.drop_repeats(" ".join(parts)) or None
 
 
 class _Summary(BaseModel):
@@ -169,9 +178,8 @@ def tailor_resume(profile: Profile, jd: JDAnalysis, job: dict, base: ParsedResum
 
     experience: list[ParsedExperience] = []
     reordered_roles = 0
-    for e in kb.experience:
-        resp = sorted(e.responsibilities, key=lambda b: -_relevance(b, jd_keys, req_words))
-        ach = sorted(e.achievements, key=lambda b: -_relevance(b, jd_keys, req_words))
+    for ri, e in enumerate(kb.experience):
+        ach, resp = craft.pick_bullets(e.achievements, e.responsibilities, ri, jd_keys, req_words)
         if resp != e.responsibilities or ach != e.achievements:
             reordered_roles += 1
         experience.append(ParsedExperience(company=e.company, title=e.title, location=e.location,
@@ -180,7 +188,7 @@ def tailor_resume(profile: Profile, jd: JDAnalysis, job: dict, base: ParsedResum
     if not experience and base:
         experience = base.experience  # the user's own resume content, unchanged
     if reordered_roles:
-        changes.append(f"Most relevant bullets moved first in {reordered_roles} role(s)")
+        changes.append(f"Bullets ranked by JD relevance, strong verbs, trimmed in {reordered_roles} role(s)")
 
     projects = sorted(kb.projects, key=lambda pr: -_relevance(" ".join([pr.name, *pr.highlights, *pr.technologies]),
                                                                jd_keys, req_words))
@@ -309,26 +317,30 @@ def health_report(r: ParsedResume) -> dict:
 
 
 def template_cover_letter(profile: Profile, job: dict, jd: JDAnalysis, matched: list[str]) -> tuple[str, str]:
-    """Returns (greeting+signoff wrapper parts are added by caller) body text built from verified facts."""
+    """Returns (body, greeting). Same matching logic as the application email: role + company, the strongest JD matches,
+    one concrete line from the user's own experience, domain overlap."""
+    from app.studio.analyzer import clean_role
+
     p, kb = profile.personal, profile.knowledge
-    title, company = job.get("title", "the role"), job.get("company", "your company")
-    yrs = f" with {int(p.total_experience_years)}+ years of experience" if p.total_experience_years else ""
-    intro = f"I am excited to apply for the {title} position at {company}."
+    title = clean_role(job.get("title")) or job.get("title") or "this"
+    company = job.get("company") or "your company"
+    exp = experience_phrase(profile)
+    intro = f"I'm applying for the {title} role at {company}."
     if p.current_designation:
-        intro += f" I am currently a {p.current_designation}{yrs}"
-        intro += f" at {p.current_company}." if p.current_company else "."
+        intro += f" I'm a {p.current_designation}" + (f" at {p.current_company}" if p.current_company else "")
+        intro += f" with {exp.split(' (')[0].replace(' of experience', '')} of experience." if exp else "."
     body = ""
     if matched:
-        body = f"My background lines up closely with what you are looking for, including {', '.join(matched[:5])}."
-    wins = [a for e in kb.experience for a in e.achievements][:2]
+        body = f"What matches your requirements most closely: {', '.join(matched[:5])}."
+    keys = {_k(s) for s in matched}
+    wins = craft.best_bullets(profile, keys, n=2) or [a for e in kb.experience for a in e.achievements][:1]
     if wins:
-        body += " Recent results I am proud of: " + " ".join(w.rstrip(".") + "." for w in wins)
+        body += " In my own work: " + " ".join(w.rstrip(".") + "." for w in wins)
     shared = [d for d in kb.domains if d.lower() in {x.lower() for x in jd.domains}]
     if shared:
         body += f" I also bring domain experience in {', '.join(shared)}."
-    close = (f"I would welcome the chance to discuss how I can contribute to {company}. "
-             "Thank you for your time and consideration.")
-    return "\n\n".join(x for x in (intro, body.strip(), close) if x), f"Dear Hiring Team at {company},"
+    close = f"I'd welcome a conversation about how I can contribute to {company}. Thank you for your time."
+    return craft.drop_repeats("\n\n".join(x for x in (intro, body.strip(), close) if x)), f"Dear Hiring Team at {company},"
 
 
 def cover_letter_text(greeting: str, body: str, name: str | None) -> str:

@@ -76,6 +76,9 @@ class FactIndex:
         categories = [cat for cat, vals in profile.skills.model_dump().items() if vals]
         skills += list(implied_umbrellas(skills, categories))
         self.skills = {normalize_key(canonical(s)) for s in skills}
+        # Rest Assured is a REST API testing library: saying "REST API testing" with API Testing + Rest Assured verified is true.
+        if any(re.sub(r"[^a-z]", "", k) in ("restassured", "restapi") for k in self.skills):
+            self.skills.add("rest")
 
         self.companies = {_company_key(e.company) for e in kb.experience}
         if p.current_company:

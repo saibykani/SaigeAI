@@ -75,7 +75,7 @@ async def tailor_resume(job_id: str, body: TailorIn, user: dict = Depends(get_cu
     profile = await get_profile(db, uid)
     base, base_parsed = await _base_parsed(db, uid, body.base_resume_id)
     matched = _matched(profile, jd)
-    summary_fallback = tailor.template_summary(profile, job["title"], matched)
+    summary_fallback = tailor.template_summary(profile, job["title"], matched, job.get("description") or "")
     summary, engine = (await tailor.llm_polish("summary", profile, job["title"], job["company"], matched,
                                                summary_fallback)) if summary_fallback else (None, "deterministic")
     try:
@@ -232,7 +232,7 @@ async def ats_optimize(body: AtsScoreIn, user: dict = Depends(get_current_user),
     before = tailor.ats_report(base, jd)
     profile = await get_profile(db, uid)
     matched = _matched(profile, jd)
-    fallback = tailor.template_summary(profile, job["title"], matched)
+    fallback = tailor.template_summary(profile, job["title"], matched, job.get("description") or "")
     summary, engine = (await tailor.llm_polish("summary", profile, job["title"], job["company"], matched, fallback)
                        ) if fallback else (None, "deterministic")
     try:

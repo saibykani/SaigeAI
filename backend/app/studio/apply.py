@@ -34,9 +34,43 @@ def emails_in(text: str) -> list[str]:
     return sorted(seen, key=lambda e: (not any(e.startswith(r) or f".{r}" in e.split("@")[0] for r in rank), list(seen).index(e)))
 
 
-def subject_asked(text: str) -> str | None:
+_SUBJECT_LINE = re.compile(r"(?:email\s+)?subject(?:\s+line)?\s*(?:format)?\s*(?:as|:|-|should be|should read|with)\s*([^\n\"“”]{3,100})", re.I)
+_PLACEHOLDER = re.compile(r"[\[{<(]\s*(?:job\s+|role\s+)?(?:role|title|position|job\s*title|designation)(?:\s+name)?\s*[\]}>)]", re.I)
+_OTHER_FILL = re.compile(r"[\[{<(]\s*(?:your\s+name|name|company|experience|years|exp|notice period|location|ctc)[^\]}>)]*[\]}>)]", re.I)
+
+
+def subject_asked(text: str, role: str | None = None, name: str | None = None, company: str | None = None) -> str | None:
+    """The subject the post asks for. Quoted text is used as written; an unquoted "subject: [Role] - Name" has the role filled in."""
     m = SUBJECT_RE.search(text or "")
-    return m.group(1).strip() if m else None
+    raw = m.group(1).strip() if m else None
+    if raw is None:
+        m = _SUBJECT_LINE.search(text or "")
+        raw = re.split(r"\s{2,}|\.\s", m.group(1).strip())[0].rstrip(" .") if m else None
+    if raw is None:
+        return None
+    if role:
+        raw = _PLACEHOLDER.sub(role, raw)
+    if name:
+        raw = re.sub(r"[\[{<(]\s*(?:your\s+)?name\s*[\]}>)]|your\s+name", name, raw, flags=re.I)
+    if company:
+        raw = re.sub(r"[\[{<(]\s*company(?:\s+name)?\s*[\]}>)]", company, raw, flags=re.I)
+    if _PLACEHOLDER.search(raw) or _OTHER_FILL.search(raw):  # a template we can't fill truthfully -> use our own subject
+        return None if not role else _OTHER_FILL.sub("", raw).strip(" -|:") or None
+    return raw
+
+
+NAME_RE = re.compile(r"(?i:contact|attention|attn|reach\s+out\s+to|ping|send\s+(?:your\s+)?(?:cv|resume)\s+to|hiring\s+manager|recruiter)\s*[:\-]?\s*"
+                     r"(?:is\s+)?([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)(?=\s*(?:[,.:;(\n]|$|\s+at\b|\s+on\b|\s+@))")
+_NOT_NAMES = {"the", "our", "team", "hr", "us", "me", "email", "mail", "dm", "whatsapp", "details", "resume", "cv"}
+
+
+def contact_name(text: str) -> str | None:
+    """First name of the person to write to, only when the post names one ("Contact: Priya Sharma")."""
+    for m in NAME_RE.finditer(text or ""):
+        first = m.group(1).split()[0]
+        if first.lower() not in _NOT_NAMES:
+            return first
+    return None
 
 
 def questions(profile: Profile, text: str) -> list[dict]:
@@ -75,47 +109,51 @@ def _lpa(v: float | None, cur: str | None) -> str | None:
 
 
 def draft(profile: Profile, title: str, company: str, skills: list[str], text: str) -> tuple[str, str]:
-    """Subject and body. Uses the subject line the post asks for when it gives one."""
-    p = profile.personal
-    low = (text or "").lower()
-    role = title or "the open"
-    yrs = describe(p.total_experience_years) if p.total_experience_years else None
+    """Subject and body (about 120-150 words). Uses the subject the post asks for. Every line is a verified profile fact."""
+    from app.resumes import craft
+    from app.services.skills_vocab import canonical, normalize_key
     from app.studio.analyzer import clean_role
 
-    title = clean_role(title) or title
-    role = title or "the open"
-    # A clear, recruiter-friendly subject: role | years of experience | notice period | name (only verified values).
-    bits = [f"Application for {title or 'the role'}"]
+    p = profile.personal
+    low = (text or "").lower()
+    yrs = describe(p.total_experience_years) if p.total_experience_years else None
+    role = clean_role(title) or title or ""
+    bits = [f"Application for {role or 'the role'}"]
     if yrs:
         bits.append(f"{yrs} experience")
     if p.notice_period_days is not None:
         bits.append("Immediate joiner" if p.notice_period_days == 0 else f"{p.notice_period_days} days notice")
     if p.name:
         bits.append(p.name)
-    subject = subject_asked(text) or " | ".join(bits)
-    lines = ["Dear Hiring Team,", "",
-             f"I came across your opening for {role} role" + (f" at {company}" if company else "") + " and would like to apply."]
-    intro = []
-    if p.current_designation:
-        intro.append(f"I'm currently working as a {p.current_designation}" + (f" at {p.current_company}" if p.current_company else ""))
+    subject = subject_asked(text, role, p.name, company) or " | ".join(bits)
+    who = contact_name(text)
+    lines = [f"Hi {who}," if who else "Hello Hiring Team,", ""]
+    first = f"I'd like to apply for the {role} role" if role else "I'd like to apply for the open role"
+    first += f" at {company}." if company else "."
     if yrs:
-        intro.append(f"with {yrs} of experience" if intro else f"I have {yrs} of experience")
-    if intro:
-        lines.append(" ".join(intro) + ".")
-    if skills:
-        lines.append(f"My hands-on experience includes {', '.join(skills[:6])}, which match what you're looking for.")
+        first += f" I have {yrs} of experience" + (f" as a {p.current_designation}" if p.current_designation else "") + "."
+    lines.append(first)
+    top = craft.jd_emphasis([canonical(s) for s in skills], text)[:3]
+    keys = {normalize_key(canonical(s)) for s in skills}
+    proof = craft.best_bullets(profile, keys, n=1)
+    para = []
+    if top:
+        para.append(f"The closest matches to your requirements: {', '.join(top)}.")
+    if proof:
+        para.append(f"For example, {craft.lower_first(proof[0].rstrip('.'))}.")
+    if para:
+        lines += ["", " ".join(para)]
     npd = p.notice_period_days
-    facts = [("Total experience", yrs), ("Current CTC", _lpa(p.current_ctc, p.ctc_currency)),
+    facts = [("Current CTC", _lpa(p.current_ctc, p.ctc_currency)),
              ("Expected CTC", _lpa(p.expected_ctc, p.ctc_currency)),
              ("Notice period", None if npd is None else ("Immediate" if npd == 0 else f"{npd} days")),
              ("Current location", p.current_location)]
     asked = {f[0]: re.search(f[3], low) for f in FACTS if f[3]}
-    keep = {"Total experience": True, "Current CTC": asked.get("current_ctc"), "Expected CTC": asked.get("expected_ctc"),
+    keep = {"Current CTC": asked.get("current_ctc"), "Expected CTC": asked.get("expected_ctc"),
             "Notice period": asked.get("notice_period_days"), "Current location": asked.get("current_location")}
     rows = [f"• {k}: {v}" for k, v in facts if v and keep[k]]
     if rows:
-        lines += ["", "Quick details:", *rows]
-    lines += ["", "I've attached my resume for your review. I'd welcome the chance to discuss how I can contribute.", "",
-              "Best regards,", p.name or ""]
-    lines += [x for x in (p.phone, p.email, str(p.linkedin_url) if p.linkedin_url else None) if x]
-    return subject[:200], "\n".join(lines).strip()
+        lines += ["", *rows]
+    lines += ["", "My resume is attached. I'd be glad to talk through how I can help your team.", "", "Regards,", p.name or ""]
+    lines += [x for x in (p.phone, str(p.linkedin_url) if p.linkedin_url else None, p.email) if x]
+    return subject[:200], craft.drop_repeats("\n".join(lines)).strip()

@@ -14,8 +14,8 @@ from app.database import collections as c
 from app.email import outbound
 from app.jobs.jd_parser import analyze_jd
 from app.profiles.service import get_profile
+from app.resumes import craft, tailor
 from app.resumes import service as resumes
-from app.resumes import tailor
 from app.resumes.ai_router import _base_parsed, _matched
 from app.schemas.resume import ParsedResume
 from app.services.audit import log_action
@@ -196,7 +196,7 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
     profile, added_projects = await project_sync.sync(db, uid, await get_profile(db, uid))
     base, base_parsed = await _base_parsed(db, uid, body.base_resume_id)
     matched = _matched(profile, jd)
-    fallback = tailor.template_summary(profile, title, matched)
+    fallback = tailor.template_summary(profile, title, matched, text)
     summary, engine = (await tailor.llm_polish("summary", profile, title, company or "the company", matched, fallback)
                        ) if fallback else (None, "deterministic")
     title = title or "Target role"
@@ -214,7 +214,7 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": bad})
     # Repair import artefacts (split skills, broken bullets, repeated sentences) in the user's own content, then score it.
     parsed = polish.polish(parsed)
-    parsed = _surface_verified(parsed, profile, jd)
+    parsed = _surface_verified(parsed, profile, jd, text)
     await _learn(db, uid, body.career_job_id, "resume")
     report = tailor.ats_report(parsed, jd)
     analysis = analyzer.analyze(profile, text, title, company)
@@ -247,7 +247,15 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
             "html": render.to_html(parsed, render.TEMPLATES[template], headline), "drive_link": drive_link}
 
 
-def _surface_verified(parsed: ParsedResume, profile, jd) -> ParsedResume:
+def _jd_first(skills: list[str], keys: set[str], jd_text: str) -> list[str]:
+    """JD-matching skills first, the ones the JD stresses most leading; the rest keep their order."""
+    from app.jobs.matching import _skill_key
+
+    hit = [s for s in skills if _skill_key(s) in keys]
+    return craft.jd_emphasis(hit, jd_text) + [s for s in skills if s not in hit]
+
+
+def _surface_verified(parsed: ParsedResume, profile, jd, jd_text: str = "") -> ParsedResume:
     """Every JD keyword that is in the verified profile goes on the resume, spelled the way the JD spells it."""
     from app.jobs.matching import _skill_key as normalize_key
     from app.jobs.matching import candidate_skills
@@ -265,12 +273,16 @@ def _surface_verified(parsed: ParsedResume, profile, jd) -> ParsedResume:
         else:
             skills.insert(0, kw)
             on[k] = 0
+    # JD phrases the profile supports through verified skills ("REST API testing" <- "API Testing" + "Rest Assured")
+    for phrase in craft.supported_phrases(jd_text, list(skills)):
+        if normalize_key(phrase) not in on:
+            skills.insert(min(len(skills), 3), phrase)
     keys = {normalize_key(k) for k in jd.required_skills + jd.preferred_skills}
     projects = []
     for pr in parsed.projects:  # the four bullets that hit the most JD keywords, in their original order
         ranked = sorted(range(len(pr.highlights)), key=lambda i: -sum(normalize_key(k) in keys for k in find_skills(pr.highlights[i])))[:4]
         projects.append(pr.model_copy(update={"highlights": [pr.highlights[i] for i in sorted(ranked)]}))
-    return parsed.model_copy(update={"skills": list(dict.fromkeys(skills)), "projects": projects})
+    return parsed.model_copy(update={"skills": _jd_first(list(dict.fromkeys(skills)), keys, jd_text), "projects": projects})
 
 
 class ConfirmSkillsIn(BaseModel):

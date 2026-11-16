@@ -102,7 +102,7 @@ async def test_cover_letter_generation_edit_and_guard(client, auth):
     assert r.status_code == 201, r.text
     letter = r.json()
     assert letter["text"].startswith("Dear Hiring Team at PayCo,")
-    assert "Senior SDET position at PayCo" in letter["text"]
+    assert "Senior SDET role at PayCo" in letter["text"]
     assert "Reduced regression time by 40%" in letter["text"] and "Asha Rao" in letter["text"]
     assert letter["validation"]["status"] == "PASSED"
 
