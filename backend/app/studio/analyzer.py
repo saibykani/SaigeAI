@@ -268,6 +268,10 @@ def clean_role(title: str | None) -> str:
     while prev != t:
         prev = t
         t = _ROLE_SUFFIX.sub("", t).strip(" -–|,")
+    # Requirement lines are not job titles ("2-4 years of software testing experience", "Bachelor's degree in ...").
+    if re.search(r"^\d|\b(years?|yrs|experience|degree|bachelor|master|required|preferred|qualification|responsibilit|skills?|knowledge|"
+                 r"ability|proficien|familiar|understanding|hands-on|we offer|about us)\b", t, re.I) or len(t.split()) > 8:
+        return ""
     return t[:120]
 
 

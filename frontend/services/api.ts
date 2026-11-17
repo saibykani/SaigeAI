@@ -65,6 +65,17 @@ function errorMessage(detail: unknown, status: number): string {
       })
       .join("; ");
   }
+  // Truth-guard blocks come back as {status, violations: [...]}: say what was blocked instead of a bare code.
+  if (detail && typeof detail === "object") {
+    const d = detail as { message?: string; status?: string; violations?: unknown[] };
+    if (d.message) return d.message;
+    if (Array.isArray(d.violations) && d.violations.length) {
+      const items = d.violations.slice(0, 4).map((v) => (typeof v === "string" ? v : (v as { claim?: string; value?: string; reason?: string }).claim
+        ?? (v as { value?: string }).value ?? JSON.stringify(v))).join("; ");
+      return `Saige stopped this because it would add something not in your verified profile: ${items}. Add it to your Profile if it's true, or edit the job title.`;
+    }
+    if (d.status) return d.status;
+  }
   return `Request failed (${status})`;
 }
 
