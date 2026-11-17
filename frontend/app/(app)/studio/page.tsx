@@ -7,6 +7,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { Loader3D } from "@/components/loader3d";
 import { ProgressRing } from "@/components/motion";
+import { ResumeChat } from "@/components/resume-chat";
 import { ResumeEditor } from "@/components/resume-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -301,6 +302,12 @@ function Builder() {
                   }} />
                 </CardContent>
               )}
+              <CardContent>
+                <ResumeChat resumeId={result.id} template={template} onApplied={(html) => {
+                  setPreview(html);
+                  setMsg({ tone: "success", text: "Resume updated and saved as a new version. Downloads use it." });
+                }} />
+              </CardContent>
             </Card>
             <Card>
               <CardHeader>

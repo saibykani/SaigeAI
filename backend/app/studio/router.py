@@ -485,3 +485,28 @@ async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), 
                  body=f"{d.get('target_title') or 'Resume'}{' at ' + d['company'] if d.get('company') else ''}: {fname} attached.",
                  link="/studio/apply")
     return {"status": "sent", "to": body.to, "from": gmail["email"], "file": fname, "message_id": mid}
+
+
+class InstructIn(BaseModel):
+    text: str = Field(min_length=2, max_length=1000)
+    template: str | None = Field(default=None, max_length=40)
+
+
+@router.post("/resumes/{resume_id}/instruct")
+async def instruct(resume_id: str, body: InstructIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Edit by chat ("remove Healthcare", "move Playwright to top", "shorten summary"). Saves a new version; never adds facts."""
+    from app.studio import instruct as ins
+
+    uid = user["_id"]
+    d, parsed = await _parsed(db, uid, resume_id)
+    profile = await get_profile(db, uid)
+    after, changes = ins.apply(parsed, profile, body.text)
+    done = [x for x in changes if not x.startswith(("Couldn't", "Didn't"))]
+    if done:
+        check = tailor.validate_resume(after, profile)
+        if check["status"] != "PASSED":
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": check["violations"]})
+        await resumes.add_version(db, d, parsed=after, raw_text=tailor.resume_text(after), source="chat_edit", changes=done)
+        await log_action(db, user_id=uid, action="resume.chat_edit", entity="resume", entity_id=resume_id, details={"changes": done[:10]})
+    template = body.template if body.template in render.TEMPLATES else (d.get("template") or "modern")
+    return {"changes": changes, "saved": bool(done), "html": render.to_html(after, render.TEMPLATES[template], _hl(d))}
