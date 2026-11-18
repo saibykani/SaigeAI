@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Building2, ShieldCheck, Globe, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
+import { Briefcase, Building2, ShieldCheck, Globe, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, Smartphone, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -259,6 +259,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <InstallCard />
           <SubNav pathname={pathname}>{children}</SubNav>
         </main>
+        <footer className="flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-3 border-t px-4 py-4 text-xs text-muted-foreground md:px-6">
+          <span>© {new Date().getFullYear()} Saige AI</span>
+          <Link href="/download" className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-medium text-foreground hover:bg-muted">
+            <Smartphone className="size-4" aria-hidden /> {t("Get the app")}
+          </Link>
+        </footer>
         {pathname !== "/assistant" && <AssistantBubble />}
         <Celebrate />
       </div>
