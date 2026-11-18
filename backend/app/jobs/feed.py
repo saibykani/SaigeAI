@@ -31,7 +31,8 @@ from app.schemas.profile import Profile
 from app.utils import as_utc, utcnow
 
 logger = logging.getLogger("saige.feed")
-FEED_TTL = timedelta(minutes=5)
+FEED_TTL = timedelta(minutes=15)  # the live tick rebuilds the feed when it is older than this
+TICK_BUDGET_S = 25
 MAX_ITEMS = 400
 DESC_KEEP = 6000
 DETAIL_FETCHES_PER_BOARD = 6
@@ -70,6 +71,19 @@ COUNTRY_CITIES: dict[str, list[str]] = {
 }
 REMOTE_RE = re.compile(r"\b(remote|anywhere|worldwide|global|work from home|wfh)\b", re.I)
 OPEN_REGION_RE = re.compile(r"\b(anywhere|worldwide|global|apac|asia)\b", re.I)
+
+
+def valid_item(it: dict) -> bool:
+    """Only real, open postings: a title, a company and a real http(s) link. Anything the source marks closed/expired is dropped."""
+    from urllib.parse import urlparse
+
+    u = urlparse(str(it.get("url") or "").strip())
+    if u.scheme not in ("http", "https") or not u.netloc or "." not in u.netloc:
+        return False
+    if not str(it.get("title") or "").strip() or not str(it.get("company") or "").strip():
+        return False
+    state = str(it.get("status") or it.get("state") or "").lower()
+    return not (it.get("expired") or it.get("closed") or it.get("is_expired") or state in ("closed", "expired", "filled", "inactive"))
 
 
 # ------------------------------------------------------------------ annotations
@@ -268,7 +282,7 @@ async def build(db: AsyncIOMotorDatabase, uid: str, *, profile: Profile | None =
     items: list[dict] = []
     hide = [w.lower() for w in profile.preferences.excluded_title_words if w.strip()]
     for it in raw:
-        if not it.get("title") or is_blocked(settings, it.get("company")):
+        if not valid_item(it) or is_blocked(settings, it.get("company")):
             continue
         if any(w in it["title"].lower() for w in hide):
             continue

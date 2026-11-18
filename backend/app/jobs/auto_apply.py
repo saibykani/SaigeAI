@@ -174,3 +174,110 @@ async def approve_many(db: AsyncIOMotorDatabase, uid: str, ids: list[str]) -> di
                      link="/applications",
                      details=[{"platform": r["company"], "field": r["role"], "after": r["message"]} for r in results if r["status"] != "error"])
     return {"results": results, "sent": sent, "open": opened, "errors": sum(r["status"] == "error" for r in results)}
+
+
+# ------------------------------------------------------------------ "Auto-apply to selected": really apply by email
+
+def _norm(s: str | None) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (s or "").lower()).strip()
+
+
+async def _already_applied(db: AsyncIOMotorDatabase, uid: str, company: str, role: str) -> bool:
+    """Never email the same company + role twice."""
+    key = (_norm(company), _norm(role))
+    async for a in db[c.APPLICATIONS].find({"user_id": uid, "$or": [{"applied_at": {"$ne": None}}, {"applied_via": "email"}]},
+                                           {"company": 1, "role": 1}):
+        if (_norm(a.get("company")), _norm(a.get("role"))) == key:
+            return True
+    return False
+
+
+async def apply_feed(db: AsyncIOMotorDatabase, uid: str, ids: list[str]) -> dict:
+    """Run only after the user's explicit confirm. Jobs with a published HR/recruiter email get a tailored ATS resume and a
+    truth-checked application email sent from the user's Gmail. Jobs without one are saved and returned with their real link."""
+    from app.applications import service as apps
+    from app.automation.service import is_blocked
+    from app.services.agent_runs import agent_run
+    from app.studio import apply as studio_apply
+    from app.studio import router as studio
+    from app.studio.router import ApplySendIn, ResumeIn
+
+    integ = await outbound.find_sender(db, uid)
+    if not integ:
+        raise HTTPException(409, "Connect Gmail in Settings > Integrations so Saige can send applications from your account.")
+    if not await is_allowed(db, uid, "applications"):
+        raise HTTPException(423, "Applications are paused in Automation settings.")
+    if not await is_allowed(db, uid, "emails"):
+        raise HTTPException(423, "Sending email is paused in Automation settings.")
+    s = await get_settings_doc(db, uid)
+    sent_today = await db[c.APPLICATIONS].count_documents({"user_id": uid, "feed_apply": True, "applied_at": {"$gte": start_of_today()}})
+    room = max(0, s.auto_apply.daily_max - sent_today)
+    doc = await db[c.JOB_FEED].find_one({"_id": uid}) or {}
+    by_id = {i["id"]: i for i in doc.get("items", [])}
+    profile = await get_profile(db, uid)
+    weights = await jobs.get_weights(db, uid)
+    results: list[dict] = []
+    async with agent_run(db, "feed_auto_apply", uid, {"selected": len(ids)}) as run:
+        for fid in dict.fromkeys(ids):
+            it = by_id.get(fid)
+            if not it:
+                results.append({"id": fid, "status": "skipped", "company": "", "role": "",
+                                "message": "No longer in your feed. Refresh and try again."})
+                continue
+            row = {"id": fid, "company": it["company"], "role": it["title"]}
+            link = it.get("application_url") or it.get("url")
+            try:
+                if not feed.valid_item(it):
+                    results.append({**row, "status": "skipped", "message": "The posting has no valid link, so it was left out."})
+                    continue
+                if is_blocked(s, it["company"]):
+                    results.append({**row, "status": "skipped", "message": "This company is on your blocked list."})
+                    continue
+                job, _ = await jobs.ingest(db, uid, discover.to_job_in(it), profile=profile, weights=weights)  # saved either way
+                emails = it.get("hr_emails") or []
+                if not emails:
+                    results.append({**row, "status": "no_contact", "url": link, "message": "No contact email — apply on the career site"})
+                    continue
+                if await _already_applied(db, uid, it["company"], it["title"]):
+                    results.append({**row, "status": "skipped", "to": emails[0], "url": link,
+                                    "message": "Already applied to this company and role."})
+                    continue
+                if sum(r["status"] == "sent" for r in results) >= room:
+                    results.append({**row, "status": "skipped", "to": emails[0], "url": link,
+                                    "message": f"Today's limit of {s.auto_apply.daily_max} auto-applications is reached."})
+                    continue
+                text = it.get("description") or job.get("description") or ""
+                out = await studio._build(db, uid, ResumeIn(jd_text=text, title=it["title"], company=it["company"], job_id=job["_id"]),
+                                          text, it["title"], it["company"])
+                subject, mail = studio_apply.draft(profile, out["title"], it["company"], out["ats"].get("matched_keywords", []), text)
+                try:
+                    a = await apps.create(db, uid, job["_id"], out["id"], None)
+                except HTTPException:
+                    a = await db[c.APPLICATIONS].find_one({"user_id": uid, "job_id": job["_id"]})
+                    await db[c.APPLICATIONS].update_one({"_id": a["_id"]}, {"$set": {"resume_id": out["id"]}})
+                to = emails[0]
+                await studio.apply_send(ApplySendIn(resume_id=out["id"], to=to, subject=subject, body=mail, format="pdf",
+                                                    template=out.get("template")), user={"_id": uid}, db=db)
+                mid = ((await db[c.RESUMES].find_one({"_id": out["id"]}) or {}).get("sent") or [{}])[-1].get("message_id")
+                await db[c.APPLICATIONS].update_one({"_id": a["_id"]}, {"$set": {
+                    "applied_via": "email", "apply_email": to, "apply_message_id": mid, "feed_apply": True,
+                    "email_record": {"to": to, "subject": subject, "message_id": mid, "resume_id": out["id"], "at": utcnow()}}})
+                a = await db[c.APPLICATIONS].find_one({"_id": a["_id"]})
+                await apps.mark_applied(db, a, source="email")
+                run.actions.append(f"Emailed {to} for {it['title']} at {it['company']}")
+                results.append({**row, "status": "sent", "to": to, "url": link, "message": f"Emailed {to} with your tailored resume attached"})
+            except HTTPException as exc:
+                d = exc.detail
+                detail = d if isinstance(d, str) else (d or {}).get("message") or (d or {}).get("status") or "Failed"
+                run.errors.append(f"{it['company']}: {detail}")
+                results.append({**row, "status": "error", "url": link, "message": str(detail)})
+            except ValueError as exc:
+                results.append({**row, "status": "error", "url": link, "message": str(exc)})
+        run.output = {"sent": sum(r["status"] == "sent" for r in results)}
+    counts = {k: sum(r["status"] == k for r in results) for k in ("sent", "no_contact", "skipped", "error")}
+    await log_action(db, user_id=uid, action="jobs.feed_apply", entity="application", details=counts)
+    await notify(db, user_id=uid, kind="feed_auto_apply",
+                 title=f"Auto-apply: {counts['sent']} emailed, {counts['no_contact']} to apply on career sites",
+                 body=f"{counts['skipped']} skipped, {counts['error']} failed.", link="/applications",
+                 details=[{"platform": r["company"], "field": r["role"], "after": r["message"]} for r in results])
+    return {"results": results, **counts}

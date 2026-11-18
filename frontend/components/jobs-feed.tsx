@@ -14,9 +14,10 @@ import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
 import type { AutoApplySettings, AutomationSettings, FeedItem, JobFeed, JobScope } from "@/types/api";
 import { cn } from "@/utils/cn";
-import { formatDate, timeAgo } from "@/utils/format";
+import { timeAgo, updatedAgo } from "@/utils/format";
 
 type Tab = "foryou" | "country" | "remote" | "walk_in" | "alerts" | "careers" | "abroad";
+type ApplyResult = { id: string; status: "sent" | "no_contact" | "skipped" | "error"; company: string; role: string; to?: string; url?: string; message: string };
 type Msg = { tone: "success" | "error" | "warning" | "info"; text: React.ReactNode } | null;
 
 const PAGE = 60;
@@ -55,6 +56,10 @@ export function JobsFeed({ onSaved }: { onSaved: () => void }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [limit, setLimit] = useState(PAGE);
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [applyOut, setApplyOut] = useState<ApplyResult[] | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(t); }, []);
 
   async function load(refresh = false) {
     if (refresh) setRefreshing(true);
@@ -106,6 +111,33 @@ export function JobsFeed({ onSaved }: { onSaved: () => void }) {
   const allPicked = selectable.length > 0 && selectable.every((i) => picked.has(i.id));
   const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
+  const chosen = useMemo(() => (data?.items ?? []).filter((i) => picked.has(i.id)), [data, picked]);
+  const withMail = chosen.filter((i) => i.hr_emails?.length);
+  const noMail = chosen.filter((i) => !i.hr_emails?.length);
+
+  async function applyNow() {
+    setConfirming(false);
+    setSaving(true);
+    setMsg(null);
+    setApplyOut(null);
+    try {
+      const results: ApplyResult[] = [];
+      const ids = chosen.map((i) => i.id);
+      for (let i = 0; i < ids.length; i += 10) {
+        const r = await request<{ results: ApplyResult[] }>("/jobs/feed/apply", { method: "POST", body: { ids: ids.slice(i, i + 10), confirm: true } });
+        results.push(...r.results);
+      }
+      setApplyOut(results);
+      setPicked(new Set());
+      onSaved();
+      await load();
+    } catch (e) {
+      setMsg({ tone: "error", text: e instanceof Error ? e.message : "Auto-apply failed" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function save(prepare: boolean) {
     const ids = [...picked];
     if (!ids.length) return;
@@ -153,7 +185,7 @@ export function JobsFeed({ onSaved }: { onSaved: () => void }) {
           </CardTitle>
           <CardDescription className="mt-1">
             {data?.roles.length ? <>Every job for <b>{data.roles.join(", ")}</b>{data.country && <> in <b>{data.country}</b></>} and remote, fetched automatically from job sites, company career pages and your LinkedIn / Naukri / Indeed job alerts. </> : "Fetched automatically for your target roles and country. "}
-            {data?.built_at && <span>Updated {formatDate(data.built_at)}.</span>}
+            {data?.built_at && <span>Updated {updatedAgo(data.built_at, now)}. Refreshes every 15 minutes.</span>}
           </CardDescription>
         </div>
         <Button variant="outline" size="sm" disabled={refreshing || loading} onClick={() => load(true)}>
@@ -218,11 +250,60 @@ export function JobsFeed({ onSaved }: { onSaved: () => void }) {
               <span className="text-muted-foreground">{shown.length} job(s) · {picked.size} selected</span>
               <div className="ml-auto flex gap-2">
                 <Button size="sm" variant="outline" disabled={!picked.size || saving} onClick={() => save(false)}>Save selected</Button>
-                <Button size="sm" disabled={!picked.size || saving} onClick={() => save(true)}>
+                <Button size="sm" disabled={!picked.size || saving} onClick={() => setConfirming(true)}>
                   {saving ? <DotRing size={18} dots={12} /> : <Bot />} {saving ? "Working…" : `Auto-apply to ${picked.size || ""} selected`}
                 </Button>
               </div>
             </div>
+
+            {confirming && (
+              <div role="dialog" aria-label="Confirm auto-apply" className="rounded-2xl border p-4 text-sm" style={{ borderColor: "var(--tone-orange)" }}>
+                <p className="font-medium">{withMail.length} job(s) will be emailed now from your Gmail, each with a tailored ATS resume attached.</p>
+                {withMail.length > 0 && <ul className="mt-2 list-disc pl-5 text-muted-foreground">{withMail.map((i) => <li key={i.id}>{i.company} · {i.title} → {i.hr_emails?.[0]}</li>)}</ul>}
+                {noMail.length > 0 && (
+                  <>
+                    <p className="mt-3 font-medium">{noMail.length} job(s) have no contact email. They will be saved and listed with their career-page links.</p>
+                    <ul className="mt-2 list-disc pl-5 text-muted-foreground">{noMail.map((i) => <li key={i.id}>{i.company} · {i.title}</li>)}</ul>
+                  </>
+                )}
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" onClick={applyNow} disabled={!withMail.length && !noMail.length}>{withMail.length ? `Send ${withMail.length} application(s)` : "Save and list links"}</Button>
+                  <Button size="sm" variant="outline" onClick={() => setConfirming(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            {applyOut && (
+              <div className="rounded-2xl border p-4 text-sm">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">Auto-apply results</p>
+                  <button type="button" className="text-xs text-muted-foreground underline" onClick={() => setApplyOut(null)}>Dismiss</button>
+                </div>
+                {(["sent", "no_contact", "skipped", "error"] as const).map((k) => {
+                  const rows = applyOut.filter((r) => r.status === k);
+                  if (!rows.length) return null;
+                  const title = { sent: "Sent", no_contact: "No contact email — apply on career site", skipped: "Skipped", error: "Errors" }[k];
+                  return (
+                    <div key={k} className="mt-3">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">{title} ({rows.length})</p>
+                      <ul className="mt-1 flex flex-col gap-1">
+                        {rows.map((r) => (
+                          <li key={r.id} className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{r.company}</span><span>{r.role}</span>
+                            <span className="text-muted-foreground">{k === "sent" ? r.to : r.message}</span>
+                            {k !== "sent" && r.url && (
+                              <a href={r.url} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
+                                Open career page <ExternalLink className="size-3" />
+                              </a>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <ul className="flex flex-col gap-2">
               {shown.length === 0 && (
@@ -276,6 +357,7 @@ function FeedRow({ i, picked, onToggle }: { i: FeedItem; picked: boolean; onTogg
         <span className="flex shrink-0 flex-col items-end gap-1 text-xs">
           {i.saved_job_id && <Link href={`/jobs/${i.saved_job_id}`} className="font-medium underline">Saved</Link>}
           {i.url && <a href={i.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>View <ExternalLink className="size-3" /></a>}
+          {!i.hr_emails?.length && <span className="text-[11px] text-muted-foreground">No contact email</span>}
         </span>
       </label>
     </li>

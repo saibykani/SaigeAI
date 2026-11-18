@@ -81,3 +81,15 @@ export function timeAgo(iso: string | null | undefined): string | null {
   if (days < 365) return `${Math.floor(days / 30)} month${days < 60 ? "" : "s"} ago`;
   return formatDate(iso);
 }
+
+/** "just now", "5 min ago", "2 h ago" for a timestamp (timestamps without a zone are UTC). */
+export function updatedAgo(iso: string | null | undefined, now: number = Date.now()): string | null {
+  if (!iso) return null;
+  const t = Date.parse(/(Z|[+-]\d\d:?\d\d)$/.test(iso) ? iso : `${iso}Z`);
+  if (Number.isNaN(t)) return null;
+  const min = Math.max(0, Math.floor((now - t) / 60_000));
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  const h = Math.floor(min / 60);
+  return h < 24 ? `${h} h ago` : (timeAgo(iso) ?? "");
+}

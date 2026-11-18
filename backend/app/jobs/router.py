@@ -287,6 +287,22 @@ async def feed_save(body: FeedSaveIn, user: dict = Depends(get_current_user), db
     return {"saved": len(saved), "job_ids": saved, "applications_prepared": prepared, "missing": missing}
 
 
+class FeedApplyIn(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=50)
+    confirm: bool = False
+
+
+@router.post("/feed/apply")
+async def feed_apply(body: FeedApplyIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Auto-apply to the selected feed jobs. The user's confirm click is the approval: jobs with an HR email are emailed from
+    their Gmail with a tailored resume; jobs without one are saved and returned with their career-page link."""
+    from app.jobs import auto_apply
+
+    if not body.confirm:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Confirm to send. Applications are only emailed after you approve them.")
+    return await auto_apply.apply_feed(db, user["_id"], body.ids)
+
+
 @router.post("/auto-apply/run")
 async def auto_apply_run(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     from app.jobs import auto_apply

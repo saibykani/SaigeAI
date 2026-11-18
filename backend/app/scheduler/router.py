@@ -56,7 +56,7 @@ async def cron_careers(authorization: str | None = Header(default=None), db: Asy
 @router.post("/live/tick")
 async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     """Called every minute while Saige is open: syncs Gmail (portal alerts, invites, recruiter mail) when the
-    last sync is ~1 min old, and refreshes Jobs for you when it is over 5 minutes old."""
+    last sync is ~1 min old, and rebuilds Jobs for you when it is over 15 minutes old."""
     from datetime import timedelta
 
     from app.automation.service import is_allowed
@@ -82,8 +82,12 @@ async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorData
     doc = await db[c.JOB_FEED].find_one({"_id": uid}, {"built_at": 1})
     if await is_allowed(db, uid, "job_discovery") and (not doc or now - as_utc(doc["built_at"]) > feed.FEED_TTL):
         try:
-            built = await feed.build(db, uid)
+            import asyncio
+
+            built = await asyncio.wait_for(feed.build(db, uid), timeout=feed.TICK_BUDGET_S)  # keep the request fast
             out["feed"] = {"jobs": len(built.get("items", []))}
+        except TimeoutError:
+            out["feed"] = {"error": "refresh is taking long; the old list stays until it finishes"}
         except Exception as exc:  # noqa: BLE001
             out["feed"] = {"error": str(exc)[:200]}
     return out
