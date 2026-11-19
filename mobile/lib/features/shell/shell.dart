@@ -219,7 +219,7 @@ class _NavBarState extends State<_NavBar> with SingleTickerProviderStateMixin {
         height: 68,
         decoration: BoxDecoration(
           color: C.surface,
-          borderRadius: BorderRadius.circular(34),
+          borderRadius: BorderRadius.circular(99),
           border: Border.all(color: C.line),
           boxShadow: C.dark ? const [BoxShadow(color: Color(0x99000000), blurRadius: 30, offset: Offset(0, 10))] : [BoxShadow(color: const Color(0xFF1F2A44).withValues(alpha: 0.14), blurRadius: 30, offset: const Offset(0, 10))],
         ),
@@ -241,7 +241,7 @@ class _NavBarState extends State<_NavBar> with SingleTickerProviderStateMixin {
                   width: (right - left).clamp(20.0, w * 3),
                   top: 8,
                   bottom: 8,
-                  child: Container(decoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(26))),
+                  child: Container(decoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(99))),
                 );
               },
             ),

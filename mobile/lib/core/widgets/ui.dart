@@ -50,7 +50,7 @@ class PrimaryButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
-        height: 54,
+        height: 56,
         padding: const EdgeInsets.symmetric(horizontal: 22),
         decoration: BoxDecoration(
           color: onTap == null && !busy ? C.surface3 : (ghost ? C.primarySoft : C.primary),
@@ -62,7 +62,7 @@ class PrimaryButton extends StatelessWidget {
             DotRing(size: 24, dots: 10, color: fg)
           else ...[
             if (icon != null) ...[Icon(icon, size: 19, color: fg), const SizedBox(width: 8)],
-            Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 15.5, letterSpacing: -0.2)),
+            Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 16)),
           ],
         ]),
       ),
@@ -108,7 +108,7 @@ void toast(BuildContext context, String msg, {bool error = false}) {
       behavior: SnackBarBehavior.floating,
       backgroundColor: C.dark ? C.surface3 : C.surface,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.sm), side: BorderSide(color: error ? C.bad : C.line)),
+      shape: StadiumBorder(side: BorderSide(color: error ? C.bad : C.line)),
       content: Row(children: [
         Icon(error ? Icons.error_outline : Icons.check_circle_outline, color: error ? C.bad : C.good, size: 20),
         const SizedBox(width: 10),

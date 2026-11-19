@@ -177,7 +177,7 @@ class _Swatch extends StatelessWidget {
           Container(
             height: 22,
             padding: const EdgeInsets.symmetric(horizontal: 6),
-            decoration: BoxDecoration(color: p.surface, borderRadius: BorderRadius.circular(8), border: Border.all(color: p.line)),
+            decoration: BoxDecoration(color: p.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: p.line)),
             child: Row(children: [
               Container(width: 10, height: 10, decoration: BoxDecoration(color: p.primary, shape: BoxShape.circle)),
               const SizedBox(width: 5),

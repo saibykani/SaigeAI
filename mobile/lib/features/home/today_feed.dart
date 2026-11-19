@@ -426,7 +426,7 @@ class _Card extends StatelessWidget {
           Container(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(color: it.color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: it.color.withValues(alpha: 0.15), shape: BoxShape.circle),
             child: Icon(it.icon, color: it.color, size: 22),
           ),
           const SizedBox(width: 12),

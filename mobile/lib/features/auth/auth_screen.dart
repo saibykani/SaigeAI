@@ -117,9 +117,9 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
         filled: true,
         fillColor: Colors.white.withValues(alpha: 0.07),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _edge)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _edge)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.white, width: 1.6)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(99), borderSide: BorderSide(color: _edge)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(99), borderSide: BorderSide(color: _edge)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(99), borderSide: const BorderSide(color: Colors.white, width: 1.6)),
         labelStyle: TextStyle(color: _sub),
         floatingLabelStyle: const TextStyle(color: Colors.white),
       );
@@ -169,7 +169,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                                       ..rotateY(math.sin(a) * 0.35)
                                       ..rotateX(math.cos(a) * 0.12),
                                     child: Container(
-                                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), boxShadow: [
+                                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(30), boxShadow: [
                                         BoxShadow(color: Colors.white.withValues(alpha: 0.18 + 0.14 * math.sin(a * 2).abs()), blurRadius: 34, spreadRadius: 2),
                                       ]),
                                       child: child,

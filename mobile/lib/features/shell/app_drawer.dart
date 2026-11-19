@@ -348,7 +348,7 @@ class _Header extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(26)),
+          decoration: BoxDecoration(color: C.primarySoft, borderRadius: BorderRadius.circular(99)),
           child: Row(children: [
             ListenableBuilder(
               listenable: setup,

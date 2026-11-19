@@ -195,7 +195,7 @@ class _Bar extends StatelessWidget {
             duration: const Duration(milliseconds: 900),
             curve: Curves.easeOutCubic,
             builder: (_, p, _) => ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(value: p, minHeight: 8, backgroundColor: C.surface3, valueColor: AlwaysStoppedAnimation(scoreColor(v))),
             ),
           ),

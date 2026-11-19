@@ -384,7 +384,7 @@ class _Stamp extends StatelessWidget {
         angle: angle,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(border: Border.all(color: c, width: 3), borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(border: Border.all(color: c, width: 3), borderRadius: BorderRadius.circular(22)),
           child: Text(t, style: TextStyle(color: c, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 2)),
         ),
       );
@@ -420,7 +420,7 @@ class _JobCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(34),
+        borderRadius: BorderRadius.circular(40),
         border: Border.all(color: C.line),
         color: C.surface,
         boxShadow: C.dark ? const [BoxShadow(color: Color(0x99000000), blurRadius: 24, offset: Offset(0, 12))] : C.shadow,

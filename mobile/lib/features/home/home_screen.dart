@@ -234,7 +234,7 @@ class _Hero extends StatelessWidget {
         const SizedBox(height: 18),
         Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(color: C.surface, borderRadius: BorderRadius.circular(18), boxShadow: C.shadow),
+          decoration: BoxDecoration(color: C.surface, borderRadius: BorderRadius.circular(R.md), boxShadow: C.shadow),
           child: Row(children: [
             _HeroStat('Applied', applied, C.blue),
             Container(width: 1, height: 30, color: C.line),
@@ -280,7 +280,7 @@ class _Action extends StatelessWidget {
             Container(
               width: 58,
               height: 58,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 26),
             ),
             const SizedBox(height: 8),

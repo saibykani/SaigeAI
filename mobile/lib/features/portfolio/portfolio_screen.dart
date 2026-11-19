@@ -132,7 +132,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(color: C.surface, borderRadius: BorderRadius.circular(R.md), border: Border.all(color: on ? C.primary : C.line, width: on ? 2 : 1), boxShadow: C.shadow),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(10), child: Row(children: [for (final c in cols.take(4)) Expanded(child: ColoredBox(color: c, child: const SizedBox.expand()))]))),
+                          Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(20), child: Row(children: [for (final c in cols.take(4)) Expanded(child: ColoredBox(color: c, child: const SizedBox.expand()))]))),
                           const SizedBox(height: 8),
                           Text('${t['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: on ? C.primary : C.text)),
                         ]),

@@ -74,7 +74,7 @@ class _PressableState extends State<Pressable> with SingleTickerProviderStateMix
     _c.animateTo(1, duration: const Duration(milliseconds: 90), curve: Curves.easeOut);
   }
 
-  void _up() => _c.animateTo(0, duration: const Duration(milliseconds: 520), curve: const SpringCurve(damping: 6, freq: 2.5));
+  void _up() => _c.animateTo(0, duration: const Duration(milliseconds: 700), curve: const SpringCurve(damping: 4, freq: 3));
 
   @override
   void dispose() {
@@ -106,7 +106,7 @@ class _PressableState extends State<Pressable> with SingleTickerProviderStateMix
             ..setEntry(3, 2, 0.002)
             ..rotateX(-_tilt.dy * 0.12 * v)
             ..rotateY(_tilt.dx * 0.12 * v)
-            ..scaleByDouble(s, s, 1, 1);
+            ..scaleByDouble(s + 0.06 * v, s - 0.05 * v, 1, 1); // jelly squash: wider + flatter while pressed
           return Transform(alignment: Alignment.center, transform: m, child: child);
         },
       ),

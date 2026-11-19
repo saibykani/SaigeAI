@@ -107,9 +107,10 @@ class C {
 }
 
 class R {
-  static const sm = 14.0;
-  static const md = 20.0;
-  static const lg = 28.0;
+  // Bubbly: everything is soft and round. Buttons, chips and fields are full pills.
+  static const sm = 22.0;
+  static const md = 30.0;
+  static const lg = 36.0;
 }
 
 ThemeData buildTheme([Palette? p]) {
@@ -121,25 +122,39 @@ ThemeData buildTheme([Palette? p]) {
     colorScheme: scheme,
     splashFactory: NoSplash.splashFactory,
     highlightColor: Colors.transparent,
-    textTheme: base.textTheme.apply(bodyColor: p.text, displayColor: p.text, fontFamily: 'Roboto'),
+    textTheme: base.textTheme.apply(bodyColor: p.text, displayColor: p.text, fontFamily: 'Nunito'),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: p.surface2,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       hintStyle: TextStyle(color: p.muted),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide(color: p.primary, width: 1.6)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide(color: p.primary, width: 2)),
     ),
+    filledButtonTheme: const FilledButtonThemeData(style: ButtonStyle(shape: WidgetStatePropertyAll(StadiumBorder()), padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 24, vertical: 16)))),
+    elevatedButtonTheme: const ElevatedButtonThemeData(style: ButtonStyle(shape: WidgetStatePropertyAll(StadiumBorder()))),
+    outlinedButtonTheme: const OutlinedButtonThemeData(style: ButtonStyle(shape: WidgetStatePropertyAll(StadiumBorder()))),
+    textButtonTheme: const TextButtonThemeData(style: ButtonStyle(shape: WidgetStatePropertyAll(StadiumBorder()))),
+    iconButtonTheme: const IconButtonThemeData(style: ButtonStyle(shape: WidgetStatePropertyAll(CircleBorder()))),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(shape: CircleBorder()),
+    chipTheme: base.chipTheme.copyWith(shape: const StadiumBorder()),
+    cardTheme: CardThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.lg))),
+    dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.lg + 4))),
+    bottomSheetTheme: const BottomSheetThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(R.lg + 8)))),
+    popupMenuTheme: PopupMenuThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.md))),
+    snackBarTheme: const SnackBarThemeData(shape: StadiumBorder()),
+    listTileTheme: ListTileThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.md))),
   );
 }
 
 class T {
-  static TextStyle get display => TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -1.2, height: 1.05, color: C.text);
-  static TextStyle get h1 => TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.9, color: C.text);
-  static TextStyle get h2 => TextStyle(fontSize: 19, fontWeight: FontWeight.w600, letterSpacing: -0.4, color: C.text);
+  static TextStyle get display => TextStyle(fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: -0.8, height: 1.05, color: C.text);
+  static TextStyle get h1 => TextStyle(fontSize: 29, fontWeight: FontWeight.w800, letterSpacing: -0.6, color: C.text);
+  static TextStyle get h2 => TextStyle(fontSize: 19.5, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: C.text);
   static TextStyle get body => TextStyle(fontSize: 15, height: 1.4, color: C.text);
   static TextStyle get small => TextStyle(fontSize: 13, height: 1.35, color: C.muted);
-  static TextStyle get label => TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, letterSpacing: 1.1, color: C.muted);
+  static TextStyle get label => TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 1.1, color: C.muted);
 }
 
 Color scoreColor(num? s) {
