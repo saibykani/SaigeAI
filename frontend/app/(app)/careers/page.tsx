@@ -543,7 +543,7 @@ export default function CareersPage() {
     <div>
       <PageHeader
         title="Career portals"
-        description="Openings for your roles, read straight from 170+ company career pages, including Razorpay, Paytm, InMobi and other Indian startups: FAANG, big tech, IT services (HCLTech, Wipro, Capgemini, Accenture, PwC, EY), banks, AI labs, fintech, SaaS, pharma and Indian product companies. Each job shows how well you fit and what to change in your resume."
+        description="Openings for your roles, read straight from 180+ company career pages, including Razorpay, Paytm, InMobi and other Indian startups: FAANG, big tech, IT services (HCLTech, Wipro, Capgemini, Accenture, PwC, EY), banks, AI labs, fintech, SaaS, pharma and Indian product companies. Each job shows how well you fit and what to change in your resume."
       />
       <div className="mb-6 inline-flex rounded-full border bg-muted/50 p-1 text-sm" role="tablist">
         {([["jobs", "Jobs"], ["manual", "Manual testing"], ["learning", "Saige learning"], ["companies", "Companies"], ["settings", "Daily email"]] as [View, string][]).map(([k, label]) => (

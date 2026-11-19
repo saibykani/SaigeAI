@@ -41,7 +41,7 @@ export const MANUAL: ManualSection[] = [
     steps: [
       "Type a role and city in the search box at the top of any page (e.g. “QA engineer in Hyderabad”).",
       "Jobs → Jobs for you lists fresh roles for your target roles and country, ranked by match %.",
-      "Jobs → Career portals scans 65+ company career sites (Greenhouse, Lever, Workday, Amazon…). Filter by company, location and fit.",
+      "Jobs → Career portals scans 180+ company career sites (Greenhouse, Lever, Workday, Amazon…). Filter by company, location and fit.",
       "On LinkedIn, Naukri or any job page, open the Saige extension and press “Save to Saige” or “Score this job”.",
       "Open a job to see why it matches, which skills you have and which are missing.",
     ],
@@ -133,7 +133,7 @@ export const MANUAL: ManualSection[] = [
   },
   {
     id: "portfolio", title: "Portfolio website", href: "/portfolio", tone: "purple", image: "/help/portfolio.jpg",
-    purpose: "Turn your verified profile into a personal website with one of 31 templates (5 fully animated) and publish it to your own link.",
+    purpose: "Turn your verified profile into a personal website with one of 41 templates (5 fully animated) and publish it to your own link.",
     steps: [
       "Resume & ATS → Portfolio. The preview shows YOUR profile in the selected template (switch desktop / mobile at the top).",
       "Pick any template. The ★ ones are fully animated (Developer Pro, Particle Network, Scroll Story, Quality Report, Cyber Glitch). Every template has scroll animations, a typing role line and a cursor glow. Others: Hacker Terminal, Code Editor, Retro OS 95, RPG Character Sheet, Career Playlist, Chat Interview, Boarding Pass, Metro Map and more.",
@@ -232,7 +232,7 @@ export const MANUAL: ManualSection[] = [
   },
   {
     id: "careers", title: "Career portals", href: "/careers", tone: "orange", image: "/help/jobs.jpg",
-    purpose: "Openings for your roles read straight from 170+ company career sites (Amazon, NVIDIA, Salesforce, Accenture, HCLTech, Wipro, Capgemini, PwC, EY, JPMorgan, Oracle, ServiceNow, Stripe, OpenAI and more), each with your fit and what to change in your resume.",
+    purpose: "Openings for your roles read straight from 180+ company career sites (Amazon, NVIDIA, Salesforce, Accenture, HCLTech, Wipro, Capgemini, PwC, EY, JPMorgan, Oracle, ServiceNow, Stripe, OpenAI and more), each with your fit and what to change in your resume.",
     steps: [
       "Open Jobs → Career portals and click “Scan now” (it also runs every day at your chosen time).",
       "Filter by fit, country, city, remote, company, company group (FAANG, big tech, IT services, banks, AI labs, fintech, SaaS, healthcare, India), posting date and your experience.",

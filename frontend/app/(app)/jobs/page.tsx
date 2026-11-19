@@ -162,7 +162,7 @@ function SourcesCard({ onSynced }: { onSynced: () => void }) {
       <CardHeader>
         <CardTitle>Career pages you follow</CardTitle>
         <CardDescription>
-          Saige already checks 17 companies' career pages for you. Add more companies that publish jobs on Greenhouse, Lever or Ashby. The board id is in their careers URL, e.g.
+          Saige also scans the Career portals catalogue. Add more companies that publish jobs on Greenhouse, Lever or Ashby. The board id is in their careers URL, e.g.
           boards.greenhouse.io/<b>stripe</b>.
         </CardDescription>
       </CardHeader>
