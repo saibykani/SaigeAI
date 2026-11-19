@@ -33,6 +33,7 @@ import { useMemo, useState } from "react";
 import { useT } from "@/components/i18n";
 import { Notice } from "@/components/app-shell";
 import { CoachCard, HistoryTable } from "@/components/coach-history";
+import { EmailTrackingCard } from "@/components/email-tracking";
 import { GhostingList, GoalsCard } from "@/components/growth";
 import { InsightsGrid } from "@/components/insights";
 import { CountKpi, RateKpi, TrendKpi } from "@/components/kpi";
@@ -215,6 +216,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
         <CoachCard />
+        <EmailTrackingCard />
         <HistoryTable />
       </div>
 

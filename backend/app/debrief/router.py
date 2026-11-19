@@ -162,6 +162,10 @@ async def send_thank_you(debrief_id: str, body: SendIn, user: dict = Depends(get
         mid = await outbound.send(integ, user.get("name") or "", body.to.strip(), subject, text)
     except GmailError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+    from app.email import tracking
+
+    await tracking.record_sent(db, uid, kind="thank_you", to=body.to.strip(), subject=subject, message_id=mid, company=d.get("company"),
+                               role=d.get("role"), template_name="Thank-you")
     await db[c.DEBRIEFS].update_one({"_id": debrief_id}, {"$set": {
         "thank_you.status": "sent", "thank_you.to": body.to.strip(), "thank_you.subject": subject, "thank_you.body": text,
         "thank_you.sent_at": utcnow(), "thank_you.message_id": mid}})

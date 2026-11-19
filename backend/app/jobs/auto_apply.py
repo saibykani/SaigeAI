@@ -138,6 +138,10 @@ async def send_application_email(db: AsyncIOMotorDatabase, uid: str, a: dict) ->
                               a["apply_email"], subject, body, attachments)
     except GmailError as exc:
         raise HTTPException(502, str(exc)) from exc
+    from app.email import tracking
+
+    await tracking.record_sent(db, uid, kind="auto_apply", to=a["apply_email"], subject=subject, message_id=mid, company=a.get("company"),
+                               role=a.get("role"), template_name="Auto-apply", application_id=a["_id"])
     await db[c.APPLICATIONS].update_one({"_id": a["_id"]}, {"$set": {"applied_via": "email", "apply_message_id": mid,
                                                                      "updated_at": utcnow()}})
     return {"to": a["apply_email"], "subject": subject, "attached_resume": bool(attachments)}

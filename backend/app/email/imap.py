@@ -157,7 +157,8 @@ def _fetch_sync(address: str, app_password: str, limit: int, skip: set[str], que
                     body = raw.decode("utf-8", errors="ignore")[:20000]
                 out.append({"gmail_id": gmail_id, "thread_id": thread_id, "sender": sender,
                             "subject": str(msg["Subject"] or ""), "body": body[:20000], "received_ms": received_ms,
-                            "snippet": re.sub(r"\s+", " ", body)[:160]})
+                            "snippet": re.sub(r"\s+", " ", body)[:160],
+                            "in_reply_to": str(msg["In-Reply-To"] or ""), "references": str(msg["References"] or "")})
             except (imaplib.IMAP4.error, ValueError, TypeError):
                 skipped["unreadable"] += 1
         stats["skipped"] = skipped

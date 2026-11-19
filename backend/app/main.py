@@ -22,6 +22,7 @@ from app.connectors.router import router as connectors_router
 from app.database import mongo
 from app.debrief.router import router as debrief_router
 from app.email.router import router as email_router
+from app.email.tracking_router import router as email_tracking_router
 from app.extension.router import router as extension_router
 from app.growth.router import router as growth_router
 from app.hiring.router import router as hiring_router
@@ -51,6 +52,8 @@ from app.services.whatsapp_cloud import router as whatsapp_cloud_router
 from app.services.whatsapp_cloud import webhook_router as whatsapp_webhook_router
 from app.studio.router import router as studio_router
 from app.suggestions.router import router as suggestions_router
+from app.superadmin.router import announcements_router
+from app.superadmin.router import router as superadmin_router
 from app.utils import new_id
 
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -145,12 +148,13 @@ def create_app() -> FastAPI:
     for r in (auth_router, profile_sync_router, profile_router, resume_ai_router, resumes_router, jobs_router, careers_router, studio_router,
               ml_router,
               interview_brief_router,
-              applications_router, portals_router, email_router, analytics_router, activity_router, assistant_router, linkedin_posts_router,
+              applications_router, portals_router, email_router, email_tracking_router,
+              analytics_router, activity_router, assistant_router, linkedin_posts_router,
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
               recruiters_router, extension_router, suggestions_router, growth_router, offers_router,
               connectors_router, portfolio_router, telegram_router,
               push_router,
-              learning_router, whatsapp_cloud_router, whatsapp_webhook_router, admin_router, hiring_router,
+              learning_router, whatsapp_cloud_router, whatsapp_webhook_router, admin_router, superadmin_router, announcements_router, hiring_router,
               mock_interview_router, debrief_router):
         api.include_router(r)
     app.include_router(api)

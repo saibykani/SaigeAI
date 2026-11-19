@@ -116,6 +116,7 @@ async def fetch_messages(token: str, query: str = DEFAULT_QUERY, limit: int = 50
                 "gmail_id": msg["id"], "thread_id": msg.get("threadId"), "sender": _header(hs, "From"),
                 "subject": _header(hs, "Subject"), "body": _body(msg.get("payload", {}))[:20000],
                 "received_ms": int(msg.get("internalDate", "0")), "snippet": msg.get("snippet", ""),
+                "in_reply_to": _header(hs, "In-Reply-To"), "references": _header(hs, "References"),
             })
         return out
 

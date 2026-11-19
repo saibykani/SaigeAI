@@ -7,6 +7,7 @@ import { Notice, PageHeader } from "@/components/app-shell";
 import { CountKpi, RateKpi } from "@/components/kpi";
 import { OutreachCard, ROLE_LABEL } from "@/components/outreach";
 import { ContactsSection } from "@/components/recruiter-contacts";
+import { EmailTrackingView } from "@/components/email-tracking";
 import { EmailTemplatesManager } from "@/components/recruiter-templates";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import type { ContactRole, Outreach, OutreachKind, OutreachStats, OutreachTempla
 import { cn } from "@/utils/cn";
 import { formatDate, formatDateTime } from "@/utils/format";
 
-type Tab = "contacts" | "queue" | "sent" | "find" | "templates" | "emailtpl" | "add";
+type Tab = "contacts" | "queue" | "sent" | "tracking" | "find" | "templates" | "emailtpl" | "add";
 type Msg = { tone: "success" | "error" | "warning"; text: string } | null;
 
 const TEMPLATE_TONE: Record<string, string> = {
@@ -174,7 +175,7 @@ export default function RecruitersPage() {
   const stats = useApi<OutreachStats>("/outreach/stats");
   const tpls = useApi<OutreachTemplate[]>("/outreach/templates");
   const [tab, setTab] = useState<Tab>("contacts");
-  useEffect(() => { if (new URLSearchParams(window.location.search).get("tab") === "find") setTab("find"); }, []);
+  useEffect(() => { const q = new URLSearchParams(window.location.search).get("tab"); if (q === "find" || q === "tracking") setTab(q); }, []);
   const [msg, setMsg] = useState<Msg>(null);
   const [form, setForm] = useState(EMPTY);
   const [showAdd, setShowAdd] = useState(false);
@@ -210,6 +211,7 @@ export default function RecruitersPage() {
     { id: "contacts", label: "Contacts", count: s?.contacts },
     { id: "queue", label: "Queue", count: queue.length },
     { id: "sent", label: "Sent & replies", count: sent.length },
+    { id: "tracking", label: "Reply tracking" },
     { id: "find", label: "Find people" },
     { id: "emailtpl", label: "Bulk email templates" },
     { id: "templates", label: "Email & WhatsApp templates" },
@@ -350,6 +352,8 @@ export default function RecruitersPage() {
           ) : sent.map((o, i) => <OutreachCard key={o.id + o.updated_at} item={o} onChange={reload} delay={i * 40} />)}
         </div>
       )}
+
+      {tab === "tracking" && <EmailTrackingView />}
 
       {tab === "find" && <FindPeople onAdded={reload} />}
 

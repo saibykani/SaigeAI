@@ -685,6 +685,19 @@ async def send_now(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str, *, 
     except GmailError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
     await _record_sent(db, user_id, doc, contact, now, via="gmail", message_id=message_id)
+    from app.email import tracking
+
+    tname = None
+    if doc.get("template_id"):
+        try:
+            from app.recruiters.bulk import get_template
+
+            tname = (await get_template(db, user_id, doc["template_id"])).get("name")
+        except HTTPException:
+            tname = None
+    await tracking.record_sent(db, user_id, kind="bulk" if doc.get("template_id") else "outreach", to=contact["email"], subject=doc["subject"],
+                               message_id=message_id, company=contact.get("company") or doc.get("company"), template_id=doc.get("template_id"),
+                               template_name=tname or f"Outreach: {doc['kind']}", outreach_id=doc["_id"], contact_id=contact["_id"], sent_at=now)
     await notify(db, user_id=user_id, kind="outreach_sent", title=f"Email sent to {contact['name']}",
                  body=f"{doc['subject']} · {contact['company']}. Follow-ups are scheduled and stop if they reply.",
                  link="/recruiters")

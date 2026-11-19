@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Building2, ShieldCheck, Globe, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, Smartphone, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
+import { ShieldAlert, Briefcase, Building2, ShieldCheck, Globe, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, Smartphone, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,6 +13,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { UserMenu } from "@/components/user-menu";
 import { AssistantBubble, Orb } from "@/components/assistant";
 import { Celebrate } from "@/components/celebrate";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 import { Button } from "@/components/ui/button";
 import { useLiveSync } from "@/hooks/use-api";
 import { request } from "@/services/api";
@@ -181,6 +182,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
+          {user.is_super_admin && (
+            <Link href="/super-admin" className="mb-1 flex items-center gap-3 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/15">
+              <ShieldAlert className="size-4" aria-hidden /> Super Admin
+            </Link>
+          )}
           {GROUPS.filter((g) => navFor(user.role).some((n) => n.group === g)).map((g) => (
             <div key={g}>
               <p className="px-4 pb-1 pt-3 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/70">{t(g)}</p>
@@ -257,6 +263,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* key on pathname replays the entrance animation on every navigation */}
         <main id="main" tabIndex={-1} key={pathname} className="animate-rise relative outline-none w-full max-w-[1440px] flex-1 px-4 py-6 md:px-6 md:py-7">
           <InstallCard />
+          <AnnouncementBanner />
           <SubNav pathname={pathname}>{children}</SubNav>
         </main>
         <footer className="flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-3 border-t px-4 py-4 text-xs text-muted-foreground md:px-6">

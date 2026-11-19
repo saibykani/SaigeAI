@@ -104,7 +104,10 @@ the user can revoke it in their Google account at any time.
 
 Set `SUPER_ADMIN_EMAIL` in the backend project (`saige-ai-api`) to the owner's sign-in email. That account always
 has admin rights (sidebar **Admin**, `/admin`, `/api/admin/*`) and is the only one that can promote or demote admins.
-Other admins can switch users between jobseeker and recruiter and disable or enable non-admin accounts.
+`SUPER_ADMIN_EMAIL` accepts a comma-separated list and defaults to the owner (`saibykani07@gmail.com`), so the owner is
+super admin even before the variable is set. Super admins also get the separate **Super Admin** console (`/super-admin`,
+`/api/superadmin/*`): users, audit log + CSV, feature usage, system health (feature flags shown as configured yes/no, never values)
+and announcements. Other admins can switch users between jobseeker and recruiter and disable or enable non-admin accounts.
 
 ### Daily scheduler: CRON_SECRET
 

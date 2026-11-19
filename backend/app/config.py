@@ -65,8 +65,8 @@ class Settings(BaseSettings):
     linkedin_client_secret: str | None = None
     linkedin_api_version: str = "202509"
 
-    # The account with this email is the super admin (admin dashboard, can promote/demote admins).
-    super_admin_email: str | None = None
+    # Comma-separated super admin emails (admin dashboard, can promote/demote admins). The owner is always included.
+    super_admin_email: str | None = "saibykani07@gmail.com"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

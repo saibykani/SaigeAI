@@ -1165,3 +1165,17 @@ export interface CompanyInsights {
   days: number | null; min_sample: number; overall: InsightGroup; companies: InsightGroup[]; sources: InsightGroup[];
   best_source: InsightPick | null; worst_source: InsightPick | null; best_interview_source: InsightPick | null; enough_data: boolean;
 }
+
+export interface Announcement { id: string; title: string; message: string; level: "info" | "warning" | "success"; created_at: string | null; expires_at: string | null }
+
+export interface TrackingGroup { key: string | number; sent: number; replies: number; bounced: number; interviews: number; rate: number | null; enough_data: boolean }
+export interface EmailTrackingStats {
+  sent: number; replied: number; bounced: number; reply_rate: number | null; median_reply_hours: number | null; min_sample: number;
+  by_template: TrackingGroup[]; by_kind: TrackingGroup[]; by_domain: TrackingGroup[]; by_weekday: TrackingGroup[]; by_hour: TrackingGroup[]; timezone: string;
+}
+export interface SentEmail {
+  id: string; kind: string; template_id: string | null; template_name: string | null; to_email: string; company: string | null; role: string | null;
+  subject: string; thread_id: string | null; status: "sent" | "replied" | "bounced"; sent_at: string; replied_at: string | null;
+  reply_email_id: string | null; reply_category: string | null; reply_snippet: string | null; gmail_url: string | null;
+}
+export interface SentEmailPage { items: SentEmail[]; total: number; page: number; page_size: number }

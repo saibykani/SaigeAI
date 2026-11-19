@@ -477,6 +477,10 @@ async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), 
         run.actions.append(f"Emailed {body.to} with {fname}")
         run.output = {"message_id": mid}
     now = utcnow()
+    from app.email import tracking
+
+    await tracking.record_sent(db, uid, kind="apply", to=body.to, subject=body.subject, message_id=mid, company=d.get("company"),
+                               role=d.get("target_title"), template_name="Application email", sent_at=now)
     await db[c.RESUMES].update_one({"_id": d["_id"]}, {"$push": {"sent": {"to": body.to, "subject": body.subject, "at": now,
                                                                          "message_id": mid, "file": fname}}})
     await log_action(db, user_id=uid, action="studio.application_sent", entity="resume", entity_id=d["_id"],

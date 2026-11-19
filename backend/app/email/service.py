@@ -12,7 +12,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.applications import service as apps
 from app.database import collections as c
-from app.email import classifier
+from app.email import classifier, tracking
 from app.jobs.dedupe import company_key
 from app.profiles.service import get_profile
 from app.services.audit import log_action
@@ -79,10 +79,13 @@ async def ingest(db: AsyncIOMotorDatabase, user_id: str, msg: dict, *, source: s
         app = await match_application(db, user_id, msg["subject"], msg["body"], extracted)
     from app.recruiters.service import on_inbound_email  # local import avoids a cycle
 
+    tracked = await tracking.find_match(db, user_id, msg, sender_email=extracted.get('sender_email') or '', received=received)
+
     outreach = None
-    if category == "Other" and not app and not classifier.is_job_related(msg["sender"], msg["subject"], msg["body"]):
+    if category == "Other" and not app and not tracked[0] and not classifier.is_job_related(msg["sender"], msg["subject"], msg["body"]):
         outreach = await on_inbound_email(db, user_id, extracted.get("sender_email"), msg["body"])  # a reply or bounce to your outreach
-    if category == "Other" and not app and not outreach and not classifier.is_job_related(msg["sender"], msg["subject"], msg["body"]):
+    if (category == "Other" and not app and not outreach and not tracked[0]
+            and not classifier.is_job_related(msg["sender"], msg["subject"], msg["body"])):
         # Bank, shopping, course and account mail: remembered (so it isn't fetched again) but not stored or shown.
         doc = {"_id": new_id(), "user_id": user_id, "gmail_id": msg.get("gmail_id"), "sender": msg["sender"][:200],
                "subject": msg["subject"][:200], "body": "", "received_at": received, "category": "Skipped", "hidden": True,
@@ -94,6 +97,7 @@ async def ingest(db: AsyncIOMotorDatabase, user_id: str, msg: dict, *, source: s
     doc = {"_id": new_id(), "user_id": user_id, "gmail_id": msg.get("gmail_id"), "thread_id": msg.get("thread_id"),
            "sender": msg["sender"], "subject": msg["subject"], "body": msg["body"][:20000],
            "snippet": msg.get("snippet"), "received_at": received, "category": category,
+           "in_reply_to": msg.get("in_reply_to"), "references": msg.get("references"),
            "confidence": round(confidence, 2), "signals": signals, "extracted": extracted,
            "application_id": app["_id"] if app else None, "action": None, "source": source, "created_at": utcnow()}
     await db[c.EMAILS].insert_one(doc)
@@ -113,6 +117,9 @@ async def ingest(db: AsyncIOMotorDatabase, user_id: str, msg: dict, *, source: s
         from app.email.auto_reply import draft_reply
 
         await draft_reply(db, user_id, doc)
+    if tracked[0] and await tracking.on_inbound(db, user_id, msg, email_id=doc["_id"], category=category, sender_email="", received=received,
+                                                 match=tracked):
+        action = action or ("email_bounced" if tracked[1] else "email_reply_tracked")
     if action:
         await db[c.EMAILS].update_one({"_id": doc["_id"]}, {"$set": {"action": action}})
         doc["action"] = action
