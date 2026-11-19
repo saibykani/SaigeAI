@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "ai.saige.saige_mobile"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

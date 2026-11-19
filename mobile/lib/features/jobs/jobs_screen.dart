@@ -205,7 +205,7 @@ class _Avatar extends StatelessWidget {
         width: size,
         height: size,
         alignment: Alignment.center,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(size * 0.32), color: C.surface3, border: Border.all(color: C.line)),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: C.surface3, border: Border.all(color: C.line)),
         child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: TextStyle(fontSize: size * 0.42, fontWeight: FontWeight.w700, color: C.primary)),
       );
 }
