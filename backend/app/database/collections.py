@@ -50,6 +50,7 @@ INTEGRATIONS = "integrations"
 API_TOKENS = "api_tokens"
 
 JOB_FEED = "job_feed"
+FEED_HIDDEN = "feed_hidden"  # jobs the user swiped away in the mobile feed: {_id: uid:item_id, user_id, item_id, title, company, at}
 JOB_ALERTS = "job_alerts"
 PORTAL_LINKS = "portal_links"
 LINKEDIN_POSTS = "linkedin_posts"
@@ -86,7 +87,7 @@ USER_SCOPED = [
     JOB_FEED, JOB_ALERTS, PORTAL_LINKS, LINKEDIN_POSTS, CAREER_JOBS, CAREER_SCANS, ML_MODELS, ML_SAMPLES, ML_RUNS, GOALS, SAVED_OFFERS,
     CALENDAR_FEEDS, PORTFOLIOS,
     MOCK_INTERVIEWS, LEARNING_PATHS, WHATSAPP_SESSIONS, PUSH_SUBSCRIPTIONS,
-    RECRUITER_JOBS, TALENT_REQUESTS, DEBRIEFS, QUESTION_BANK, EMAIL_TEMPLATES, ADMIN_NOTES, USER_TAGS,
+    RECRUITER_JOBS, TALENT_REQUESTS, DEBRIEFS, QUESTION_BANK, EMAIL_TEMPLATES, ADMIN_NOTES, USER_TAGS, FEED_HIDDEN,
 ]
 
 # Exported to the user but excluded from the JSON export (binary / security material).

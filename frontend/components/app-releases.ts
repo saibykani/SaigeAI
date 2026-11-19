@@ -5,6 +5,16 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "2.2",
+    date: "2026-11-19T12:00:00+05:30",
+    size: "31 MB",
+    notes: [
+      "Phone alerts: get a notification when a recruiter replies or an email bounces, checked about every 15 minutes in the background (uses a separate read-only token; turn it off in Settings > Phone alerts)",
+      "Approve from the notification: applications and recruiter emails that are ready to send show Approve & send and Not now buttons. Nothing is sent without your tap. A new Approvals screen in the side menu shows a badge with what is waiting",
+      "Swipe the live job feed: Jobs > For you now shows the live Jobs for you feed. Swipe right to save a job and prepare an application, swipe left to hide it (with Undo). Cards show HR email, walk-in and source tags",
+    ],
+  },
+  {
     version: "2.1",
     date: "2026-11-14T19:25:00+05:30",
     size: "31 MB",

@@ -32,6 +32,7 @@ from app.learning.router import router as learning_router
 from app.linkedin_posts.router import router as linkedin_posts_router
 from app.logging_setup import configure_logging, request_id_var
 from app.ml.router import router as ml_router
+from app.mobile.router import router as mobile_router
 from app.mock_interview.router import router as mock_interview_router
 from app.notifications.router import router as notifications_router
 from app.offers.router import router as offers_router
@@ -153,7 +154,7 @@ def create_app() -> FastAPI:
               automation_router, agent_router, notifications_router, privacy_router, audit_router, scheduler_router,
               recruiters_router, extension_router, suggestions_router, growth_router, offers_router,
               connectors_router, portfolio_router, telegram_router,
-              push_router,
+              push_router, mobile_router,
               learning_router, whatsapp_cloud_router, whatsapp_webhook_router, admin_router, superadmin_router, announcements_router, hiring_router,
               mock_interview_router, debrief_router):
         api.include_router(r)

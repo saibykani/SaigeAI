@@ -1,15 +1,20 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/motion.dart';
 import '../../core/native_bridge.dart';
+import '../../core/pulse.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
+import '../../core/widgets/ui.dart';
 import '../applications/applications_screen.dart';
 import '../assistant/assistant_screen.dart';
 import '../home/home_screen.dart';
 import '../interviews/interview_day_screen.dart';
 import '../jobs/job_share_screen.dart';
 import '../jobs/jobs_screen.dart';
+import '../notifications/approvals_screen.dart';
 import '../roles/hiring_screen.dart';
 import 'app_drawer.dart';
 
@@ -29,7 +34,8 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> with SingleTickerProviderStateMixin {
+class _ShellState extends State<Shell> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  Timer? _pulseTimer;
   final _visited = <int>{0};
   late final AnimationController _swap = AnimationController(vsync: this, duration: const Duration(milliseconds: 380), value: 1);
 
@@ -41,6 +47,35 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin {
     Session.I.refreshUnread();
     NativeBridge.I.pending.addListener(_launch);
     WidgetsBinding.instance.addPostFrameCallback((_) => _launch());
+    WidgetsBinding.instance.addObserver(this);
+    if (!Session.I.isRecruiter) {
+      Pulse.I.pending.addListener(_notification);
+      Pulse.I.start().then((_) => _notification());
+      _pulseTimer = Timer.periodic(const Duration(minutes: 3), (_) => Pulse.I.check());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed && !Session.I.isRecruiter) Pulse.I.check();
+  }
+
+  /// A tap or button on a Saige notification. "Approve & send" is the user's approval for that one item.
+  Future<void> _notification() async {
+    final p = Pulse.I.pending.value;
+    if (!mounted || p == null) return;
+    Pulse.I.pending.value = null;
+    final (action, payload) = p;
+    final i = payload.indexOf(':');
+    final type = i < 0 ? payload : payload.substring(0, i);
+    final id = i < 0 ? '' : payload.substring(i + 1);
+    if (action == 'approve' && id.isNotEmpty && (type == 'outreach' || type == 'application')) {
+      final msg = await Pulse.I.approve(type, id);
+      if (mounted) toast(context, msg);
+      return;
+    }
+    if (action == 'skip') return;
+    pushDepth(context, (_) => const ApprovalsScreen());
   }
 
   /// Shortcuts, the widget and share intents land here (only a signed-in Shell consumes them).
@@ -78,6 +113,9 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin {
   void dispose() {
     ShellNav.index.removeListener(_changed);
     NativeBridge.I.pending.removeListener(_launch);
+    Pulse.I.pending.removeListener(_notification);
+    WidgetsBinding.instance.removeObserver(this);
+    _pulseTimer?.cancel();
     _swap.dispose();
     super.dispose();
   }

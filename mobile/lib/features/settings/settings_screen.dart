@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/api.dart';
 import '../../core/config.dart';
 import '../../core/motion.dart';
+import '../../core/pulse.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
@@ -31,6 +32,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   String _lang = AppConfig.lang;
+  bool _alerts = AppConfig.getFlag(Pulse.flag);
 
   @override
   Widget build(BuildContext context) => FeatureScaffold(
@@ -50,6 +52,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 AppConfig.setLang(v);
                 tick();
               }),
+            ),
+          ),
+          const Stagger(index: 3, child: SectionTitle('Phone alerts')),
+          Stagger(
+            index: 3,
+            child: GlassCard(
+              radius: R.md,
+              padding: const EdgeInsets.fromLTRB(18, 8, 10, 8),
+              child: Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Replies and approvals', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text('Notify me about recruiter replies and items ready to send. Checks about every 15 minutes.', style: T.small),
+                  ]),
+                ),
+                Switch(
+                  value: _alerts,
+                  onChanged: (v) async {
+                    setState(() => _alerts = v);
+                    await AppConfig.setFlag(Pulse.flag, v);
+                    v ? await Pulse.I.start() : await Pulse.I.stop();
+                  },
+                ),
+              ]),
             ),
           ),
           const Stagger(index: 4, child: SectionTitle('Automation')),

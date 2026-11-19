@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'core/config.dart';
 import 'core/native_bridge.dart';
+import 'core/pulse.dart';
 import 'core/session.dart';
 import 'core/theme.dart';
 import 'core/theme_controller.dart';
@@ -16,6 +17,7 @@ Future<void> main() async {
   await AppConfig.load();
   await Session.I.init();
   await NativeBridge.I.init();
+  await Pulse.I.initPlugin();
   runApp(const SaigeApp());
 }
 

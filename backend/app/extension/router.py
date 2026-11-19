@@ -60,13 +60,14 @@ class PageIn(BaseModel):
 
 @router.get("/auth/tokens")
 async def list_tokens(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    docs = await db[c.API_TOKENS].find({"user_id": user["_id"], "revoked": False}).sort("created_at", DESCENDING).to_list(20)
+    q = {"user_id": user["_id"], "revoked": False, "scopes": {"$ne": "pulse"}}
+    docs = await db[c.API_TOKENS].find(q).sort("created_at", DESCENDING).to_list(20)
     return [token_out(d) for d in docs]
 
 
 @router.post("/auth/tokens", status_code=201)
 async def create_token(body: TokenIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    if await db[c.API_TOKENS].count_documents({"user_id": user["_id"], "revoked": False}) >= MAX_TOKENS:
+    if await db[c.API_TOKENS].count_documents({"user_id": user["_id"], "revoked": False, "scopes": {"$ne": "pulse"}}) >= MAX_TOKENS:
         raise HTTPException(status.HTTP_409_CONFLICT, f"You can have at most {MAX_TOKENS} active tokens. Revoke one first.")
     token = PAT_PREFIX + secrets.token_urlsafe(32)
     doc = {"_id": new_id(), "user_id": user["_id"], "name": body.name, "token_hash": _hash(token),
@@ -90,20 +91,24 @@ async def revoke_token(token_id: str, user: dict = Depends(get_current_user), db
 
 # ------------------------------------------------------------------ extension endpoints (PAT only)
 
-async def token_user(creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
-                     db: AsyncIOMotorDatabase = Depends(db_dep)) -> dict:
-    bad = HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or revoked extension token",
-                        headers={"WWW-Authenticate": "Bearer"})
+async def scoped_user(creds: HTTPAuthorizationCredentials | None, db: AsyncIOMotorDatabase, scope: str) -> dict:
+    """User behind a personal access token that carries `scope` (old tokens without scopes are extension tokens)."""
+    bad = HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or revoked token", headers={"WWW-Authenticate": "Bearer"})
     if creds is None or not creds.credentials.startswith(PAT_PREFIX):
         raise bad
     tok = await db[c.API_TOKENS].find_one({"token_hash": _hash(creds.credentials), "revoked": False})
-    if not tok:
+    if not tok or scope not in (tok.get("scopes") or ["extension"]):
         raise bad
     user = await db[c.USERS].find_one({"_id": tok["user_id"], "is_active": True})
     if not user:
         raise bad
     await db[c.API_TOKENS].update_one({"_id": tok["_id"]}, {"$set": {"last_used_at": utcnow()}})
     return user
+
+
+async def token_user(creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+                     db: AsyncIOMotorDatabase = Depends(db_dep)) -> dict:
+    return await scoped_user(creds, db, "extension")
 
 
 def _job_in(page: PageIn) -> JobIn:

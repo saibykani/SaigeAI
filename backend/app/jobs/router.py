@@ -232,8 +232,11 @@ async def job_feed(refresh: bool = False, user: dict = Depends(get_current_user)
     uid = user["_id"]
     if not await is_allowed(db, uid, "job_discovery"):
         raise HTTPException(status.HTTP_423_LOCKED, "Job discovery is paused. Resume it in Automation settings.")
+    from app.mobile.router import hidden_ids
+
     doc = await feed.get(db, uid, refresh=refresh)
-    items = doc.get("items", [])
+    hidden = await hidden_ids(db, uid)
+    items = [i for i in doc.get("items", []) if i.get("id") not in hidden]
     await feed.mark_saved(db, uid, items)
     counts = {"all": len(items), "country": sum(i["scope"] == "country" for i in items),
               "remote": sum(i["scope"] == "remote" for i in items), "abroad": sum(i["scope"] == "abroad" for i in items),

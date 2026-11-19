@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'api.dart';
 import 'config.dart';
+import 'pulse.dart';
 
 enum AuthState { unknown, signedOut, signedIn }
 
@@ -81,6 +82,7 @@ class Session extends ChangeNotifier {
       _afterToken(await api.post('/auth/register', data: {'name': name.trim(), 'email': email.trim(), 'password': password, 'role': role}));
 
   Future<void> logout() async {
+    await Pulse.I.signOut();
     try {
       await api.post('/auth/logout');
     } catch (_) {}

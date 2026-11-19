@@ -7,10 +7,12 @@ import 'package:material_ui/material_ui.dart';
 import '../shell/app_drawer.dart';
 import '../../core/api.dart';
 import '../../core/motion.dart';
+import '../../core/pulse.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/dot_ring.dart';
+import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
 import 'job_detail_screen.dart';
@@ -26,6 +28,12 @@ class _JobsScreenState extends State<JobsScreen> {
     final r = await Session.I.api.get('/jobs', query: {'limit': 150, 'sort': 'score'});
     return asList(asMap(r)['items']);
   });
+  /// The live "Jobs for you" feed (not yet saved): the swipe deck.
+  final _feed = Resource<List<Map<String, dynamic>>>(() async {
+    final r = asMap(await Session.I.api.get('/jobs/feed'));
+    return asList(r['items']).where((i) => i['saved_job_id'] == null).toList();
+  });
+  final _deck = GlobalKey<_DeckState>();
   String _seg = 'deck'; // deck | all | saved
   bool _finding = false;
 
@@ -33,40 +41,64 @@ class _JobsScreenState extends State<JobsScreen> {
   void initState() {
     super.initState();
     _jobs.load();
+    _feed.load();
   }
 
   @override
   void dispose() {
     _jobs.dispose();
+    _feed.dispose();
     super.dispose();
   }
 
-  Future<void> _setStatus(Map<String, dynamic> job, String status) async {
-    final list = [...?_jobs.data]..removeWhere((j) => j['id'] == job['id']);
-    _jobs.set(list);
-    try {
-      await Session.I.api.post('/jobs/${job['id']}/status', data: {'status': status});
-      if (mounted) toast(context, status == 'shortlisted' ? 'Shortlisted ${job['company']}' : 'Hidden');
-    } on ApiException catch (e) {
-      if (mounted) toast(context, e.message, error: true);
-    }
-  }
-
-  /// Pulls fresh matches from the job APIs and saves the best ones to the deck. Nothing is applied.
+  /// Rebuilds the feed from the job APIs and career pages. Nothing is applied.
   Future<void> _find() async {
     setState(() => _finding = true);
     try {
-      final feed = asMap(await Session.I.api.get('/jobs/feed', query: {'refresh': true}));
-      final items = asList(feed['items']).where((i) => i['saved'] != true).toList()
-        ..sort((a, b) => ((b['score'] as num?) ?? 0).compareTo((a['score'] as num?) ?? 0));
-      final ids = items.take(25).map((i) => i['id']).toList();
-      if (ids.isNotEmpty) await Session.I.api.post('/jobs/feed/save', data: {'ids': ids, 'prepare_applications': false});
-      await _jobs.load();
-      if (mounted) toast(context, ids.isEmpty ? 'No new jobs right now. Check back soon.' : 'Added ${ids.length} fresh jobs');
+      final r = asMap(await Session.I.api.get('/jobs/feed', query: {'refresh': true}));
+      final fresh = asList(r['items']).where((i) => i['saved_job_id'] == null).toList();
+      _feed.set(fresh);
+      if (mounted) toast(context, fresh.isEmpty ? 'No new jobs right now. Check back soon.' : '${fresh.length} jobs for your roles');
     } on ApiException catch (e) {
       if (mounted) toast(context, e.message, error: true);
     }
     if (mounted) setState(() => _finding = false);
+  }
+
+  /// Swipe on a feed card. Right: save the job and prepare an application (nothing is sent; jobs with an HR email
+  /// show up in Approvals). Left: hide it (Undo brings it back).
+  Future<void> _decideFeed(Map<String, dynamic> it, String decision) async {
+    final id = '${it['id']}';
+    try {
+      if (decision == 'shortlisted') {
+        await Session.I.api.post('/jobs/feed/save', data: {'ids': [id], 'prepare_applications': true});
+        _jobs.load();
+        final email = (it['hr_emails'] as List?)?.isNotEmpty == true;
+        if (email) Pulse.I.check();
+        if (mounted) toast(context, email ? 'Saved. Application ready: approve it in Approvals' : 'Saved to your jobs. Application prepared');
+      } else {
+        await Session.I.api.post('/mobile/feed/hide', data: {'id': id});
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: C.dark ? C.surface3 : C.surface,
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.sm), side: BorderSide(color: C.line)),
+            content: Text('Hidden ${it['company'] ?? ''}', style: TextStyle(color: C.text)),
+            action: SnackBarAction(label: 'Undo', textColor: C.primary, onPressed: () async {
+              _deck.currentState?.undo();
+              try {
+                await Session.I.api.post('/mobile/feed/unhide', data: {'id': id});
+              } catch (_) {}
+            }),
+          ));
+      }
+    } on ApiException catch (e) {
+      _deck.currentState?.undo();
+      if (mounted) toast(context, e.message, error: true);
+    }
   }
 
   @override
@@ -88,15 +120,16 @@ class _JobsScreenState extends State<JobsScreen> {
           }),
           const SizedBox(height: 8),
           Expanded(
-            child: ResourceView<List<Map<String, dynamic>>>(
+            child: _seg == 'deck'
+                ? ResourceView<List<Map<String, dynamic>>>(
+                    resource: _feed,
+                    builder: (context, items) => items.isEmpty
+                        ? EmptyState(icon: Icons.style_rounded, title: 'Deck cleared', body: 'Fetch fresh jobs for your roles from job boards and company career pages. Nothing is applied without you.', action: 'Find fresh jobs', onAction: _find)
+                        : _Deck(key: _deck, jobs: items, onDecision: _decideFeed, onOpen: (j) => j['url'] != null ? openUrl(context, '${j['url']}') : null),
+                  )
+                : ResourceView<List<Map<String, dynamic>>>(
               resource: _jobs,
               builder: (context, all) {
-                final fresh = all.where((j) => j['status'] == 'new').toList();
-                if (_seg == 'deck') {
-                  return fresh.isEmpty
-                      ? EmptyState(icon: Icons.style_rounded, title: 'Deck cleared', body: 'Fetch fresh matches from job boards and company career pages. Nothing is applied without you.', action: 'Find fresh jobs', onAction: _find)
-                      : _Deck(key: ValueKey(fresh.length > 40 ? 'many' : 'deck'), jobs: fresh, onDecision: _setStatus, onOpen: (j) => pushDepth(context, (_) => JobDetailScreen(jobId: '${j['id']}', heroTag: 'job-${j['id']}')));
-                }
                 final shown = _seg == 'saved' ? all.where((j) => j['status'] == 'saved' || j['status'] == 'shortlisted').toList() : all;
                 return LogoRefreshView(onRefresh: _jobs.load, slivers: [
                   if (shown.isEmpty)
@@ -240,6 +273,17 @@ class _DeckState extends State<_Deck> with SingleTickerProviderStateMixin {
     _crossed = false;
   }
 
+  @override
+  void didUpdateWidget(_Deck old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.jobs, widget.jobs)) _top = 0; // a fresh feed starts from the first card
+  }
+
+  /// Brings the last swiped card back (Undo, or the server refused the action).
+  void undo() {
+    if (_top > 0 && mounted) setState(() => _top--);
+  }
+
   void _swipe(bool right) {
     if (_top >= widget.jobs.length || _flying) return;
     _off.value = Offset(right ? 30 : -30, 0);
@@ -318,8 +362,8 @@ class _DeckState extends State<_Deck> with SingleTickerProviderStateMixin {
               transform: m,
               child: Stack(fit: StackFit.expand, children: [
                 child!,
-                Positioned(top: 26, left: 26, child: Opacity(opacity: p.clamp(0.0, 1.0), child: _Stamp('SHORTLIST', C.good, -0.2))),
-                Positioned(top: 26, right: 26, child: Opacity(opacity: (-p).clamp(0.0, 1.0), child: _Stamp('SKIP', C.bad, 0.2))),
+                Positioned(top: 26, left: 26, child: Opacity(opacity: p.clamp(0.0, 1.0), child: _Stamp('SAVE', C.good, -0.2))),
+                Positioned(top: 26, right: 26, child: Opacity(opacity: (-p).clamp(0.0, 1.0), child: _Stamp('HIDE', C.bad, 0.2))),
               ]),
             );
           },
@@ -405,9 +449,12 @@ class _JobCard extends StatelessWidget {
           if (job['remote'] == true) Pill('Remote', color: C.good),
           if (sal.isNotEmpty) Pill(sal, color: C.text),
           if (job['experience_required'] != null) Pill('${job['experience_required']} yrs'),
+          if ((job['hr_emails'] as List?)?.isNotEmpty == true) Pill('HR email', color: C.good),
+          if (job['walk_in'] != null) Pill('Walk-in', color: C.warn),
+          if (job['source_label'] != null) Pill('${job['source_label']}'),
         ]),
         const SizedBox(height: 8),
-        Center(child: Text('Tap for details', style: T.small)),
+        Center(child: Text(job['url'] != null && job['status'] == null ? 'Tap to open the posting' : 'Tap for details', style: T.small)),
       ]),
     );
   }

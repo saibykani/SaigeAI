@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/motion.dart';
+import '../../core/pulse.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
@@ -17,6 +18,7 @@ import '../mock/mock_setup_screen.dart';
 import '../network/linkedin_posts_screen.dart';
 import '../network/outreach_screen.dart';
 import '../network/recruiters_screen.dart';
+import '../notifications/approvals_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../portfolio/portfolio_screen.dart';
 import '../profile/profile_optimiser_screen.dart';
@@ -118,7 +120,7 @@ class _BurgerPainter extends CustomPainter {
 }
 
 class _It {
-  const _It(this.id, this.label, this.icon, this.color, {this.tab, this.build, this.url, this.badge = false});
+  const _It(this.id, this.label, this.icon, this.color, {this.tab, this.build, this.url, this.badge = false, this.counter});
   final String id;
   final String label;
   final IconData icon;
@@ -127,6 +129,7 @@ class _It {
   final Widget Function()? build; // pushes a screen
   final String? url; // opens in the browser
   final bool badge;
+  final ValueNotifier<int>? counter; // badge source (defaults to unread notifications)
 }
 
 class _Sec {
@@ -152,6 +155,7 @@ List<_Sec> _sections() {
       _Sec('home', 'Home', Icons.home_rounded, [
         _It('dash', 'Dashboard', Icons.space_dashboard_rounded, C.primary, tab: 0),
         _It('notes', 'Notifications', Icons.notifications_active_rounded, C.warn, build: () => const NotificationsScreen(), badge: true),
+        _It('approvals', 'Approvals', Icons.task_alt_rounded, C.good, build: () => const ApprovalsScreen(), badge: true, counter: Pulse.I.waiting),
       ]),
     if (!rec) ...[
       _Sec('jobs', 'Job search', Icons.work_rounded, [
@@ -434,7 +438,7 @@ class _Tile extends StatelessWidget {
             Expanded(child: Text(it.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: C.text))),
             if (it.badge)
               ValueListenableBuilder<int>(
-                valueListenable: Session.I.unread,
+                valueListenable: it.counter ?? Session.I.unread,
                 builder: (context, n, _) => n <= 0
                     ? const SizedBox.shrink()
                     : Container(
