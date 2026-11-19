@@ -114,7 +114,7 @@ export const AdminCtx = createContext<AdminRange>({ days: 30, from: "", to: "", 
 /** The date range chosen in the top bar; every widget appends `qs` to its API path. */
 export const useAdmin = () => useContext(AdminCtx);
 
-export const num = (n: number | null | undefined) => (n === null || n === undefined ? "—" : n.toLocaleString());
+export const num = (n: number | null | undefined) => (n === null || n === undefined ? "â€”" : n.toLocaleString());
 export const shortDay = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 export type Kpi = { value: number | null; previous: number | null; change_pct: number | null; series: number[]; unit: string };
@@ -149,11 +149,11 @@ export function KpiCard({ label, kpi, invert, hint }: { label: string; kpi: Kpi 
     <div className="flex flex-col gap-1 rounded-2xl border bg-card p-4">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-2xl font-semibold tabular-nums">{kpi?.value === null || !kpi ? "—" : `${num(kpi.value)}${kpi.unit}`}</span>
+        <span className="text-2xl font-semibold tabular-nums">{kpi?.value === null || !kpi ? "â€”" : `${num(kpi.value)}${kpi.unit}`}</span>
         {kpi && <Delta pct={kpi.change_pct} invert={invert} />}
       </div>
       <Spark points={kpi?.series ?? []} />
-      <p className="text-[11px] text-muted-foreground">{hint ?? (kpi ? `previous period: ${kpi.previous === null ? "—" : `${num(kpi.previous)}${kpi.unit}`}` : "")}</p>
+      <p className="text-[11px] text-muted-foreground">{hint ?? (kpi ? `previous period: ${kpi.previous === null ? "â€”" : `${num(kpi.previous)}${kpi.unit}`}` : "")}</p>
     </div>
   );
 }
@@ -178,7 +178,7 @@ export function BarList({ rows, empty = "No data in this range." }: { rows: { na
     <ul className="flex flex-col gap-2">
       {rows.map((r) => (
         <li key={r.name} className="text-sm">
-          <div className="flex justify-between gap-2"><span className="truncate">{r.name}</span><span className="tabular-nums text-muted-foreground">{num(r.count)}{r.note ? ` · ${r.note}` : ""}</span></div>
+          <div className="flex justify-between gap-2"><span className="truncate">{r.name}</span><span className="tabular-nums text-muted-foreground">{num(r.count)}{r.note ? ` Â· ${r.note}` : ""}</span></div>
           <div className="mt-1 h-1.5 rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: `${(r.count / max) * 100}%`, background: "var(--chart-2)" }} /></div>
         </li>
       ))}
