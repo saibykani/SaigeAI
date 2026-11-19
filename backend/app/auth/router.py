@@ -2,7 +2,7 @@ import logging
 import secrets
 
 import httpx
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
@@ -14,6 +14,7 @@ from app.auth.service import (
     authenticate,
     clear_refresh_cookie,
     create_user,
+    detect_platform,
     issue_session,
     revoke_session,
     rotate_session,
@@ -40,11 +41,11 @@ OAUTH_ROLE_COOKIE = "saige_signup_role"
 
 @router.post("/register", response_model=TokenResponse, status_code=201,
              dependencies=[Depends(auth_limiter.dependency("register"))])
-async def register(body: RegisterRequest, response: Response,
+async def register(body: RegisterRequest, response: Response, request: Request,
                    db: AsyncIOMotorDatabase = Depends(db_dep)):
     user = await create_user(db, email=body.email, name=body.name, password=body.password, role=body.role)
     await seed_profile(db, user["_id"], body)
-    return await issue_session(db, user, response)
+    return await issue_session(db, user, response, request=request)
 
 
 async def seed_profile(db: AsyncIOMotorDatabase, uid: str, body: RegisterRequest) -> None:
@@ -76,18 +77,18 @@ async def seed_profile(db: AsyncIOMotorDatabase, uid: str, body: RegisterRequest
 
 @router.post("/login", response_model=TokenResponse,
              dependencies=[Depends(auth_limiter.dependency("login"))])
-async def login(body: LoginRequest, response: Response, db: AsyncIOMotorDatabase = Depends(db_dep)):
+async def login(body: LoginRequest, response: Response, request: Request, db: AsyncIOMotorDatabase = Depends(db_dep)):
     user = await authenticate(db, body.email, body.password)
     await log_action(db, user_id=user["_id"], action="auth.login", entity="user",
-                     entity_id=user["_id"], details={"provider": "password"})
-    return await issue_session(db, user, response)
+                     entity_id=user["_id"], details={"provider": "password", **detect_platform(request)})
+    return await issue_session(db, user, response, request=request)
 
 
 @router.post("/refresh", response_model=TokenResponse, dependencies=[Depends(require_csrf_header)])
-async def refresh(response: Response, db: AsyncIOMotorDatabase = Depends(db_dep),
+async def refresh(response: Response, request: Request, db: AsyncIOMotorDatabase = Depends(db_dep),
                   saige_refresh: str | None = Cookie(default=None, alias=REFRESH_COOKIE)):
     try:
-        return await rotate_session(db, saige_refresh, response)
+        return await rotate_session(db, saige_refresh, response, request)
     except HTTPException:
         clear_refresh_cookie(response)
         raise
@@ -140,6 +141,7 @@ async def google_authorize(role: str | None = None):
 
 @router.get("/google/callback")
 async def google_callback(
+    request: Request,
     code: str | None = None, state: str | None = None, error: str | None = None,
     saige_oauth_state: str | None = Cookie(default=None, alias=OAUTH_STATE_COOKIE),
     saige_gmail_link: str | None = Cookie(default=None, alias="saige_gmail_link"),
@@ -181,9 +183,9 @@ async def google_callback(
                                      google_sub=info["sub"],
                                      role="recruiter" if saige_signup_role == "recruiter" else "jobseeker")
     await log_action(db, user_id=user["_id"], action="auth.login", entity="user",
-                     entity_id=user["_id"], details={"provider": "google"})
+                     entity_id=user["_id"], details={"provider": "google", **detect_platform(request)})
     resp = RedirectResponse(f"{s.frontend_url}/auth/callback", status_code=302)
-    await issue_session(db, user, resp)  # sets refresh cookie; frontend then calls /refresh
+    await issue_session(db, user, resp, request=request)  # sets refresh cookie; frontend then calls /refresh
     resp.delete_cookie(OAUTH_STATE_COOKIE, path="/api/auth/google")
     resp.delete_cookie(OAUTH_ROLE_COOKIE, path="/api/auth/google")
     return resp
@@ -196,7 +198,7 @@ class GoogleMobileRequest(BaseModel):
 
 @router.post("/google/mobile", response_model=TokenResponse,
              dependencies=[Depends(auth_limiter.dependency("login"))])
-async def google_mobile(body: GoogleMobileRequest, response: Response, db: AsyncIOMotorDatabase = Depends(db_dep)):
+async def google_mobile(body: GoogleMobileRequest, response: Response, request: Request, db: AsyncIOMotorDatabase = Depends(db_dep)):
     """Native app sign-in: exchange a Google ID token (audience = the web client id) for a Saige session."""
     if not get_settings().google_client_id:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Google sign-in is not configured")
@@ -219,5 +221,6 @@ async def google_mobile(body: GoogleMobileRequest, response: Response, db: Async
             user = await create_user(db, email=email, name=info.get("name") or "", google_sub=info["sub"],
                                      role="recruiter" if body.role == "recruiter" else "jobseeker")
     await log_action(db, user_id=user["_id"], action="auth.login", entity="user",
-                     entity_id=user["_id"], details={"provider": "google", "client": "mobile"})
-    return await issue_session(db, user, response)
+                     entity_id=user["_id"], details={"provider": "google", "client": "mobile", "platform": "app",
+                             "os": detect_platform(request)["os"]})
+    return await issue_session(db, user, response, request=request)

@@ -53,7 +53,7 @@ def close() -> None:
 
 
 # Bump when ensure_indexes changes. Serverless cold starts then skip ~45 create_index round trips.
-INDEX_VERSION = 14
+INDEX_VERSION = 15
 
 
 async def ensure_indexes_once(db: AsyncIOMotorDatabase) -> None:
@@ -65,6 +65,17 @@ async def ensure_indexes_once(db: AsyncIOMotorDatabase) -> None:
 
 
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
+    # Super admin console aggregations (date-range scans across all users).
+    await db[c.AUDIT_LOGS].create_index([("timestamp", DESCENDING)])
+    await db[c.AUDIT_LOGS].create_index([("action", ASCENDING), ("timestamp", DESCENDING)])
+    await db[c.AGENT_RUNS].create_index([("start_time", DESCENDING)])
+    await db[c.USERS].create_index([("created_at", DESCENDING)])
+    await db[c.USERS].create_index([("last_active_at", DESCENDING)])
+    await db[c.APPLICATIONS].create_index([("created_at", DESCENDING)])
+    await db[c.OUTREACH].create_index([("sent_at", DESCENDING)])
+    await db[c.RESUMES].create_index([("user_id", ASCENDING), ("created_at", ASCENDING)])
+    await db[c.ADMIN_NOTES].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+    await db[c.REFRESH_TOKENS].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
     await db[c.USERS].create_index("email", unique=True)
     await db[c.USERS].create_index("google_sub", unique=True, sparse=True)
     await db[c.REFRESH_TOKENS].create_index("user_id")

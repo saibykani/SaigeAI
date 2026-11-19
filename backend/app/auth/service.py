@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from fastapi import HTTPException, Response, status
+from fastapi import HTTPException, Request, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
@@ -94,8 +94,21 @@ def clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(REFRESH_COOKIE, path=REFRESH_COOKIE_PATH)
 
 
+_APP_UA = ("dart/", "okhttp", "saige", "cfnetwork", "flutter")
+
+
+def detect_platform(request: Request | None) -> dict:
+    """Coarse client info from the User-Agent: web vs app, and the OS. The raw User-Agent is never stored."""
+    ua = (request.headers.get("user-agent", "") if request is not None else "").lower()
+    app_header = request is not None and request.headers.get("x-saige-client", "").lower() == "app"
+    platform = "app" if app_header or any(k in ua for k in _APP_UA) else "web"
+    os_name = next((n for k, n in (("android", "Android"), ("iphone", "iOS"), ("ipad", "iOS"), ("windows", "Windows"),
+                                   ("mac os", "macOS"), ("macintosh", "macOS"), ("cros", "ChromeOS"), ("linux", "Linux")) if k in ua), "Unknown")
+    return {"platform": platform, "os": os_name}
+
+
 async def issue_session(
-    db: AsyncIOMotorDatabase, user: dict, response: Response, family_id: str | None = None
+    db: AsyncIOMotorDatabase, user: dict, response: Response, family_id: str | None = None, request: Request | None = None
 ) -> dict:
     s = get_settings()
     refresh = new_opaque_token()
@@ -105,6 +118,7 @@ async def issue_session(
         "user_id": user["_id"],
         "family_id": family_id or new_id(),
         "revoked": False,
+        **detect_platform(request),
         "created_at": utcnow(),
         "expires_at": utcnow() + timedelta(days=s.refresh_token_days),
     })
@@ -113,7 +127,7 @@ async def issue_session(
     return {"access_token": access, "token_type": "bearer", "expires_in": expires_in}
 
 
-async def rotate_session(db: AsyncIOMotorDatabase, refresh: str | None, response: Response) -> dict:
+async def rotate_session(db: AsyncIOMotorDatabase, refresh: str | None, response: Response, request: Request | None = None) -> dict:
     unauthorized = HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired")
     if not refresh:
         raise unauthorized
@@ -129,7 +143,7 @@ async def rotate_session(db: AsyncIOMotorDatabase, refresh: str | None, response
             user = await db[c.USERS].find_one({"_id": record["user_id"], "is_active": True})
             if not user:
                 raise unauthorized
-            return await issue_session(db, user, response, family_id=record["family_id"])
+            return await issue_session(db, user, response, family_id=record["family_id"], request=request)
         # Reuse of a rotated token outside the grace window: assume theft, revoke the family.
         await db[c.REFRESH_TOKENS].update_many(
             {"family_id": record["family_id"]}, {"$set": {"revoked": True, "family_revoked": True}}
@@ -144,7 +158,7 @@ async def rotate_session(db: AsyncIOMotorDatabase, refresh: str | None, response
         raise unauthorized
     await db[c.REFRESH_TOKENS].update_one({"_id": record["_id"]},
                                           {"$set": {"revoked": True, "rotated_at": utcnow()}})
-    return await issue_session(db, user, response, family_id=record["family_id"])
+    return await issue_session(db, user, response, family_id=record["family_id"], request=request)
 
 
 async def revoke_session(db: AsyncIOMotorDatabase, refresh: str | None) -> None:

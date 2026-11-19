@@ -11,12 +11,12 @@ OWNER = "saibykani07@gmail.com"
 async def test_non_super_forbidden_and_owner_default(client, monkeypatch):
     monkeypatch.setattr(get_settings(), "super_admin_email", None)  # unset env: the owner is still super admin
     h = await _reg(client, "plain@example.com")
-    for path in ("/overview", "/users", "/health", "/audit", "/growth", "/features", "/announcements"):
+    for path in ("/overview", "/users", "/health", "/audit", "/funnel", "/cohorts", "/features", "/announcements", "/search?q=ab", "/live"):
         assert (await client.get("/api/superadmin" + path, headers=h)).status_code == 403
     owner = await _reg(client, OWNER)
     assert (await client.get("/api/auth/me", headers=owner)).json()["is_super_admin"] is True
     r = await client.get("/api/superadmin/overview", headers=owner)
-    assert r.status_code == 200 and r.json()["kpis"]["total_users"] == 2
+    assert r.status_code == 200 and r.json()["kpis"]["total_users"]["value"] == 2
 
 
 async def test_comma_list(client, monkeypatch):
@@ -30,7 +30,7 @@ async def test_actions_logged_and_users(client, db):
     await _reg(client, "victim@example.com")
     uid = await _uid(db, "victim@example.com")
     r = await client.get("/api/superadmin/users?q=victim&page_size=25", headers=owner)
-    assert r.json()["total"] == 1 and r.json()["items"][0]["plan"] == "none"
+    assert r.json()["total"] == 1
     d = (await client.get(f"/api/superadmin/users/{uid}", headers=owner)).json()
     assert "password_hash" not in json.dumps(d)
     h = {**owner, **CSRF}

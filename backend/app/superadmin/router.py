@@ -1,5 +1,7 @@
+# ruff: noqa: E501
 """Super admin console (/api/superadmin/*). Only super admins (require_super_admin). Never returns resume contents,
-tokens, password hashes, audit details or the values of environment settings. Every action is audit-logged."""
+tokens, password hashes, audit details or the values of environment settings. Every action is audit-logged.
+Analytics live in analytics.py, the user CRM in crm.py, metric definitions in metrics.py."""
 
 import csv
 import io
@@ -13,274 +15,117 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
 from app.auth.deps import db_dep, get_current_user, require_csrf_header
-from app.auth.roles import effective_role, is_super_admin, require_super_admin
+from app.auth.roles import effective_role, require_super_admin
 from app.config import get_settings
 from app.database import collections as c
+from app.recruiters.service import HARD_DAILY_CAP
 from app.services.audit import log_action
+from app.superadmin import analytics, crm
+from app.superadmin import metrics as m
 from app.utils import as_utc, new_id, start_of_today, utcnow
 
 router = APIRouter(prefix="/superadmin", tags=["superadmin"], dependencies=[Depends(require_super_admin)])
 announcements_router = APIRouter(prefix="/announcements", tags=["announcements"])
+router.include_router(analytics.router)
+router.include_router(crm.router)
 
 
 def _iso(v) -> str | None:
     return as_utc(v).isoformat() if v else None
 
 
-async def _active_ids(db, since) -> set[str]:
-    ids = {u["_id"] for u in await db[c.USERS].find({"last_active_at": {"$gte": since}}, {"_id": 1}).to_list(length=None)}
-    ids |= {u for u in await db[c.AGENT_RUNS].distinct("user_id", {"start_time": {"$gte": since}}) if u}
-    return ids
+# ---------------------------------------------------------------- activity & audit
 
-
-async def _group(db, coll: str, field: str, match: dict, limit: int = 30) -> list[dict]:
-    rows = await db[coll].aggregate([{"$match": match}, {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
-                                     {"$sort": {"count": -1}}, {"$limit": limit}]).to_list(length=None)
-    return [{"name": r["_id"] or "unknown", "count": r["count"]} for r in rows]
-
-
-# ---------------------------------------------------------------- overview + growth + features
-
-@router.get("/overview")
-async def overview(db: AsyncIOMotorDatabase = Depends(db_dep)):
-    now, today = utcnow(), start_of_today()
-    d7, d30 = now - timedelta(days=7), now - timedelta(days=30)
-    users = await db[c.USERS].find({}, {"email": 1, "role": 1, "created_at": 1, "is_active": 1}).to_list(length=None)
-    roles = {"jobseeker": 0, "recruiter": 0, "admin": 0}
-    for u in users:
-        roles[effective_role(u)] += 1
-
-    def joined(t) -> int:
-        return sum(1 for u in users if u.get("created_at") and as_utc(u["created_at"]) >= t)
-
-    sent = {"status": "sent"}
-    kpis = {
-        "total_users": len(users), "jobseekers": roles["jobseeker"], "recruiters": roles["recruiter"], "admins": roles["admin"],
-        "disabled": sum(1 for u in users if u.get("is_active", True) is False),
-        "active_24h": len(await _active_ids(db, now - timedelta(hours=24))), "active_7d": len(await _active_ids(db, d7)),
-        "active_30d": len(await _active_ids(db, d30)),
-        "new_today": joined(today), "new_7d": joined(d7), "new_30d": joined(d30),
-        "resumes": await db[c.RESUMES].count_documents({}),
-        "applications": await db[c.APPLICATIONS].count_documents({}),
-        "applications_sent": await db[c.APPLICATIONS].count_documents({"status": {"$in": ["APPLIED", "INTERVIEW", "OFFER", "OFFERED", "HIRED"]}}),
-        "emails_sent_today": await db[c.OUTREACH].count_documents({**sent, "sent_at": {"$gte": today}}),
-        "emails_sent_7d": await db[c.OUTREACH].count_documents({**sent, "sent_at": {"$gte": d7}}),
-        "agent_runs_30d": await db[c.AGENT_RUNS].count_documents({"start_time": {"$gte": d30}}),
-        "errors_24h": await db[c.AGENT_RUNS].count_documents({"status": "failed", "start_time": {"$gte": now - timedelta(hours=24)}}),
-    }
-    return {"kpis": kpis, "agent_runs_by_type": await _group(db, c.AGENT_RUNS, "agent_name", {"start_time": {"$gte": d30}})}
-
-
-@router.get("/growth")
-async def growth(db: AsyncIOMotorDatabase = Depends(db_dep)):
-    today = start_of_today()
-    days = [(today - timedelta(days=i)).date() for i in range(89, -1, -1)]
-    since = today - timedelta(days=89)
-    series = {d: {"date": d.isoformat(), "signups": 0, "active": 0, "applications": 0} for d in days}
-
-    def bump(ts, key, who=None, seen=None):
-        if not ts:
-            return
-        d = as_utc(ts).date()
-        if d in series:
-            if seen is not None:
-                if (d, who) in seen:
-                    return
-                seen.add((d, who))
-            series[d][key] += 1
-
-    async for u in db[c.USERS].find({"created_at": {"$gte": since}}, {"created_at": 1}):
-        bump(u["created_at"], "signups")
-    seen: set = set()
-    async for r in db[c.AGENT_RUNS].find({"start_time": {"$gte": since}}, {"start_time": 1, "user_id": 1}):
-        bump(r["start_time"], "active", r.get("user_id"), seen)
-    async for a in db[c.APPLICATIONS].find({"created_at": {"$gte": since}}, {"created_at": 1}):
-        bump(a["created_at"], "applications")
-    return {"series": list(series.values())}
-
-
-@router.get("/features")
-async def features(days: int = Query(30, ge=1, le=365), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    since = utcnow() - timedelta(days=days)
-    actions = await _group(db, c.AUDIT_LOGS, "action", {"timestamp": {"$gte": since}}, limit=500)
-    by_feature: dict[str, int] = {}
-    for a in actions:
-        f = a["name"].split(".")[0]
-        by_feature[f] = by_feature.get(f, 0) + a["count"]
-    feats = sorted(({"name": k, "count": v} for k, v in by_feature.items()), key=lambda x: -x["count"])
-    return {"days": days, "features": feats, "top_features": feats[:5], "actions": actions[:40],
-            "agents": await _group(db, c.AGENT_RUNS, "agent_name", {"start_time": {"$gte": since}})}
-
-
-# ---------------------------------------------------------------- users
-
-@router.get("/users")
-async def users(q: str = Query("", max_length=120), role: str = Query("", max_length=20), state: Literal["", "active", "disabled"] = "",
-                sort: Literal["created_at", "last_active_at", "email", "role"] = "created_at", order: Literal["asc", "desc"] = "desc",
-                page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=100), db: AsyncIOMotorDatabase = Depends(db_dep)):
+def _audit_query(user: str, user_id: str, action: str, feature: str, date_from: str, date_to: str, days: int | None) -> dict:
     query: dict = {}
-    if q.strip():
-        rx = {"$regex": re.escape(q.strip()), "$options": "i"}
-        query["$or"] = [{"email": rx}, {"name": rx}]
-    if state:
-        query["is_active"] = False if state == "disabled" else {"$ne": False}
-    proj = {"email": 1, "name": 1, "role": 1, "is_active": 1, "created_at": 1, "last_active_at": 1}
-    docs = await db[c.USERS].find(query, proj).to_list(length=None)
-    if role:
-        docs = [d for d in docs if effective_role(d) == role]
-
-    def keyf(d):
-        if sort == "role":
-            return effective_role(d)
-        v = d.get(sort)
-        if isinstance(v, datetime):
-            return (1, as_utc(v).timestamp())
-        return (1, (v or "").lower()) if v else (0, 0)
-
-    docs.sort(key=keyf, reverse=order == "desc")
-    total = len(docs)
-    docs = docs[(page - 1) * page_size: page * page_size]
-    ids = [d["_id"] for d in docs]
-
-    async def counts(coll: str, match: dict | None = None) -> dict:
-        rows = await db[coll].aggregate([{"$match": {"user_id": {"$in": ids}, **(match or {})}}, {"$group": {"_id": "$user_id", "n": {"$sum": 1}}}]) \
-            .to_list(length=None)
-        return {r["_id"]: r["n"] for r in rows}
-
-    res, apps, sent = await counts(c.RESUMES), await counts(c.APPLICATIONS), await counts(c.OUTREACH, {"status": "sent"})
-    items = [{"id": d["_id"], "email": d["email"], "name": d.get("name", ""), "role": effective_role(d), "is_super_admin": is_super_admin(d),
-              "is_active": d.get("is_active", True), "created_at": _iso(d.get("created_at")), "last_active_at": _iso(d.get("last_active_at")),
-              "resumes": res.get(d["_id"], 0), "applications": apps.get(d["_id"], 0), "emails_sent": sent.get(d["_id"], 0), "plan": "none"}
-             for d in docs]
-    return {"items": items, "total": total, "page": page, "page_size": page_size}
-
-
-async def _target(db, user_id: str) -> dict:
-    t = await db[c.USERS].find_one({"_id": user_id})
-    if not t:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
-    return t
-
-
-@router.get("/users/{user_id}")
-async def user_detail(user_id: str, db: AsyncIOMotorDatabase = Depends(db_dep)):
-    u = await _target(db, user_id)
-    counts = {}
-    for key, coll in (("resumes", c.RESUMES), ("applications", c.APPLICATIONS), ("emails", c.EMAILS), ("outreach", c.OUTREACH),
-                      ("interviews", c.INTERVIEWS), ("agent_runs", c.AGENT_RUNS)):
-        counts[key] = await db[coll].count_documents({"user_id": user_id})
-    counts["emails_sent"] = await db[c.OUTREACH].count_documents({"user_id": user_id, "status": "sent"})
-    audit = await db[c.AUDIT_LOGS].find({"user_id": user_id}, {"action": 1, "entity": 1, "timestamp": 1}).sort("timestamp", -1).limit(20) \
-        .to_list(length=None)
-    runs = await db[c.AGENT_RUNS].find({"user_id": user_id}, {"agent_name": 1, "status": 1, "start_time": 1}).sort("start_time", -1).limit(15) \
-        .to_list(length=None)
-    return {"id": user_id, "email": u["email"], "name": u.get("name", ""), "role": effective_role(u), "is_super_admin": is_super_admin(u),
-            "is_active": u.get("is_active", True), "created_at": _iso(u.get("created_at")), "last_active_at": _iso(u.get("last_active_at")),
-            "plan": "none", "sessions": await db[c.REFRESH_TOKENS].count_documents({"user_id": user_id, "revoked": {"$ne": True}}),
-            "counts": counts,
-            "recent_audit": [{"at": _iso(a.get("timestamp")), "action": a["action"], "entity": a.get("entity")} for a in audit],
-            "recent_runs": [{"at": _iso(r.get("start_time")), "agent": r.get("agent_name"), "status": r.get("status")} for r in runs]}
-
-
-class UserPatch(BaseModel):
-    role: Literal["jobseeker", "recruiter", "admin"] | None = None
-    is_active: bool | None = None
-
-
-@router.patch("/users/{user_id}", dependencies=[Depends(require_csrf_header)])
-async def patch_user(user_id: str, body: UserPatch, me: dict = Depends(require_super_admin), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    t = await _target(db, user_id)
-    if is_super_admin(t):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "A super admin account can't be changed here")
-    patch: dict = {}
-    if body.role is not None and body.role != effective_role(t):
-        patch["role"] = body.role
-    if body.is_active is not None and body.is_active != t.get("is_active", True):
-        patch["is_active"] = body.is_active
-    if patch:
-        await db[c.USERS].update_one({"_id": user_id}, {"$set": {**patch, "updated_at": utcnow()}})
-        if patch.get("is_active") is False:
-            await db[c.REFRESH_TOKENS].update_many({"user_id": user_id}, {"$set": {"revoked": True, "family_revoked": True}})
-        await log_action(db, user_id=me["_id"], action="superadmin.user_updated", entity="user", entity_id=user_id,
-                         details={"target_email": t["email"], **patch})
-    u = await _target(db, user_id)
-    return {"id": user_id, "role": effective_role(u), "is_active": u.get("is_active", True)}
-
-
-@router.post("/users/{user_id}/sign-out", dependencies=[Depends(require_csrf_header)])
-async def force_sign_out(user_id: str, me: dict = Depends(require_super_admin), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    t = await _target(db, user_id)
-    res = await db[c.REFRESH_TOKENS].update_many({"user_id": user_id}, {"$set": {"revoked": True, "family_revoked": True}})
-    await log_action(db, user_id=me["_id"], action="superadmin.force_sign_out", entity="user", entity_id=user_id,
-                     details={"target_email": t["email"]})
-    return {"revoked": res.modified_count}
-
-
-class DeleteBody(BaseModel):
-    confirm_email: str
-
-
-@router.post("/users/{user_id}/delete", dependencies=[Depends(require_csrf_header)])
-async def delete_user(user_id: str, body: DeleteBody, me: dict = Depends(require_super_admin), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    t = await _target(db, user_id)
-    if is_super_admin(t):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "A super admin account can't be deleted here")
-    if body.confirm_email.strip().lower() != t["email"].lower():
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Type the user's email exactly to confirm")
-    for coll in c.USER_SCOPED:  # same cascade as the user's own account deletion (privacy router)
-        await db[coll].delete_many({"user_id": user_id})
-    await db[c.TALENT_REQUESTS].delete_many({"candidate_id": user_id})
-    await db[c.USERS].delete_one({"_id": user_id})
-    await log_action(db, user_id=me["_id"], action="superadmin.user_deleted", entity="user", entity_id=user_id, details={"target_email": t["email"]})
-    return {"deleted": True}
-
-
-# ---------------------------------------------------------------- audit log
-
-async def _audit_rows(db, user: str, action: str, date_from: str, date_to: str, limit: int, skip: int = 0) -> tuple[list[dict], int]:
-    query: dict = {}
-    if user.strip():
-        rx = {"$regex": re.escape(user.strip()), "$options": "i"}
-        ids = [u["_id"] for u in await db[c.USERS].find({"email": rx}, {"_id": 1}).to_list(length=None)]
-        query["user_id"] = {"$in": ids}
+    if user_id.strip():
+        query["user_id"] = user_id.strip()
     if action.strip():
         query["action"] = {"$regex": re.escape(action.strip()), "$options": "i"}
-    rng: dict = {}
-    try:
-        if date_from:
-            rng["$gte"] = as_utc(datetime.fromisoformat(date_from))
-        if date_to:
-            rng["$lt"] = as_utc(datetime.fromisoformat(date_to)) + timedelta(days=1)
-    except ValueError:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Dates must be YYYY-MM-DD") from None
-    if rng:
-        query["timestamp"] = rng
+    elif feature.strip():
+        query["action"] = {"$regex": "^" + re.escape(feature.strip()) + "\\."}
+    if date_from or date_to or days:
+        start, end = m.parse_range(days or 30, date_from, date_to) if (date_from or date_to or days) else (None, None)
+        query["timestamp"] = {"$gte": start, "$lt": end}
+    return query
+
+
+async def _resolve_user(db, query: dict, user: str) -> dict:
+    if user.strip():
+        rx = {"$regex": re.escape(user.strip()), "$options": "i"}
+        ids = [u["_id"] for u in await db[c.USERS].find({"$or": [{"email": rx}, {"name": rx}]}, {"_id": 1}).to_list(length=None)]
+        query["user_id"] = {"$in": ids} if "user_id" not in query else query["user_id"]
+    return query
+
+
+async def _audit_rows(db, query: dict, limit: int, skip: int = 0) -> tuple[list[dict], int]:
     total = await db[c.AUDIT_LOGS].count_documents(query)
-    rows = await db[c.AUDIT_LOGS].find(query, {"user_id": 1, "action": 1, "entity": 1, "entity_id": 1, "timestamp": 1}).sort("timestamp", -1) \
-        .skip(skip).limit(limit).to_list(length=None)
+    rows = await db[c.AUDIT_LOGS].find(query, {"user_id": 1, "action": 1, "entity": 1, "entity_id": 1, "timestamp": 1, "details.platform": 1}) \
+        .sort("timestamp", -1).skip(skip).limit(limit).to_list(length=None)
     uids = list({r["user_id"] for r in rows if r.get("user_id")})
     emails = {u["_id"]: u["email"] for u in await db[c.USERS].find({"_id": {"$in": uids}}, {"email": 1}).to_list(length=None)}
-    who = {r["_id"]: emails.get(r.get("user_id")) or ("system" if not r.get("user_id") else "deleted user") for r in rows}
-    return [{"id": r["_id"], "at": _iso(r.get("timestamp")), "email": who[r["_id"]],
-             "action": r["action"], "entity": r.get("entity"), "entity_id": r.get("entity_id")} for r in rows], total
+    return [{"id": r["_id"], "at": _iso(r.get("timestamp")), "user_id": r.get("user_id"),
+             "email": emails.get(r.get("user_id")) or ("system" if not r.get("user_id") else "deleted user"), "action": r["action"],
+             "feature": m.feature_of(r["action"]), "entity": r.get("entity"), "entity_id": r.get("entity_id"),
+             "platform": (r.get("details") or {}).get("platform")} for r in rows], total
+
+
+def _audit_params(user: str = "", user_id: str = "", action: str = "", feature: str = "", date_from: str = "", date_to: str = "",
+                  days: int | None = Query(None, ge=1, le=366)) -> tuple:
+    return user, user_id, action, feature, date_from, date_to, days
 
 
 @router.get("/audit")
-async def audit(user: str = "", action: str = "", date_from: str = "", date_to: str = "", page: int = Query(1, ge=1),
-                page_size: int = Query(50, ge=1, le=100), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    items, total = await _audit_rows(db, user, action, date_from, date_to, page_size, (page - 1) * page_size)
+async def audit(p: tuple = Depends(_audit_params), page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=100),
+                db: AsyncIOMotorDatabase = Depends(db_dep)):
+    user, user_id, action, feature, df, dt, days = p
+    query = await _resolve_user(db, _audit_query(user, user_id, action, feature, df, dt, days), user)
+    items, total = await _audit_rows(db, query, page_size, (page - 1) * page_size)
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
+@router.get("/audit/summary")
+async def audit_summary(p: tuple = Depends(_audit_params), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Grouped counts for the same filters as /audit: by event type, feature, user and day."""
+    user, user_id, action, feature, df, dt, days = p
+    query = await _resolve_user(db, _audit_query(user, user_id, action, feature, df, dt, days), user)
+    rows = await db[c.AUDIT_LOGS].aggregate([
+        {"$match": query},
+        {"$group": {"_id": {"a": "$action", "u": "$user_id", "d": {"$dateToString": {"format": "%Y-%m-%d", "date": "$timestamp"}}}, "n": {"$sum": 1}}},
+    ]).to_list(length=None)
+    by_action: dict[str, int] = {}
+    by_feature: dict[str, int] = {}
+    by_user: dict[str, int] = {}
+    by_day: dict[str, int] = {}
+    for r in rows:
+        k = r["_id"]
+        by_action[k["a"]] = by_action.get(k["a"], 0) + r["n"]
+        f = m.feature_of(k["a"])
+        by_feature[f] = by_feature.get(f, 0) + r["n"]
+        if k["u"]:
+            by_user[k["u"]] = by_user.get(k["u"], 0) + r["n"]
+        by_day[k["d"]] = by_day.get(k["d"], 0) + r["n"]
+    top_users = sorted(by_user.items(), key=lambda kv: -kv[1])[:10]
+    emails = {u["_id"]: u["email"] for u in await db[c.USERS].find({"_id": {"$in": [u for u, _ in top_users]}}, {"email": 1}).to_list(length=None)}
+
+    def top(d: dict, n: int = 30) -> list[dict]:
+        return [{"name": k, "count": v} for k, v in sorted(d.items(), key=lambda kv: -kv[1])[:n]]
+
+    return {"total": sum(by_day.values()), "by_action": top(by_action, 60), "by_feature": top(by_feature),
+            "by_user": [{"id": u, "name": emails.get(u, "deleted user"), "count": n} for u, n in top_users],
+            "by_day": [{"date": d, "count": by_day[d]} for d in sorted(by_day)]}
+
+
 @router.get("/audit/export.csv")
-async def audit_csv(user: str = "", action: str = "", date_from: str = "", date_to: str = "", me: dict = Depends(require_super_admin),
-                    db: AsyncIOMotorDatabase = Depends(db_dep)):
-    items, _ = await _audit_rows(db, user, action, date_from, date_to, 5000)
+async def audit_csv(p: tuple = Depends(_audit_params), me: dict = Depends(require_super_admin), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    user, user_id, action, feature, df, dt, days = p
+    query = await _resolve_user(db, _audit_query(user, user_id, action, feature, df, dt, days), user)
+    items, _ = await _audit_rows(db, query, 5000)
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["time", "user", "action", "entity", "entity_id"])
+    w.writerow(["time", "user", "feature", "action", "entity", "entity_id", "platform"])
     for r in items:
-        w.writerow([r["at"], r["email"], r["action"], r["entity"] or "", r["entity_id"] or ""])
+        w.writerow([crm._cell(x) for x in (r["at"], r["email"], r["feature"], r["action"], r["entity"], r["entity_id"], r["platform"])])
     await log_action(db, user_id=me["_id"], action="superadmin.audit_exported", entity="audit", details={"rows": len(items)})
     return Response(buf.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=saige-audit.csv"})
 
@@ -296,6 +141,10 @@ async def health(db: AsyncIOMotorDatabase = Depends(db_dep)):
     except Exception:  # noqa: BLE001
         ok = False
     latency = round((time.perf_counter() - t0) * 1000, 1)
+    t1 = time.perf_counter()
+    await db[c.USERS].count_documents({"is_active": False})
+    await db[c.AUDIT_LOGS].count_documents({"timestamp": {"$gte": utcnow() - timedelta(hours=24)}})
+    query_ms = round((time.perf_counter() - t1) * 1000, 1)
     s = get_settings()
     flags = {  # configured yes/no only, never the values
         "Gmail": bool(s.google_client_id and s.google_client_secret), "Google sign-in": bool(s.google_oauth_enabled),
@@ -304,19 +153,29 @@ async def health(db: AsyncIOMotorDatabase = Depends(db_dep)):
         "Cron secret": bool(s.cron_secret), "LinkedIn app": bool(s.linkedin_client_id),
     }
     counts = {}
-    for coll in (c.USERS, c.RESUMES, c.APPLICATIONS, c.OUTREACH, c.EMAILS, c.AUDIT_LOGS, c.AGENT_RUNS, c.JOB_FEED, c.CAREER_JOBS, c.ANNOUNCEMENTS):
+    for coll in (c.USERS, c.RESUMES, c.APPLICATIONS, c.OUTREACH, c.EMAILS, c.AUDIT_LOGS, c.AGENT_RUNS, c.JOB_FEED, c.CAREER_JOBS, c.ANNOUNCEMENTS,
+                 c.ADMIN_NOTES, c.REFRESH_TOKENS):
         try:
             counts[coll] = await db[coll].count_documents({})
         except Exception:  # noqa: BLE001
             counts[coll] = None
+    d7, today = utcnow() - timedelta(days=7), start_of_today()
     jobs = []
     for name in await db[c.SCHEDULER_JOBS].distinct("job"):
         last = await db[c.SCHEDULER_JOBS].find({"job": name}).sort("started_at", -1).limit(1).to_list(length=1)
         if last:
-            jobs.append({"job": name, "status": last[0].get("status"), "last_run": _iso(last[0].get("started_at"))})
-    fails = await db[c.AGENT_RUNS].find({"status": "failed", "start_time": {"$gte": utcnow() - timedelta(days=7)}},
-                                        {"agent_name": 1, "errors": 1, "start_time": 1}).sort("start_time", -1).limit(25).to_list(length=None)
-    return {"database": {"ok": ok, "latency_ms": latency}, "collections": counts, "scheduler": jobs, "feature_flags": flags,
+            jobs.append({"job": name, "status": last[0].get("status"), "last_run": _iso(last[0].get("started_at")),
+                         "failed_7d": await db[c.SCHEDULER_JOBS].count_documents({"job": name, "status": "failed", "started_at": {"$gte": d7}}),
+                         "runs_7d": await db[c.SCHEDULER_JOBS].count_documents({"job": name, "started_at": {"$gte": d7}})})
+    fails = await db[c.AGENT_RUNS].find({"status": "failed", "start_time": {"$gte": d7}}, {"agent_name": 1, "errors": 1, "start_time": 1}) \
+        .sort("start_time", -1).limit(25).to_list(length=None)
+    per_user = await db[c.OUTREACH].aggregate([{"$match": {"sent_at": {"$gte": today}}}, {"$group": {"_id": "$user_id", "n": {"$sum": 1}}}]).to_list(length=None)
+    queued = await db[c.OUTREACH].count_documents({"status": "approved", "queued": True})
+    return {"database": {"ok": ok, "latency_ms": latency, "query_ms": query_ms}, "collections": counts, "scheduler": jobs, "feature_flags": flags,
+            "email_queue": {"sent_today": sum(r["n"] for r in per_user), "senders_today": len(per_user), "cap_per_user": HARD_DAILY_CAP,
+                            "users_at_cap": sum(1 for r in per_user if r["n"] >= HARD_DAILY_CAP), "queued": queued},
+            "agent_runs_24h": {"total": await db[c.AGENT_RUNS].count_documents({"start_time": {"$gte": utcnow() - timedelta(hours=24)}}),
+                               "failed": await db[c.AGENT_RUNS].count_documents({"status": "failed", "start_time": {"$gte": utcnow() - timedelta(hours=24)}})},
             "failures": [{"at": _iso(f.get("start_time")), "agent": f.get("agent_name"),
                           "error": "; ".join(f.get("errors") or [])[:300]} for f in fails]}
 
@@ -327,12 +186,24 @@ class AnnouncementIn(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     message: str = Field(min_length=1, max_length=1000)
     level: Literal["info", "warning", "success"] = "info"
+    audience: Literal["all", "jobseeker", "recruiter"] = "all"
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
     expires_in_days: int | None = Field(default=None, ge=1, le=365)
 
 
+def _ann_status(d: dict, now) -> str:
+    if d.get("starts_at") and as_utc(d["starts_at"]) > now:
+        return "scheduled"
+    if d.get("expires_at") and as_utc(d["expires_at"]) <= now:
+        return "expired"
+    return "live"
+
+
 def _ann(d: dict) -> dict:
-    return {"id": d["_id"], "title": d["title"], "message": d["message"], "level": d.get("level", "info"),
-            "created_at": _iso(d.get("created_at")), "expires_at": _iso(d.get("expires_at"))}
+    return {"id": d["_id"], "title": d["title"], "message": d["message"], "level": d.get("level", "info"), "audience": d.get("audience", "all"),
+            "created_at": _iso(d.get("created_at")), "starts_at": _iso(d.get("starts_at")), "expires_at": _iso(d.get("expires_at")),
+            "status": _ann_status(d, utcnow())}
 
 
 @router.get("/announcements")
@@ -343,11 +214,15 @@ async def list_announcements(db: AsyncIOMotorDatabase = Depends(db_dep)):
 @router.post("/announcements", status_code=201, dependencies=[Depends(require_csrf_header)])
 async def create_announcement(body: AnnouncementIn, me: dict = Depends(require_super_admin), db: AsyncIOMotorDatabase = Depends(db_dep)):
     now = utcnow()
-    doc = {"_id": new_id(), "title": body.title.strip(), "message": body.message.strip(), "level": body.level, "created_at": now,
-           "expires_at": now + timedelta(days=body.expires_in_days) if body.expires_in_days else None, "created_by": me["_id"]}
+    starts = as_utc(body.starts_at) if body.starts_at else None
+    ends = as_utc(body.ends_at) if body.ends_at else (now + timedelta(days=body.expires_in_days) if body.expires_in_days else None)
+    if ends and ends <= (starts or now):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "The end must be after the start")
+    doc = {"_id": new_id(), "title": body.title.strip(), "message": body.message.strip(), "level": body.level, "audience": body.audience,
+           "created_at": now, "starts_at": starts, "expires_at": ends, "created_by": me["_id"]}
     await db[c.ANNOUNCEMENTS].insert_one(doc)
     await log_action(db, user_id=me["_id"], action="superadmin.announcement_created", entity="announcement", entity_id=doc["_id"],
-                     details={"title": doc["title"]})
+                     details={"title": doc["title"], "audience": body.audience})
     return _ann(doc)
 
 
@@ -361,8 +236,8 @@ async def delete_announcement(ann_id: str, me: dict = Depends(require_super_admi
 
 
 @announcements_router.get("")
-async def active_announcements(_: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
-    now = utcnow()
-    rows = await db[c.ANNOUNCEMENTS].find({"$or": [{"expires_at": None}, {"expires_at": {"$gt": now}}]}).sort("created_at", -1).limit(5) \
-        .to_list(length=5)
-    return [_ann(d) for d in rows]
+async def active_announcements(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    now, role = utcnow(), effective_role(user)
+    rows = await db[c.ANNOUNCEMENTS].find({"$or": [{"expires_at": None}, {"expires_at": {"$gt": now}}]}).sort("created_at", -1).limit(30).to_list(length=30)
+    live = [d for d in rows if _ann_status(d, now) == "live" and d.get("audience", "all") in ("all", role)]
+    return [_ann(d) for d in live[:5]]

@@ -183,8 +183,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
           {user.is_super_admin && (
-            <Link href="/super-admin" className="mb-1 flex items-center gap-3 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/15">
-              <ShieldAlert className="size-4" aria-hidden /> Super Admin
+            <Link href="/super-admin" className="mb-1 flex items-center gap-3 rounded-2xl border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+              <ShieldAlert className="size-4" aria-hidden /> Admin console
             </Link>
           )}
           {GROUPS.filter((g) => navFor(user.role).some((n) => n.group === g)).map((g) => (

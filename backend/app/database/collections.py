@@ -72,6 +72,8 @@ TALENT_REQUESTS = "talent_requests"
 
 SCHEDULER_JOBS = "scheduler_jobs"
 SYSTEM_SETTINGS = "system_settings"
+ADMIN_NOTES = "admin_notes"  # super-admin-only notes about a user (user_id = the subject; never exported to the user)
+USER_TAGS = "user_tags"  # one doc per user: {_id: user_id, user_id, tags: [...]}; super-admin only
 ANNOUNCEMENTS = "announcements"  # super-admin broadcasts shown to every user (not user-scoped)
 
 # Collections holding per-user data keyed by `user_id` (used by data export / account deletion).
@@ -84,8 +86,8 @@ USER_SCOPED = [
     JOB_FEED, JOB_ALERTS, PORTAL_LINKS, LINKEDIN_POSTS, CAREER_JOBS, CAREER_SCANS, ML_MODELS, ML_SAMPLES, ML_RUNS, GOALS, SAVED_OFFERS,
     CALENDAR_FEEDS, PORTFOLIOS,
     MOCK_INTERVIEWS, LEARNING_PATHS, WHATSAPP_SESSIONS, PUSH_SUBSCRIPTIONS,
-    RECRUITER_JOBS, TALENT_REQUESTS, DEBRIEFS, QUESTION_BANK, EMAIL_TEMPLATES,
+    RECRUITER_JOBS, TALENT_REQUESTS, DEBRIEFS, QUESTION_BANK, EMAIL_TEMPLATES, ADMIN_NOTES, USER_TAGS,
 ]
 
 # Exported to the user but excluded from the JSON export (binary / security material).
-EXPORT_EXCLUDED = {RESUME_FILES, REFRESH_TOKENS, INTEGRATIONS, API_TOKENS, JOB_FEED, CAREER_JOBS, PUSH_SUBSCRIPTIONS}
+EXPORT_EXCLUDED = {RESUME_FILES, REFRESH_TOKENS, INTEGRATIONS, API_TOKENS, JOB_FEED, CAREER_JOBS, PUSH_SUBSCRIPTIONS, ADMIN_NOTES, USER_TAGS}
