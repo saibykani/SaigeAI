@@ -6,7 +6,7 @@ export type Release = { version: string; date: string; size: string; notes: stri
 export const RELEASES: Release[] = [
   {
     version: "2.3",
-    date: "2026-11-20T15:29:00+05:30",
+    date: "2026-11-20T15:33:00+05:30",
     size: "31.9 MB",
     notes: [
       "Same look as the website: pure black Graphite theme with solid accent colours (other themes still in Settings)",
@@ -18,7 +18,7 @@ export const RELEASES: Release[] = [
   },
   {
     version: "2.2",
-    date: "2026-11-20T02:56:00+05:30",
+    date: "2026-11-20T03:00:00+05:30",
     size: "31.8 MB",
     notes: [
       "Phone alerts: get a notification when a recruiter replies or an email bounces, checked about every 15 minutes in the background (uses a separate read-only token; turn it off in Settings > Phone alerts)",
@@ -29,7 +29,7 @@ export const RELEASES: Release[] = [
   },
   {
     version: "2.1",
-    date: "2026-11-14T19:25:00+05:30",
+    date: "2026-11-14T19:21:00+05:30",
     size: "31 MB",
     notes: [
       "Home-screen widget: your next interview and today's new matches at a glance",
@@ -40,7 +40,7 @@ export const RELEASES: Release[] = [
   },
   {
     version: "2.0",
-    date: "2026-11-14T21:00:00+05:30",
+    date: "2026-11-14T18:12:00+05:30",
     size: "19.2 MB",
     notes: [
       "Interview debrief: speak or type how it went; Saige saves the questions they asked to your question bank, plus what went well and what to improve",
@@ -50,7 +50,7 @@ export const RELEASES: Release[] = [
   },
   {
     version: "1.9",
-    date: "2026-11-14T19:30:00+05:30",
+    date: "2026-11-14T17:57:00+05:30",
     size: "19.1 MB",
     notes: [
       "Interview day mode: tap Prepare on any interview for a live countdown and a Join button that pulses when it's time",
@@ -61,7 +61,7 @@ export const RELEASES: Release[] = [
   },
   {
     version: "1.8",
-    date: "2026-11-14T18:00:00+05:30",
+    date: "2026-11-14T17:09:00+05:30",
     size: "19 MB",
     notes: [
       "Today feed on Home: interviews today/tomorrow with Join, approvals, jobs closing soon, follow-ups, best matches and a coach tip as swipeable action cards",
@@ -72,7 +72,7 @@ export const RELEASES: Release[] = [
   },
   {
     version: "1.7",
-    date: "2026-11-14T16:30:00+05:30",
+    date: "2026-11-14T16:18:00+05:30",
     size: "18.9 MB",
     notes: [
       "Cinematic opening: hyperspace stars, the logo flies in from deep space with a 3D turn and a light sweep, then the name appears",
