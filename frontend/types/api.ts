@@ -1179,3 +1179,90 @@ export interface SentEmail {
   reply_email_id: string | null; reply_category: string | null; reply_snippet: string | null; gmail_url: string | null;
 }
 export interface SentEmailPage { items: SentEmail[]; total: number; page: number; page_size: number }
+
+// ---------------- Interview War Room
+export interface WarRoomListItem {
+  interview_id: string;
+  company: string | null;
+  role: string | null;
+  round: string | null;
+  scheduled_at: string;
+  meeting_url: string | null;
+  checklist_done: number;
+  checklist_total: number;
+}
+export interface WarRoomItem { id: string; text: string; done: boolean; custom: boolean }
+export interface WarRoomChecklist { items: WarRoomItem[]; done: number; total: number }
+export interface WarRoomStory { kind: "project" | "experience"; name: string; role: string | null; skills: string[]; line: string }
+export interface WarRoomQuestion {
+  text: string;
+  kind: string;
+  skill: string | null;
+  story: { name: string | null; line: string };
+}
+export interface WarRoom {
+  interview_id: string;
+  company: string | null;
+  role: string | null;
+  round: string | null;
+  scheduled_at: string;
+  duration_minutes: number;
+  interviewer: string | null;
+  has_job: boolean;
+  links: { join: string | null; ics: string };
+  skills: string[];
+  brush_up: string[];
+  requirements: { text: string; evidence: string | null }[];
+  questions: WarRoomQuestion[];
+  stories: WarRoomStory[];
+  stories_note: string | null;
+  checklist: WarRoomChecklist;
+}
+
+// ---- Career Wrapped ----
+export type WrappedPeriod = "all" | "month" | "week";
+export interface WrappedCount { name: string; count: number }
+export interface Wrapped {
+  period: WrappedPeriod;
+  empty: boolean;
+  applications: number;
+  replies: number;
+  interviews: number;
+  offers: number;
+  reply_rate: number | null;
+  busiest_day: { date: string; count: number } | null;
+  longest_streak: number;
+  top_skills: WrappedCount[];
+  top_companies: WrappedCount[];
+  resumes_generated: number;
+  outreach_sent: number;
+  span_days: number;
+  personality: { label: string; rule: string };
+  generated_at: string;
+}
+
+// Offer Compare (decision layer on saved offers, /api/offers/compare)
+export type OfferFactor = "money" | "growth" | "work_life" | "commute" | "learning" | "user_set";
+export interface OfferMeta {
+  location: string; commute_minutes: number; wfh_days: number; notice_days: number; buyout_amount: number; benefits: string[];
+  health_cover: number; learning_budget: number; growth_notes: string; esop_grant_value: number; esop_vesting_years: number;
+  esop_cliff_months: number; growth_rating: number | null; learning_rating: number | null; user_rating: number | null; application_id: string | null;
+}
+export interface OfferDecisionRow {
+  id: string; name: string; company: string; ctc: number; best_regime: "new" | "old"; monthly_in_hand: number; real_monthly_cash: number;
+  year1_cash: number; year1_esop: number; year1_total: number; cash_4y: number; esop_4y: number; total_4y: number;
+  commute_hours_month: number; wfh_days: number; commute_minutes: number; location: string; notice_days: number; buyout_amount: number;
+  benefits: string[]; health_cover: number; learning_budget: number; growth_notes: string; application_id: string | null;
+  breakdown: Record<OfferFactor, { score: number; weight_pct: number; contribution: number }>; unrated: OfferFactor[]; score: number;
+}
+export interface OfferDecision {
+  offers: OfferDecisionRow[]; weights: Record<OfferFactor, number>; winner: number | null; factors: OfferFactor[]; years: number; esop_note: string;
+}
+
+export interface RadarJob {
+  id: string; origin: "feed" | "careers"; title: string; company: string; location: string | null; source: string; url: string;
+  score: number; ai_score: number | null; fit: CareerFit; classification: string | null; scope: string | null;
+  matched_skills: string[]; missing_skills: string[]; reasons: string[]; posted: string | null;
+}
+export interface RadarResponse { generated_from: { feed: number; careers: number }; total: number; items: RadarJob[] }
+export interface RadarDigestResult { sent: number; to?: string; notified?: number; reason?: string; skipped?: string; error?: string }

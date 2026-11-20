@@ -42,6 +42,7 @@ from app.privacy.router import audit_router
 from app.privacy.router import router as privacy_router
 from app.profiles.router import router as profile_router
 from app.profiles.sync_router import router as profile_sync_router
+from app.radar.router import router as radar_router
 from app.recruiters.router import router as recruiters_router
 from app.resumes.ai_router import router as resume_ai_router
 from app.resumes.router import router as resumes_router
@@ -56,6 +57,8 @@ from app.suggestions.router import router as suggestions_router
 from app.superadmin.router import announcements_router
 from app.superadmin.router import router as superadmin_router
 from app.utils import new_id
+from app.warroom.router import router as warroom_router
+from app.wrapped.router import router as wrapped_router
 
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -147,7 +150,7 @@ def create_app() -> FastAPI:
         return {"status": "ok" if db_ok else "degraded", "database": db_ok}
 
     for r in (auth_router, profile_sync_router, profile_router, resume_ai_router, resumes_router, jobs_router, careers_router, studio_router,
-              ml_router,
+              ml_router, radar_router, warroom_router, wrapped_router,
               interview_brief_router,
               applications_router, portals_router, email_router, email_tracking_router,
               analytics_router, activity_router, assistant_router, linkedin_posts_router,

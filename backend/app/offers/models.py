@@ -55,5 +55,27 @@ class ParseRequest(BaseModel):
     text: str = Field(max_length=6000)
 
 
+class OfferMeta(BaseModel):
+    """Decision details around a saved offer. Everything is user-entered; blanks stay unknown and are never guessed."""
+
+    location: str = Field(default="", max_length=120)
+    commute_minutes: int = Field(default=0, ge=0, le=300)  # one way
+    wfh_days: int = Field(default=0, ge=0, le=5)  # work-from-home days per week
+    notice_days: int = Field(default=0, ge=0, le=365)
+    buyout_amount: float = Field(default=0.0, ge=0, le=10**8)
+    benefits: list[str] = Field(default_factory=list, max_length=20)
+    health_cover: float = Field(default=0.0, ge=0, le=10**8)
+    learning_budget: float = Field(default=0.0, ge=0, le=10**7)  # per year
+    growth_notes: str = Field(default="", max_length=1500)
+    esop_grant_value: float = Field(default=0.0, ge=0, le=10**10)  # total grant at the value YOU believe in
+    esop_vesting_years: int = Field(default=4, ge=1, le=8)
+    esop_cliff_months: int = Field(default=12, ge=0, le=48)
+    growth_rating: int | None = Field(default=None, ge=0, le=10)
+    learning_rating: int | None = Field(default=None, ge=0, le=10)
+    user_rating: int | None = Field(default=None, ge=0, le=10)  # your gut feeling
+    application_id: str | None = Field(default=None, max_length=64)
+
+
 class SavedOffer(BaseModel):
     input: OfferInput
+    meta: OfferMeta = Field(default_factory=OfferMeta)

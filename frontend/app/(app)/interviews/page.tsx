@@ -61,6 +61,7 @@ export default function InterviewsPage() {
                         <Video className="size-3.5" /> Join
                       </a>
                     )}
+                    <Link href={`/war-room/${i.id}`} className="inline-flex h-8 items-center rounded-full px-3 text-xs font-medium hover:bg-muted">War room</Link>
                     <Button size="sm" variant="ghost" onClick={() => downloadFile(`/interviews/${i.id}.ics`, "interview.ics")}><CalendarPlus /> Calendar</Button>
                     <Button size="sm" variant="ghost" onClick={() => setStatus(i.id, "completed")}><Check /> Done</Button>
                     <Button size="sm" variant="ghost" onClick={() => setStatus(i.id, "cancelled")}><X /> Cancel</Button>

@@ -215,3 +215,80 @@ async def test_offers_api_and_saved_offers(client, auth, db):
     assert (await client.delete(f"/api/offers/saved/{oid}", headers=auth)).status_code == 200
     assert (await client.delete(f"/api/offers/saved/{oid}", headers=auth)).status_code == 404
     assert c.SAVED_OFFERS in c.USER_SCOPED
+
+
+# ---- decision layer (saved offers, weights, ESOP vesting, commute) ----------------------------------------------------
+
+
+def test_esop_vesting_cliff_and_commute():
+    from app.offers.decision import commute_hours, esop_vested
+    from app.offers.models import OfferMeta
+
+    m = OfferMeta(esop_grant_value=4_000_000, esop_vesting_years=4, esop_cliff_months=12)
+    assert esop_vested(m, 0, 6) == 0 and esop_vested(m, 0, 12) == 1_000_000 and esop_vested(m, 0, 48) == 4_000_000
+    assert esop_vested(OfferMeta(), 200_000, 24) == 400_000  # no grant: the entered per-year value
+    assert esop_vested(OfferMeta(), 0, 48) == 0  # never invented
+    assert commute_hours(OfferMeta(commute_minutes=45, wfh_days=2)) == round(45 * 2 * 3 * 52 / 12 / 60, 1)
+    assert commute_hours(OfferMeta(commute_minutes=45, wfh_days=5)) == 0
+
+
+def test_parse_weights_normalises():
+    from app.offers.decision import DEFAULT_WEIGHTS, normalise, parse_weights
+
+    w = parse_weights("money:50,growth:50,bogus:9,commute:x")
+    assert w["money"] == 50 and w["growth"] == 50 and w["commute"] == 0 and round(sum(w.values())) == 100
+    assert parse_weights("") == normalise(DEFAULT_WEIGHTS)
+    assert parse_weights("money:0") == {f: round(100 / 6, 2) for f in w}
+
+
+async def test_compare_saved_offers_api(client, auth, db):
+    base = {"basic": 600_000, "hra": 300_000, "special": 300_000}
+    a = await client.post("/api/offers/saved", headers=auth, json={
+        "input": {"name": "Cash", "company": "A", **base, "joining_bonus": 100_000},
+        "meta": {"commute_minutes": 60, "wfh_days": 0, "growth_rating": 4}})
+    b = await client.post("/api/offers/saved", headers=auth, json={
+        "input": {"name": "Remote", "company": "B", "basic": 500_000, "hra": 250_000, "special": 250_000},
+        "meta": {"commute_minutes": 0, "wfh_days": 5, "growth_rating": 9, "esop_grant_value": 2_000_000, "learning_budget": 50_000}})
+    ia, ib = a.json()["id"], b.json()["id"]
+    r = await client.get(f"/api/offers/compare?ids={ia},{ib}&weights=money:10,growth:30,work_life:30,commute:30", headers=auth)
+    assert r.status_code == 200
+    d = r.json()
+    ca, cb = d["offers"]
+    assert [o["name"] for o in d["offers"]] == ["Cash", "Remote"]
+    assert ca["commute_hours_month"] == commute_expected(60) and cb["commute_hours_month"] == 0
+    assert ca["year1_total"] == ca["year1_cash"] and cb["year1_esop"] == 500_000 and cb["esop_4y"] == 2_000_000
+    assert (ca["cash_4y"] - ca["year1_cash"]) % 3 == 0  # years 2-4 are three equal in-hand years
+    assert cb["breakdown"]["work_life"]["score"] == 100 and ca["breakdown"]["commute"]["score"] < 100
+    assert round(sum(d["weights"].values())) == 100 and d["winner"] == 1 and cb["score"] > ca["score"]
+    assert "learning" not in cb["unrated"] and "user_set" not in cb["unrated"]  # zero weight: not flagged
+    # money-only weights favour the higher-paying offer
+    m = (await client.get(f"/api/offers/compare?ids={ia},{ib}&weights=money:100", headers=auth)).json()
+    assert m["winner"] == (0 if m["offers"][0]["total_4y"] > m["offers"][1]["total_4y"] else 1)
+    # errors and isolation
+    assert (await client.get("/api/offers/compare?ids=nope", headers=auth)).status_code == 404
+    assert (await client.get("/api/offers/compare?ids=", headers=auth)).status_code == 400
+    other = await register_other(client)
+    assert (await client.get(f"/api/offers/compare?ids={ia}", headers=other)).status_code == 404
+
+
+def commute_expected(minutes: int) -> float:
+    return round(minutes * 2 * 5 * 52 / 12 / 60, 1)
+
+
+async def register_other(client):
+    from tests.conftest import register
+
+    return await register(client, email="other@example.com")
+
+
+async def test_saved_offer_meta_and_application_link(client, auth, db):
+    bad = await client.post("/api/offers/saved", headers=auth, json={"input": {"name": "X"}, "meta": {"application_id": "missing"}})
+    assert bad.status_code == 400
+    uid = (await client.get("/api/auth/me", headers=auth)).json()["id"]
+    await db[c.APPLICATIONS].insert_one({"_id": "app1", "user_id": uid})
+    ok = await client.post("/api/offers/saved", headers=auth,
+                           json={"input": {"name": "X"}, "meta": {"application_id": "app1", "benefits": ["Insurance"]}})
+    assert ok.status_code == 201
+    row = (await client.get("/api/offers/saved", headers=auth)).json()[0]
+    assert row["meta"]["application_id"] == "app1" and row["meta"]["benefits"] == ["Insurance"]
+    assert (await client.post("/api/offers/saved", headers=auth, json={"input": {"name": "Y"}, "meta": {"wfh_days": 9}})).status_code == 422
