@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'motion.dart';
+
 /// One app theme, generated from a seed colour with ColorScheme.fromSeed so every tone is harmonious.
 /// Light is the default; Dark and the seed themes (Blue, Green, Purple, Coral, Graphite) sit next to it.
 class Palette {
@@ -67,7 +69,43 @@ class Palette {
   Color get primarySoft => scheme.primary.withValues(alpha: dark ? 0.22 : 0.12);
 }
 
+/// The website's Graphite look: pure black, silver primary, one solid Apple-system accent per tone
+/// (same values as --tone-* in frontend/app/globals.css). This is the default.
+Palette _webGraphite() {
+  const primary = Color(0xFFF5F5F7);
+  final s = ColorScheme.fromSeed(seedColor: const Color(0xFF8A8F98), brightness: Brightness.dark).copyWith(
+    primary: primary,
+    onPrimary: Colors.black,
+    secondary: const Color(0xFFFF9F0A),
+    surface: const Color(0xFF111113),
+    onSurface: primary,
+  );
+  return Palette._(
+    id: 'web',
+    name: 'Saige',
+    note: 'Same as the website',
+    seed: const Color(0xFF8A8F98),
+    dark: true,
+    scheme: s,
+    bg: Colors.black,
+    surface: const Color(0xFF111113),
+    surface2: const Color(0xFF1C1C1E),
+    surface3: const Color(0xFF2C2C2E),
+    line: const Color(0x1AFFFFFF),
+    text: primary,
+    muted: const Color(0xFF98989F),
+    blue: const Color(0xFF40C8E0),
+    good: const Color(0xFF30D158),
+    warn: const Color(0xFFFF9F0A),
+    bad: const Color(0xFFFF453A),
+    teal: const Color(0xFF63E6BE),
+    violet: const Color(0xFFBF5AF2),
+    lime: const Color(0xFFA3E635),
+  );
+}
+
 final palettes = <Palette>[
+  _webGraphite(),
   Palette.seeded('light', 'Light', 'Clean and bright', const Color(0xFF1A73E8)),
   Palette.seeded('dark', 'Dark', 'Soft charcoal', const Color(0xFF1A73E8), dark: true),
   Palette.seeded('blue', 'Blue', 'Ocean blue', const Color(0xFF0B57D0)),
@@ -138,6 +176,7 @@ ThemeData buildTheme([Palette? p]) {
     textButtonTheme: const TextButtonThemeData(style: ButtonStyle(shape: WidgetStatePropertyAll(StadiumBorder()))),
     iconButtonTheme: const IconButtonThemeData(style: ButtonStyle(shape: WidgetStatePropertyAll(CircleBorder()))),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(shape: CircleBorder()),
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {TargetPlatform.android: BouncyPageTransitionsBuilder(), TargetPlatform.iOS: BouncyPageTransitionsBuilder()}),
     chipTheme: base.chipTheme.copyWith(shape: const StadiumBorder()),
     cardTheme: CardThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.lg))),
     dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.lg + 4))),

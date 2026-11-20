@@ -12,7 +12,7 @@ import 'theme.dart';
 class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
   ThemeController._();
   static final I = ThemeController._();
-  static const _key = 'saige-theme';
+  static const _key = 'saige-theme-v2'; // v2: everyone starts on the website's Graphite look
 
   /// Wraps the whole app so a snapshot can be taken for the reveal.
   final boundaryKey = GlobalKey();
@@ -20,7 +20,7 @@ class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
   Palette get palette => C.active;
 
   /// 'system' or a palette id: what the user picked (the active palette may differ when following the system).
-  String mode = 'system';
+  String mode = 'web';
 
   Palette _resolve(String m) {
     if (m != 'system') return paletteById(m);
@@ -36,7 +36,7 @@ class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> load() async {
     try {
       final p = await SharedPreferences.getInstance();
-      mode = p.getString(_key) ?? 'system';
+      mode = p.getString(_key) ?? 'web';
     } catch (_) {}
     C.active = _resolve(mode);
     WidgetsBinding.instance.addObserver(this);

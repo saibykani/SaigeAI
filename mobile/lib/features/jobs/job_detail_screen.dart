@@ -8,6 +8,7 @@ import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/ui.dart';
+import '../resume/studio_screen.dart';
 import '../shell/shell.dart';
 import 'jobs_screen.dart' show salaryText;
 
@@ -169,7 +170,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               bottom: 16,
               child: Row(children: [
                 Expanded(child: PrimaryButton(label: 'Tailor resume', icon: Icons.auto_fix_high_rounded, ghost: true, busy: _tailoring, onTap: _tailor)),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
+                Expanded(child: PrimaryButton(label: 'ATS', icon: Icons.description_rounded, ghost: true, onTap: () => pushDepth(context, (_) => StudioScreen(jobId: widget.jobId)))),
+                const SizedBox(width: 8),
                 Expanded(child: PrimaryButton(label: 'Apply', icon: Icons.send_rounded, busy: _applying, onTap: _apply)),
               ]),
             ),

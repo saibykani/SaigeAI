@@ -52,6 +52,27 @@ class DepthRoute<T> extends PageRouteBuilder<T> {
 
 Future<T?> pushDepth<T>(BuildContext c, WidgetBuilder b) => Navigator.of(c).push<T>(DepthRoute<T>(builder: b));
 
+/// Bouncy page transition: scale 0.92 -> 1 with a spring, fade and a slight slide up.
+class BouncyPageTransitionsBuilder extends PageTransitionsBuilder {
+  const BouncyPageTransitionsBuilder();
+  @override
+  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+    if (route.isFirst) return child;
+    return AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        final p = const SpringCurve(damping: 7, freq: 2.4).transform(animation.value);
+        final o = Curves.easeOut.transform(animation.value.clamp(0.0, 1.0));
+        return Opacity(
+          opacity: o,
+          child: Transform.translate(offset: Offset(0, 28 * (1 - p)), child: Transform.scale(scale: 0.92 + 0.08 * p, child: child)),
+        );
+      },
+    );
+  }
+}
+
 /// Scale + tiny 3D tilt towards the touch point, spring back on release, haptic on tap.
 class Pressable extends StatefulWidget {
   const Pressable({super.key, required this.child, this.onTap, this.onLongPress, this.scale = 0.95, this.haptic = true});
@@ -148,10 +169,13 @@ class _StaggerState extends State<Stagger> with SingleTickerProviderStateMixin {
         animation: _c,
         child: widget.child,
         builder: (context, child) {
-          final p = softSpring.transform(_c.value);
+          final p = const SpringCurve(damping: 6, freq: 2.6).transform(_c.value);
           return Opacity(
             opacity: Curves.easeOut.transform(_c.value.clamp(0.0, 1.0)),
-            child: Transform.translate(offset: Offset(widget.dx * (1 - p), 36 * (1 - p)), child: child),
+            child: Transform.translate(
+              offset: Offset(widget.dx * (1 - p), 24 * (1 - p)),
+              child: Transform.scale(scale: 0.94 + 0.06 * p, child: child),
+            ),
           );
         },
       );

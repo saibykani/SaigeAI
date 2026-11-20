@@ -25,6 +25,7 @@ class Pulse {
   static const _kToken = 'pulse_token';
   static const _kSince = 'pulse_since';
   static const _kSeen = 'pulse_seen';
+  static const _kSummary = 'pulse_summary_day';
   static const flag = 'phone_alerts';
 
   final FlutterLocalNotificationsPlugin _n = FlutterLocalNotificationsPlugin();
@@ -95,6 +96,7 @@ class Pulse {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kSeen);
     await prefs.remove(_kSince);
+    await prefs.remove(_kSummary);
     data.value = {'replies': [], 'approvals': []};
     waiting.value = 0;
   }
@@ -105,8 +107,42 @@ class Pulse {
       final d = Map<String, dynamic>.from(await Session.I.api.get('/mobile/pulse') as Map);
       data.value = d;
       waiting.value = (d['approvals'] as List? ?? const []).length;
-      if (AppConfig.getFlag(flag)) await notifyNew(d);
+      if (AppConfig.getFlag(flag)) {
+        await notifyNew(d);
+        await _dailySummary(d);
+      }
     } catch (_) {}
+  }
+
+  /// Once a day after 9:00 IST: "Today: X new replies, Y waiting approvals, streak Z days" (only if something is non-zero).
+  Future<void> _dailySummary(Map<String, dynamic> d) async {
+    if (!Platform.isAndroid) return;
+    final ist = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    if (ist.hour < 9) return;
+    final day = '${ist.year}-${ist.month.toString().padLeft(2, '0')}-${ist.day.toString().padLeft(2, '0')}';
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(_kSummary) == day) return;
+    var streak = 0;
+    try {
+      streak = ((await Session.I.api.get('/mobile/streak') as Map)['current'] as num?)?.toInt() ?? 0;
+    } catch (_) {}
+    final replies = (d['replies'] as List? ?? const []).length;
+    final approvals = (d['approvals'] as List? ?? const []).length;
+    await prefs.setString(_kSummary, day);
+    if (replies + approvals + streak == 0) return;
+    await initPlugin();
+    await _show('summary:$day', 'Your day in Saige',
+        'Today: $replies new ${replies == 1 ? 'reply' : 'replies'}, $approvals waiting ${approvals == 1 ? 'approval' : 'approvals'}, streak $streak ${streak == 1 ? 'day' : 'days'}',
+        payload: 'approvals', channel: 'approvals');
+  }
+
+  /// Shows a sample notification right away (asks for permission first).
+  Future<void> test() async {
+    if (!Platform.isAndroid) return;
+    await initPlugin();
+    await _n.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+    await _show('test:${DateTime.now().millisecondsSinceEpoch}', 'Saige test notification', 'Alerts are working. You will see replies and approvals here.',
+        payload: 'approvals', channel: 'approvals');
   }
 
   /// Shows one notification per item not shown before (remembered in prefs, last 300 ids).
@@ -135,6 +171,11 @@ class Pulse {
       if (first) continue;
       await _show(key, '${a['title']}${a['company'] != null ? ' · ${a['company']}' : ''}', '${a['subject'] ?? 'Waiting for your approval'}',
           payload: '${a['type']}:${a['id']}', channel: 'approvals', actions: true);
+    }
+    if (first && approvals.isNotEmpty) {
+      final n = approvals.length;
+      await _show('summary:first', 'Waiting for your approval', '$n ${n == 1 ? 'item' : 'items'} waiting for your approval',
+          payload: 'approvals', channel: 'approvals');
     }
     await prefs.setStringList(_kSeen, seen.length > 300 ? seen.sublist(seen.length - 300) : seen);
   }

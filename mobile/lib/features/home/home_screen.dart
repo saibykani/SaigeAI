@@ -13,6 +13,7 @@ import '../shell/shell.dart';
 import '../mock/mock_setup_screen.dart';
 import '../resume/ats_coach_screen.dart';
 import '../search/find_jobs_screen.dart';
+import 'streak_card.dart';
 import 'today_feed.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -125,6 +126,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       strong: totals['strong_matches'],
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  const Stagger(index: 2, child: StreakCard()),
                   const SizedBox(height: 18),
                   Stagger(
                     index: 2,

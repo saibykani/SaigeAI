@@ -79,6 +79,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ]),
             ),
           ),
+          const SizedBox(height: 10),
+          Stagger(
+            index: 3,
+            child: GlassCard(
+              radius: R.md,
+              padding: const EdgeInsets.fromLTRB(18, 8, 10, 8),
+              child: Row(children: [
+                Expanded(child: Text('Check that alerts reach your phone', style: T.small)),
+                TextButton.icon(
+                  icon: const Icon(Icons.notifications_active_rounded),
+                  label: const Text('Send test notification'),
+                  onPressed: () async {
+                    await Pulse.I.test();
+                    if (context.mounted) toast(context, 'Test notification sent. Check your notification shade.');
+                  },
+                ),
+              ]),
+            ),
+          ),
           const Stagger(index: 4, child: SectionTitle('Automation')),
           const Stagger(index: 5, child: _AutomationCard()),
           const Stagger(index: 6, child: SectionTitle('Account')),

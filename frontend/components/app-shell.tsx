@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldAlert, Briefcase, Building2, ShieldCheck, Globe, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, Smartphone, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
+import { Briefcase, Building2, ShieldCheck, Globe, Search, Plug, LayoutDashboard, LifeBuoy, Mail, Menu, ScanText, Send, Settings, Smartphone, UserRound, Users, X, createLucideIcon, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -182,17 +182,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
-          {user.is_super_admin && (
-            <Link href="/super-admin" className="mb-1 flex items-center gap-3 rounded-2xl border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
-              <ShieldAlert className="size-4" aria-hidden /> Admin console
-            </Link>
-          )}
           {GROUPS.filter((g) => navFor(user.role).some((n) => n.group === g)).map((g) => (
             <div key={g}>
               <p className="px-4 pb-1 pt-3 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/70">{t(g)}</p>
               
               <ul className="flex flex-col gap-1">
-                {navFor(user.role).filter((n) => n.group === g).map(({ href, label, icon: Icon }) => {
+                {navFor(user.role).filter((n) => n.group === g).map((n) => (n.href === "/admin" && user.is_super_admin ? { ...n, href: "/super-admin", label: "Admin console" } : n)).map(({ href, label, icon: Icon }) => {
                   const active = sectionFor(pathname)?.href === href;
                   return (
                     <li key={href}>

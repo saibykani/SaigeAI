@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/motion.dart';
 import '../../core/pulse.dart';
 import '../../core/theme.dart';
+import '../../core/widgets/confetti.dart';
 import '../../core/widgets/ui.dart';
 import '../inbox/inbox_screen.dart';
 
@@ -30,7 +31,9 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
     final msg = await Pulse.I.approve('${a['type']}', '${a['id']}');
     if (!mounted) return;
     setState(() => _busy.remove(key));
-    toast(context, msg, error: !(msg.startsWith('Sent') || msg.startsWith('Emailed') || msg.startsWith('Open') || msg.startsWith('Approved')));
+    final ok = msg.startsWith('Sent') || msg.startsWith('Emailed') || msg.startsWith('Open') || msg.startsWith('Approved');
+    if (ok) Confetti.burst(context);
+    toast(context, msg, error: !ok);
   }
 
   @override

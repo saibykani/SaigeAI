@@ -5,6 +5,18 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "2.3",
+    date: "2026-11-20T15:29:00+05:30",
+    size: "31.9 MB",
+    notes: [
+      "Same look as the website: pure black Graphite theme with solid accent colours (other themes still in Settings)",
+      "Lively animations: floating bubbles behind your screens, bouncy screen entrances and page transitions, confetti when you approve or save a job",
+      "ATS resume on your phone: paste a job or open one, see your match, generate an ATS resume and download or share it as PDF or Word (side menu > ATS resume, or the ATS button on a job)",
+      "Daily streak on Home: your streak in days, best streak, today's actions vs your goal and the last 7 days, counted only from real activity",
+      "Notifications you can see: a summary of items waiting for approval, a daily summary after 9 AM, and Settings > Send test notification",
+    ],
+  },
+  {
     version: "2.2",
     date: "2026-11-20T02:56:00+05:30",
     size: "31.8 MB",

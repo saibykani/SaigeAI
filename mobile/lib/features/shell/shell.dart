@@ -7,6 +7,7 @@ import '../../core/native_bridge.dart';
 import '../../core/pulse.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
+import '../../core/widgets/bubbles.dart';
 import '../../core/widgets/ui.dart';
 import '../applications/applications_screen.dart';
 import '../assistant/assistant_screen.dart';
@@ -156,14 +157,19 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin, Widg
       drawerScrimColor: Colors.black.withValues(alpha: 0.42),
       onDrawerChanged: (o) => DrawerNav.open.value = o,
       drawer: AppDrawer(tabIndex: ShellNav.index, onTab: ShellNav.go),
-      body: AnimatedBuilder(
-        animation: _swap,
-        child: IndexedStack(index: idx, children: [for (var i = 0; i < _ShellState._tabs.length; i++) _page(i)]),
-        builder: (context, child) {
-          final p = Curves.easeOutCubic.transform(_swap.value);
-          return Opacity(opacity: 0.4 + 0.6 * p, child: Transform.scale(scale: 0.97 + 0.03 * p, child: child));
-        },
-      ),
+      body: Stack(children: [
+        const Positioned.fill(child: FloatingBubbles()),
+        Positioned.fill(
+          child: AnimatedBuilder(
+            animation: _swap,
+            child: IndexedStack(index: idx, children: [for (var i = 0; i < _ShellState._tabs.length; i++) _page(i)]),
+            builder: (context, child) {
+              final p = Curves.easeOutCubic.transform(_swap.value);
+              return Opacity(opacity: 0.4 + 0.6 * p, child: Transform.scale(scale: 0.97 + 0.03 * p, child: child));
+            },
+          ),
+        ),
+      ]),
       bottomNavigationBar: _NavBar(index: idx, onTap: (i) {
         if (i != idx) tick();
         ShellNav.go(i);

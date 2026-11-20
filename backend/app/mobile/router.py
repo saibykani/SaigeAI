@@ -6,7 +6,7 @@ so the truth guard, pauses and daily caps all apply.
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -130,3 +130,60 @@ async def unhide(body: HideIn, user: dict = Depends(get_current_user), db: Async
 
 async def hidden_ids(db: AsyncIOMotorDatabase, uid: str) -> set[str]:
     return {h["item_id"] async for h in db[c.FEED_HIDDEN].find({"user_id": uid}, {"item_id": 1})}
+
+
+# ------------------------------------------------------------------ daily goal + streak
+
+IST = timezone(timedelta(hours=5, minutes=30))
+STREAK_LOOKBACK_DAYS = 400
+_STREAK_SOURCES = [(c.APPLICATIONS, ["created_at", "applied_at", "approved_at"]), (c.OUTREACH, ["sent_at"]),
+                   (c.INTERVIEWS, ["created_at"]), (c.MOCK_INTERVIEWS, ["created_at"])]
+
+
+def _ist_day(d: datetime):
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=UTC)
+    return d.astimezone(IST).date()
+
+
+async def activity_by_day(db: AsyncIOMotorDatabase, uid: str, since: datetime) -> dict:
+    """Real actions per IST day: applications created/applied/approved, outreach sent, interviews logged, mock interviews."""
+    counts: dict = {}
+    for coll, fields in _STREAK_SOURCES:
+        # one action per (record, field) so an application created and approved the same day counts twice only if both happened
+        query = {"user_id": uid, "$or": [{f: {"$gte": since}} for f in fields]}
+        async for doc in db[coll].find(query, {f: 1 for f in fields}):
+            days = {_ist_day(doc[f]) for f in fields if isinstance(doc.get(f), datetime) and doc[f] >= since}
+            for day in days:
+                counts[day] = counts.get(day, 0) + 1
+    return counts
+
+
+@router.get("/streak")
+async def streak(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Daily goal and streak from real activity only (IST days). Goal = weekly goal for applications+outreach / 7, rounded up, min 1."""
+    from app.growth.router import DEFAULT_GOALS
+
+    uid = user["_id"]
+    today = _ist_day(utcnow())
+    counts = await activity_by_day(db, uid, utcnow() - timedelta(days=STREAK_LOOKBACK_DAYS))
+    active = set(counts)
+
+    cur = 0
+    day = today if today in active else today - timedelta(days=1)
+    while day in active:
+        cur += 1
+        day -= timedelta(days=1)
+    best = run = 0
+    prev = None
+    for d in sorted(active):
+        run = run + 1 if prev is not None and (d - prev).days == 1 else 1
+        best = max(best, run)
+        prev = d
+
+    doc = await db[c.GOALS].find_one({"_id": uid}) or {}
+    weekly = int(doc.get("applications", DEFAULT_GOALS["applications"])) + int(doc.get("outreach", DEFAULT_GOALS["outreach"]))
+    goal = max(1, -(-weekly // 7)) if weekly > 0 else 1
+    return {"current": cur, "best": best, "today": counts.get(today, 0), "goal": goal,
+            "goal_met": counts.get(today, 0) >= goal,
+            "last7": [{"date": (today - timedelta(days=i)).isoformat(), "active": (today - timedelta(days=i)) in active} for i in range(6, -1, -1)]}

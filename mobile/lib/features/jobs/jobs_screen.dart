@@ -11,6 +11,7 @@ import '../../core/pulse.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
+import '../../core/widgets/confetti.dart';
 import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
@@ -73,6 +74,7 @@ class _JobsScreenState extends State<JobsScreen> {
       if (decision == 'shortlisted') {
         await Session.I.api.post('/jobs/feed/save', data: {'ids': [id], 'prepare_applications': true});
         _jobs.load();
+        if (mounted) Confetti.burst(context);
         final email = (it['hr_emails'] as List?)?.isNotEmpty == true;
         if (email) Pulse.I.check();
         if (mounted) toast(context, email ? 'Saved. Application ready: approve it in Approvals' : 'Saved to your jobs. Application prepared');

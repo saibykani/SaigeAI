@@ -86,3 +86,37 @@ async def test_pulse_token_is_read_only(client, db):
     # an extension token can't read the background pulse
     ext = (await client.post("/api/auth/tokens", json={}, headers={**auth, **CSRF})).json()["token"]
     assert (await client.get("/api/mobile/pulse/bg", headers={"Authorization": f"Bearer {ext}"})).status_code == 401
+
+
+async def test_streak_from_real_activity(client, db):
+    auth = await register(client)
+    uid = await _uid(db)
+    r = await client.get("/api/mobile/streak", headers=auth)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert (d["current"], d["best"], d["today"], d["goal"]) == (0, 0, 0, 3) and len(d["last7"]) == 7
+    assert not any(x["active"] for x in d["last7"])
+
+    now = utcnow()
+    await db[c.OUTREACH].insert_one({"_id": "o1", "user_id": uid, "status": "sent", "sent_at": now})
+    await db[c.APPLICATIONS].insert_one({"_id": "a1", "user_id": uid, "status": "APPLIED", "created_at": now - timedelta(days=1)})
+    await db[c.MOCK_INTERVIEWS].insert_one({"_id": "m1", "user_id": uid, "created_at": now - timedelta(days=2)})
+    await db[c.INTERVIEWS].insert_one({"_id": "i1", "user_id": uid, "created_at": now - timedelta(days=5)})
+    await db[c.INTERVIEWS].insert_one({"_id": "i2", "user_id": "other", "created_at": now - timedelta(days=3)})
+    d = (await client.get("/api/mobile/streak", headers=auth)).json()
+    assert d["current"] == 3 and d["best"] == 3 and d["today"] == 1 and d["goal_met"] is False
+    assert [x["active"] for x in d["last7"]] == [False, True, False, False, True, True, True]
+
+    # today inactive: streak still counts through yesterday
+    await db[c.OUTREACH].delete_many({})
+    d = (await client.get("/api/mobile/streak", headers=auth)).json()
+    assert d["current"] == 2 and d["today"] == 0
+
+
+async def test_streak_goal_from_weekly_goal(client, db):
+    auth = await register(client)
+    uid = await _uid(db)
+    await db[c.GOALS].insert_one({"_id": uid, "applications": 2, "outreach": 1})
+    assert (await client.get("/api/mobile/streak", headers=auth)).json()["goal"] == 1
+    await db[c.GOALS].update_one({"_id": uid}, {"$set": {"applications": 20, "outreach": 5}})
+    assert (await client.get("/api/mobile/streak", headers=auth)).json()["goal"] == 4

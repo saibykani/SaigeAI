@@ -26,6 +26,7 @@ import '../profile/profile_screen.dart';
 import '../resume/ats_coach_screen.dart';
 import '../resume/cover_letter_screen.dart';
 import '../resume/health_screen.dart';
+import '../resume/studio_screen.dart';
 import '../roles/admin_screen.dart';
 import '../roles/talent_screen.dart';
 import '../search/careers_screen.dart';
@@ -170,6 +171,7 @@ List<_Sec> _sections() {
       ]),
       _Sec('resume', 'Resume & ATS', Icons.description_rounded, [
         _It('resumes', 'My resumes', Icons.folder_copy_rounded, C.primary, build: () => const ProfileScreen()),
+        _It('studio', 'ATS resume (PDF)', Icons.picture_as_pdf_rounded, C.warn, build: () => const StudioScreen()),
         _It('ats', 'ATS coach', Icons.bolt_rounded, C.blue, build: () => const AtsCoachScreen()),
         _It('health', 'Resume health', Icons.monitor_heart_rounded, C.good, build: () => const ResumeHealthScreen()),
         _It('cover', 'Cover letters', Icons.edit_note_rounded, C.violet, build: () => const CoverLetterScreen()),
