@@ -121,6 +121,14 @@ user's own connected Gmail, so they appear "from" the user's personal address. T
 
 Recruiter outreach, applications and thank-you emails always use the user's own Gmail, because the user is the sender.
 
+Sender order for job digests (best inbox placement first):
+1. **Resend with Saige's own domain** — `RESEND_API_KEY` + `RESEND_FROM` (e.g. `noreply@saige-ai.in`). Sign up at
+   resend.com, add the domain, add the DNS records it shows (SPF/DKIM), create an API key, and set both variables in
+   `saige-ai-api`. This is the permanent fix: verified-domain mail lands in the inbox for every user.
+2. **The user's own connected Gmail**, sending to themselves (Gmail never spams your own mail to yourself).
+3. **Saige's Gmail mailbox** (`SAIGE_MAIL_*`) for users without a connected Gmail. A new @gmail.com sender often lands
+   in spam, so treat this as a fallback only.
+
 ### Daily scheduler: CRON_SECRET
 
 Vercel calls `GET /api/cron/daily` once a day (Hobby plan limit; `backend/vercel.json`). The endpoint only runs

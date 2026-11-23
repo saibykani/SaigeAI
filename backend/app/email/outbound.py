@@ -40,15 +40,46 @@ def saige_sender() -> dict | None:
     return None
 
 
+def resend_sender() -> dict | None:
+    """Saige's verified-domain sender via Resend (RESEND_API_KEY + RESEND_FROM). Best inbox placement for every user."""
+    from app.config import get_settings
+    s = get_settings()
+    if s.resend_api_key and s.resend_from:
+        return {"email": s.resend_from.strip(), "resend": True, "system": True, "from_name": s.saige_mail_from_name}
+    return None
+
+
 async def find_digest_sender(db: AsyncIOMotorDatabase, uid: str) -> dict | None:
-    """Sender for Saige-to-user mail (job digests): Saige's own address if configured, else the user's Gmail.
+    """Sender for Saige-to-user mail (job digests), best inbox placement first:
+    1. Saige's own domain via Resend, if configured;
+    2. the user's own connected Gmail (mail to yourself never lands in spam);
+    3. Saige's Gmail mailbox (SAIGE_MAIL_*), for users without a connected Gmail.
     Mail to recruiters/employers must keep using find_sender (it is the user writing)."""
-    return saige_sender() or await find_sender(db, uid)
+    return resend_sender() or await find_sender(db, uid) or saige_sender()
+
+
+async def _send_resend(integ: dict, from_name: str, to: str, subject: str, body: str, html: str | None) -> str:
+    import httpx
+
+    from app.config import get_settings
+    s = get_settings()
+    settings_url = s.frontend_url.rstrip("/") + "/settings"
+    payload = {"from": f"{from_name} <{integ['email']}>", "to": [to], "subject": subject, "text": body,
+               "headers": {"List-Unsubscribe": f"<{settings_url}>"}}
+    if html:
+        payload["html"] = html
+    async with httpx.AsyncClient(timeout=20) as client:
+        res = await client.post("https://api.resend.com/emails", json=payload, headers={"Authorization": f"Bearer {s.resend_api_key}"})
+    if res.status_code >= 300:
+        raise GmailError(f"Email service error ({res.status_code}): {res.text[:200]}")
+    return str(res.json().get("id") or "")
 
 
 async def send(integ: dict, from_name: str, to: str, subject: str, body: str,
                attachments: list[tuple[str, bytes, str]] | None = None, html: str | None = None) -> str:
     """Returns the Message-ID. Raises GmailError with a readable message when every route fails."""
+    if integ.get("resend"):
+        return await _send_resend(integ, from_name, to, subject, body, html)
     msg = smtp.build_message(integ["email"], from_name, to, subject, body, attachments, html)
     if integ.get("system"):
         # Saige's own digests: a one-click unsubscribe (RFC 8058) tells Gmail this is wanted bulk mail, not spam.

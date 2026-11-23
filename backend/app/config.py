@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     saige_mail_user: str | None = None
     saige_mail_app_password: str | None = None
     saige_mail_from_name: str = "Saige AI"
+    # Preferred once Saige has its own domain: Resend (resend.com) with a verified domain, e.g. RESEND_FROM=noreply@saige-ai.in.
+    resend_api_key: str | None = None
+    resend_from: str | None = None
 
     # Optional LinkedIn app ("Share on LinkedIn") for the daily posting agent.
     linkedin_client_id: str | None = None
