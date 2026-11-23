@@ -109,6 +109,18 @@ super admin even before the variable is set. Super admins also get the separate 
 `/api/superadmin/*`): users, audit log + CSV, feature usage, system health (feature flags shown as configured yes/no, never values)
 and announcements. Other admins can switch users between jobseeker and recruiter and disable or enable non-admin accounts.
 
+### Saige sender for job digests: SAIGE_MAIL_USER, SAIGE_MAIL_APP_PASSWORD
+
+Job digests (career portals, Job Match Radar) are emails Saige sends *to* the user. By default they go out through the
+user's own connected Gmail, so they appear "from" the user's personal address. To send them from a Saige mailbox instead:
+
+1. Create a Gmail account for Saige (for example `saige.noreply@gmail.com`) and turn on 2-Step Verification.
+2. In that account, create an App Password (Google Account → Security → App passwords).
+3. In the **backend** Vercel project (`saige-ai-api`) add `SAIGE_MAIL_USER=<that address>`,
+   `SAIGE_MAIL_APP_PASSWORD=<the 16-character app password>` and optionally `SAIGE_MAIL_FROM_NAME=Saige AI`, then redeploy.
+
+Recruiter outreach, applications and thank-you emails always use the user's own Gmail, because the user is the sender.
+
 ### Daily scheduler: CRON_SECRET
 
 Vercel calls `GET /api/cron/daily` once a day (Hobby plan limit; `backend/vercel.json`). The endpoint only runs

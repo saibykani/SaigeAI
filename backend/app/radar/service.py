@@ -105,7 +105,7 @@ async def send_test_digest(db: AsyncIOMotorDatabase, uid: str) -> dict:
         profile = await get_profile(db, uid)
         subject, text, body_html = digest.render(items, roles_for(profile, s), get_settings().frontend_url.rstrip("/"))
         subject = "Job Match Radar: " + subject
-        integ = await outbound.find_sender(db, uid)
+        integ = await outbound.find_digest_sender(db, uid)
         if not integ or not digest.EMAIL_RE.match(to):
             await notify(db, user_id=uid, kind="job_radar", title=f"Your top {len(items)} matches today", link="/radar",
                          body="Connect Gmail with an App Password in Integrations to also get this by email.",
@@ -113,7 +113,7 @@ async def send_test_digest(db: AsyncIOMotorDatabase, uid: str) -> dict:
             run.action("notified in app (no sender connected)")
             return {"sent": 0, "notified": len(items), "error": "Connect Gmail with an App Password (Settings → Integrations) to get it by email."}
         try:
-            mid = await outbound.send(integ, "Saige AI", to, subject, text, html=body_html)
+            mid = await outbound.send(integ, integ.get("from_name") or "Saige AI", to, subject, text, html=body_html)
         except GmailError as exc:
             run.errors.append(str(exc)[:200])
             return {"sent": 0, "error": str(exc)}

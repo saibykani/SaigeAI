@@ -134,7 +134,7 @@ async def send(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual", t
     to = (s.careers.digest_to or user.get("email") or "").strip()
     profile = await get_profile(db, uid)
     subject, text, body_html = render(items, roles_for(profile, s), get_settings().frontend_url.rstrip("/"))
-    integ = await outbound.find_sender(db, uid)
+    integ = await outbound.find_digest_sender(db, uid)
     if not integ or not EMAIL_RE.match(to):
         await notify(db, user_id=uid, kind="career_jobs", title=subject[7:], link="/careers",
                      body="Connect Gmail with an App Password in Integrations to also get this by email.",
@@ -146,7 +146,7 @@ async def send(db: AsyncIOMotorDatabase, uid: str, *, trigger: str = "manual", t
     if trigger != "manual" and state.get("retry_after") and as_utc(state["retry_after"]) > utcnow():
         return {"sent": 0, "skipped": "waiting after a Gmail error", "retry_after": as_utc(state["retry_after"]).isoformat()}
     try:
-        mid = await outbound.send(integ, "Saige AI", to, subject, text, html=body_html)
+        mid = await outbound.send(integ, integ.get("from_name") or "Saige AI", to, subject, text, html=body_html)
     except GmailError as exc:
         await db[c.SYSTEM_SETTINGS].update_one({"user_id": uid}, {"$set": {"careers_mail": {
             "retry_after": utcnow() + MAIL_BACKOFF, "error": str(exc)[:300]}}}, upsert=True)

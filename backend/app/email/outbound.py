@@ -30,6 +30,22 @@ async def find_sender(db: AsyncIOMotorDatabase, uid: str) -> dict | None:
     return None
 
 
+def saige_sender() -> dict | None:
+    """Saige's own mailbox (SAIGE_MAIL_USER + SAIGE_MAIL_APP_PASSWORD), used for emails Saige sends *to* the user."""
+    from app.config import get_settings
+    s = get_settings()
+    if s.saige_mail_user and s.saige_mail_app_password:
+        return {"email": s.saige_mail_user.strip(), "app_password_enc": crypto.encrypt(s.saige_mail_app_password.replace(" ", "")),
+                "system": True, "from_name": s.saige_mail_from_name}
+    return None
+
+
+async def find_digest_sender(db: AsyncIOMotorDatabase, uid: str) -> dict | None:
+    """Sender for Saige-to-user mail (job digests): Saige's own address if configured, else the user's Gmail.
+    Mail to recruiters/employers must keep using find_sender (it is the user writing)."""
+    return saige_sender() or await find_sender(db, uid)
+
+
 async def send(integ: dict, from_name: str, to: str, subject: str, body: str,
                attachments: list[tuple[str, bytes, str]] | None = None, html: str | None = None) -> str:
     """Returns the Message-ID. Raises GmailError with a readable message when every route fails."""

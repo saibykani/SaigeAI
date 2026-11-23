@@ -59,6 +59,11 @@ class Settings(BaseSettings):
 
     # Shared secret for /api/cron/daily (Vercel Cron sends it as a Bearer token).
     cron_secret: str | None = None
+    # Saige's own sender for emails Saige sends to the user (job digests). A separate Gmail with an App Password, e.g.
+    # saige.noreply@gmail.com. When unset, digests fall back to the user's own connected Gmail.
+    saige_mail_user: str | None = None
+    saige_mail_app_password: str | None = None
+    saige_mail_from_name: str = "Saige AI"
 
     # Optional LinkedIn app ("Share on LinkedIn") for the daily posting agent.
     linkedin_client_id: str | None = None
