@@ -50,6 +50,13 @@ async def send(integ: dict, from_name: str, to: str, subject: str, body: str,
                attachments: list[tuple[str, bytes, str]] | None = None, html: str | None = None) -> str:
     """Returns the Message-ID. Raises GmailError with a readable message when every route fails."""
     msg = smtp.build_message(integ["email"], from_name, to, subject, body, attachments, html)
+    if integ.get("system"):
+        # Saige's own digests: a one-click unsubscribe (RFC 8058) tells Gmail this is wanted bulk mail, not spam.
+        from app.config import get_settings
+        settings_url = get_settings().frontend_url.rstrip("/") + "/settings"
+        msg["List-Unsubscribe"] = f"<mailto:{integ['email']}?subject=unsubscribe>, <{settings_url}>"
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+        msg["Reply-To"] = integ["email"]
     api_error = None
     if can_api(integ):
         try:

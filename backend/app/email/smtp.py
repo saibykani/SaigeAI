@@ -8,7 +8,7 @@ import asyncio
 import smtplib
 import time
 from email.message import EmailMessage
-from email.utils import formataddr, make_msgid
+from email.utils import formataddr, formatdate, make_msgid
 
 from app.email.gmail import GmailError
 
@@ -26,6 +26,7 @@ def build_message(address: str, from_name: str, to: str, subject: str, body: str
     msg["To"] = to
     msg["Subject"] = subject
     msg["Message-ID"] = make_msgid(domain=address.split("@")[-1])
+    msg["Date"] = formatdate(localtime=True)  # missing Date is a spam signal
     msg.set_content(body)
     if html:
         msg.add_alternative(html, subtype="html")

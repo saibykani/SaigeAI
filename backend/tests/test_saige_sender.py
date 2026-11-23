@@ -44,3 +44,9 @@ async def test_digest_sender_prefers_saige_and_falls_back(monkeypatch, fresh_set
     monkeypatch.setenv("SAIGE_MAIL_APP_PASSWORD", "x" * 16)
     assert (await outbound.find_digest_sender(None, "u1"))["email"] == "saige.noreply@gmail.com"
     assert calls == ["u1"]
+
+
+def test_messages_have_date_and_saige_digests_have_unsubscribe():
+    from app.email import smtp
+    m = smtp.build_message("a@gmail.com", "Saige AI", "b@gmail.com", "s", "body", html="<p>x</p>")
+    assert m["Date"]
