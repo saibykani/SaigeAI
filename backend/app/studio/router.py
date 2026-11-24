@@ -517,7 +517,7 @@ async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), 
     await db[c.RESUMES].update_one({"_id": d["_id"]}, {"$push": {"sent": {"to": body.to, "subject": body.subject, "at": now,
                                                                          "message_id": mid, "file": fname}}})
     await log_action(db, user_id=uid, action="studio.application_sent", entity="resume", entity_id=d["_id"],
-                     details={"to": body.to, "company": d.get("company"), "file": fname})
+                     details={"to": body.to, "company": d.get("company"), "file": fname, "approval": "explicit_user_click"})
     await notify(db, user_id=uid, kind="application_emailed", title=f"Application sent to {body.to}",
                  body=f"{d.get('target_title') or 'Resume'}{' at ' + d['company'] if d.get('company') else ''}: {fname} attached.",
                  link="/studio/apply")

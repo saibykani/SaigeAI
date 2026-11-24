@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/form";
+import { useUndoSend } from "@/components/undo-send";
 import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
 import type { Outreach, OutreachKind, OutreachStatus, RecruiterContact } from "@/types/api";
@@ -48,8 +49,10 @@ function errText(e: unknown): string {
   return e instanceof Error ? e.message : "Something went wrong";
 }
 
-/** One message through its life: edit → approve → send yourself → mark sent → outcome. */
-export function OutreachCard({ item, onChange, delay = 0, canSend = false }: { item: Outreach; onChange: () => void; delay?: number; canSend?: boolean }) {
+/** One message through its life: edit → Send (one tap) → mark sent → outcome. */
+export function OutreachCard({ item, onChange, delay = 0, canSend = false, error = null }: { item: Outreach; onChange: () => void; delay?: number; canSend?: boolean; error?: string | null }) {
+  const undoSend = useUndoSend();
+  const [sending, setSending] = useState(false);
   const [editing, setEditing] = useState(false);
   const [subject, setSubject] = useState(item.subject);
   const [body, setBody] = useState(item.body);
@@ -67,6 +70,21 @@ export function OutreachCard({ item, onChange, delay = 0, canSend = false }: { i
     } catch (e) {
       setErr(errText(e));
     }
+  }
+
+  /** One tap: 5 s "Sending… Undo", then ONE call that approves and sends. Errors (cap, pause, no Gmail, truth guard) show on this card. */
+  function sendNow() {
+    setErr(null);
+    setSending(true);
+    undoSend(`to ${item.contact_name}`, async () => {
+      try {
+        await request(`/outreach/${item.id}/send`, { method: "POST", query: { approve: "true" } });
+        onChange();
+      } catch (e) {
+        setErr(errText(e));
+        setSending(false);
+      }
+    }, { onUndo: () => setSending(false) });
   }
 
   async function copy() {
@@ -101,9 +119,9 @@ export function OutreachCard({ item, onChange, delay = 0, canSend = false }: { i
           <p className="whitespace-pre-wrap rounded-xl border bg-muted/40 p-3 text-sm leading-relaxed">{item.body}</p>
         )}
         {!verified && item.validation && (
-          <Notice tone="warning">Contains claims not in your verified profile: {item.validation.violations.map((v) => v.value).join(", ")}. Edit before approving.</Notice>
+          <Notice tone="warning">Contains claims not in your verified profile: {item.validation.violations.map((v) => v.value).join(", ")}. Edit before sending.</Notice>
         )}
-        {err && <Notice tone="error">{err}</Notice>}
+        {(err || error) && <Notice tone="error">{err || error}</Notice>}
 
         <div className="flex flex-wrap items-center gap-2">
           {editing ? (
@@ -115,14 +133,15 @@ export function OutreachCard({ item, onChange, delay = 0, canSend = false }: { i
             <>
               {item.status === "draft" && (
                 <>
-                  {emailable && <Button size="sm" onClick={() => act("/send?approve=true")} disabled={!verified}><Send /> Approve &amp; send</Button>}
-                  <Button size="sm" variant={emailable ? "outline" : "default"} onClick={() => act("/approve")} disabled={!verified}><Check /> Approve</Button>
+                  {emailable
+                    ? <Button size="sm" onClick={sendNow} disabled={!verified || sending}><Send /> {sending ? "Sending…" : "Send"}</Button>
+                    : <Button size="sm" onClick={() => act("/approve")} disabled={!verified}><Check /> Prepare to send</Button>}
                   <Button size="sm" variant="ghost" onClick={() => setEditing(true)}><Pencil /> Edit</Button>
                 </>
               )}
               {item.status === "approved" && (
                 <>
-                  {emailable && <Button size="sm" onClick={() => act("/send")}><Send /> Send from Gmail</Button>}
+                  {emailable && <Button size="sm" onClick={sendNow} disabled={sending}><Send /> {sending ? "Sending…" : "Send"}</Button>}
                   {item.gmail_compose && (
                     <a href={item.gmail_compose} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-medium text-primary-foreground">
                       <Mail className="size-3.5" /> Open in Gmail

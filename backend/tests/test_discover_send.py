@@ -123,6 +123,8 @@ async def test_approve_and_send_from_gmail(client, auth, db, monkeypatch):
     assert msg["To"] == "priya@payco.com" and "asha@gmail.com" in msg["From"] and msg["Subject"] == d["subject"]
     assert await db[c.FOLLOWUPS].count_documents({"outreach_id": d["id"]}) == 3
     assert await db[c.NOTIFICATIONS].find_one({"kind": "outreach_sent"})
+    clicked = await db[c.AUDIT_LOGS].find_one({"action": "outreach.send_clicked"})
+    assert clicked["details"]["approval"] == "explicit_user_click" and clicked["details"]["approved_in_same_request"] is True
     # Caps still apply to Saige-sent mail.
     await client.put("/api/automation/settings", headers=auth, json={"pauses": {"recruiter_outreach": True}})
     d2 = (await client.post("/api/outreach/draft", headers=auth, json={"contact_id": ct["id"], "kind": "thank_you"})).json()

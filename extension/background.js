@@ -1,4 +1,4 @@
-// Saige AI v2.1 service worker. Talks to the Saige API with the user's revocable extension token on behalf of the page panel
+// Saige AI v2.2 service worker. Talks to the Saige API with the user's revocable extension token on behalf of the page panel
 // (content scripts can't call the API directly because of CORS). It only acts when the panel asks, which happens on a user click.
 const DEFAULTS = { api: "https://saige-ai-api.vercel.app", web: "https://saige-ai.vercel.app", token: "" };
 

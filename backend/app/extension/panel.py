@@ -3,7 +3,7 @@
 Rules that hold for every route here:
 - The extension only sends the one post / job the user is looking at, capped to the relevant block of text.
 - Nothing is sent without the user's explicit click: /ext/send-email needs confirm=true, which the panel sets only after the
-  user presses Send and then confirms "Send to x@y.com?". That click is recorded as the approval in the audit log.
+  user presses Send and the 5-second "Sending... Undo" window passes. That click is recorded as the approval in the audit log.
 - Every draft that goes out is truth-checked again on its final (edited) wording.
 """
 
@@ -619,9 +619,9 @@ async def ext_send_email(body: SendIn, user: dict = Depends(token_user), db: Asy
             await apps.mark_applied(db, application, source="email")
     await log_action(db, user_id=uid, action="extension.email_sent", entity="outreach" if outreach else "email",
                      entity_id=(outreach or application or {}).get("_id"),
-                     details={"to": to, "company": company, "approval": "explicit_user_click_confirmed_in_extension_panel",
+                     details={"to": to, "company": company, "approval": "explicit_user_click", "via": "extension_panel",
                               "attached": [a[0] for a in attachments], "source": kind or "adhoc"})
     await notify(db, user_id=uid, kind="extension_email_sent", title=f"Email sent to {to}",
-                 body=f"{body.subject}{' · ' + company if company else ''}. Sent from the Saige panel after your confirmation.", link="/sent")
+                 body=f"{body.subject}{' · ' + company if company else ''}. Sent from the Saige panel after your Send click.", link="/sent")
     return {"status": "sent", "to": to, "from": integ["email"], "sent_at": now.isoformat(), "attached": [a[0] for a in attachments],
             "message_id": mid, "note": "Sent from your Gmail. Replies are tracked in Saige."}

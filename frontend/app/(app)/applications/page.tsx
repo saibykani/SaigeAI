@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { DotRing } from "@/components/dot-ring";
+import { useUndoSend } from "@/components/undo-send";
 import { useT } from "@/components/i18n";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { CountUp } from "@/components/motion";
@@ -62,46 +63,58 @@ function AppCard({ a, delay }: { a: Application; delay: number }) {
 const READY: ApplicationStatus[] = ["SHORTLISTED", "READY_TO_APPLY", "APPROVAL_REQUIRED", "APPLICATION_FAILED"];
 type BulkResult = { id: string; company: string; role: string; status: "sent" | "open" | "error"; message: string; url?: string };
 
-/** Approve many prepared applications at once (the auto-applier's queue). */
+/** The auto-applier's queue: one Send per application (5 s Undo, then one approve-and-send call), plus Send all. */
 function ApprovalQueue({ apps, onDone }: { apps: Application[]; onDone: () => void }) {
   const ready = apps.filter((a) => READY.includes(a.status));
-  const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState(false);
+  const undoSend = useUndoSend();
+  const [pending, setPending] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<BulkResult[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [rowErr, setRowErr] = useState<Record<string, string>>({});
   const [previews, setPreviews] = useState<ApplyPreview[] | null>(null);
   const [variants, setVariants] = useState<Record<string, string>>({});
   const [followUp, setFollowUp] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   if (!ready.length && !results) return null;
 
-  async function preview(v: Record<string, string> = variants) {
-    setBusy(true);
+  const setBusyIds = (ids: string[], on: boolean) => setPending((p) => { const n = new Set(p); ids.forEach((i) => (on ? n.add(i) : n.delete(i))); return n; });
+
+  async function preview(id: string, v: Record<string, string> = variants) {
     setErr(null);
     try {
-      const r = await request<{ items: ApplyPreview[] }>("/applications/approve-preview", { method: "POST", body: { ids: [...picked], variants: v } });
+      const r = await request<{ items: ApplyPreview[] }>("/applications/approve-preview", { method: "POST", body: { ids: [id], variants: v } });
       setPreviews(r.items);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Preview failed");
-    } finally {
-      setBusy(false);
     }
   }
-  const all = ready.length > 0 && ready.every((a) => picked.has(a.id));
 
-  async function approve() {
-    setBusy(true);
-    setErr(null);
+  async function sendOne(id: string): Promise<boolean> {
     try {
-      const r = await request<{ results: BulkResult[] }>("/applications/approve-bulk", { method: "POST", body: { ids: [...picked], variants, follow_up_days: followUp ? Number(followUp) : undefined } });
-      setResults(r.results);
-      setPreviews(null);
-      setPicked(new Set());
-      onDone();
+      const r = await request<BulkResult>(`/applications/${id}/approve-and-send`, { method: "POST", query: { variant: variants[id], follow_up_days: followUp ? Number(followUp) : undefined } });
+      setResults((x) => [...(x ?? []), r]);
+      setRowErr((e) => { const n = { ...e }; delete n[id]; return n; });
+      return true;
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Approval failed");
-    } finally {
-      setBusy(false);
+      setRowErr((x) => ({ ...x, [id]: e instanceof Error ? e.message : "Couldn't send" }));
+      return false;
     }
+  }
+
+  function send(a: Application) {
+    setRowErr((e) => { const n = { ...e }; delete n[a.id]; return n; });
+    setBusyIds([a.id], true);
+    undoSend(`${a.role} at ${a.company}`, async () => { await sendOne(a.id); setBusyIds([a.id], false); onDone(); }, { onUndo: () => setBusyIds([a.id], false) });
+  }
+
+  function sendAll() {
+    const ids = ready.filter((a) => !pending.has(a.id)).map((a) => a.id);
+    setRowErr({});
+    setBusyIds(ids, true);
+    undoSend(`${ids.length} application${ids.length === 1 ? "" : "s"}`, async () => {
+      for (const id of ids) await sendOne(id);
+      setBusyIds(ids, false);
+      onDone();
+    }, { onUndo: () => setBusyIds(ids, false) });
   }
 
   async function submitted(id: string) {
@@ -116,25 +129,21 @@ function ApprovalQueue({ apps, onDone }: { apps: Application[]; onDone: () => vo
         <div>
           <CardTitle className="flex items-center gap-2 text-lg">
             <span className="grid size-8 place-items-center rounded-lg text-[#0b0b0c]" style={{ background: "var(--tone-purple)" }}><Bot className="size-4" /></span>
-            Ready to approve <span className="text-muted-foreground">· {ready.length}</span>
+            Ready to send <span className="text-muted-foreground">· {ready.length}</span>
           </CardTitle>
           <CardDescription className="mt-1 max-w-3xl">
-            Prepared by you or the auto-applier, with your best resume attached. Approving sends email applications from your Gmail (when the posting asks for CVs by email) and opens the employer&apos;s page for the rest.
+            Prepared by you or the auto-applier, with your best resume attached. Send emails the application from your Gmail (when the posting asks for CVs by email) and opens the employer&apos;s page for the rest.
           </CardDescription>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium" onClick={() => setPicked(all ? new Set() : new Set(ready.map((a) => a.id)))}>
-            {all ? <CheckSquare className="size-4" style={{ color: "var(--tone-purple)" }} /> : <Square className="size-4" />} Select all
-          </button>
-          <Button size="sm" variant="outline" disabled={!picked.size || busy} onClick={() => void preview()}>Preview what will be sent</Button>
-          <Button size="sm" disabled={!picked.size || busy} onClick={approve}>{busy ? <DotRing size={18} dots={12} /> : <Send />} Approve &amp; apply ({picked.size})</Button>
+          <Button size="sm" disabled={!ready.length || pending.size > 0} onClick={sendAll}>{pending.size > 0 ? <DotRing size={18} dots={12} /> : <Send />} Send all ({ready.length})</Button>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {err && <Notice tone="error">{err}</Notice>}
         {previews && (
           <div className="mb-2 space-y-3 rounded-2xl border p-3 text-sm">
-            <p className="font-medium">Preview: nothing is sent until you press Approve &amp; apply.</p>
+            <p className="font-medium">Preview: nothing is sent until you press Send.</p>
             {previews.map((p) => p.error ? <p key={p.id} className="text-muted-foreground">{p.error}</p> : (
               <div key={p.id} className="space-y-1.5 rounded-xl bg-muted/40 p-3">
                 <p><b>{p.role}</b> · {p.company} → <span className="text-muted-foreground">{p.to}</span></p>
@@ -143,7 +152,7 @@ function ApprovalQueue({ apps, onDone }: { apps: Application[]; onDone: () => vo
                   {(p.variants ?? []).map((v) => (
                     <button key={v.id} type="button" aria-pressed={p.variant === v.id}
                       className={`rounded-full border px-2.5 py-1 ${p.variant === v.id ? "border-foreground" : "text-muted-foreground"}`}
-                      onClick={() => { const nv = { ...variants, [p.id]: v.id }; setVariants(nv); void preview(nv); }}>{v.name}</button>
+                      onClick={() => { const nv = { ...variants, [p.id]: v.id }; setVariants(nv); void preview(p.id, nv); }}>{v.name}</button>
                   ))}
                   <span className="text-muted-foreground">{p.variant_reason}</span>
                 </div>
@@ -182,9 +191,8 @@ function ApprovalQueue({ apps, onDone }: { apps: Application[]; onDone: () => vo
         <ul className="grid gap-2 md:grid-cols-2">
           {ready.map((a) => (
             <li key={a.id}>
-              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border p-3 hover:bg-muted/40">
-                <input type="checkbox" className="size-4 accent-[var(--tone-purple)]" checked={picked.has(a.id)}
-                  onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(a.id)) n.delete(a.id); else n.add(a.id); return n; })} />
+              <div className="flex items-center gap-3 rounded-2xl border p-3">
+                
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{a.role}</span>
                   <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -196,8 +204,11 @@ function ApprovalQueue({ apps, onDone }: { apps: Application[]; onDone: () => vo
                   </span>
                 </span>
                 {a.match_score != null && <span className="rounded-lg bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">{a.match_score}%</span>}
-                <Link href={`/applications/${a.id}`} className="text-xs underline" onClick={(e) => e.stopPropagation()}>Review</Link>
-              </label>
+                <Link href={`/applications/${a.id}`} className="text-xs underline">Review</Link>
+                {a.apply_email && <button type="button" className="text-xs underline" onClick={() => void preview(a.id)}>Preview</button>}
+                <Button size="sm" disabled={pending.has(a.id)} onClick={() => send(a)}><Send /> {pending.has(a.id) ? "Sending…" : a.apply_email ? "Send" : "Apply"}</Button>
+              </div>
+              {rowErr[a.id] && <p className="mt-1 px-3 text-xs text-destructive">{rowErr[a.id]}</p>}
             </li>
           ))}
         </ul>

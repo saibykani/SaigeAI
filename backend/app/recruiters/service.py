@@ -698,6 +698,8 @@ async def send_now(db: AsyncIOMotorDatabase, user_id: str, outreach_id: str, *, 
     await tracking.record_sent(db, user_id, kind="bulk" if doc.get("template_id") else "outreach", to=contact["email"], subject=doc["subject"],
                                message_id=message_id, company=contact.get("company") or doc.get("company"), template_id=doc.get("template_id"),
                                template_name=tname or f"Outreach: {doc['kind']}", outreach_id=doc["_id"], contact_id=contact["_id"], sent_at=now)
+    await log_action(db, user_id=user_id, action="outreach.send_clicked", entity="outreach", entity_id=outreach_id,
+                     details={"approval": "explicit_user_click", "approved_in_same_request": approve_first, "to": contact["email"]})
     await notify(db, user_id=user_id, kind="outreach_sent", title=f"Email sent to {contact['name']}",
                  body=f"{doc['subject']} · {contact['company']}. Follow-ups are scheduled and stop if they reply.",
                  link="/recruiters")

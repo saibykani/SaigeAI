@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/form";
 import { SkillConfirm } from "@/components/skill-confirm";
+import { useUndoSend } from "@/components/undo-send";
 import { downloadFile, request } from "@/services/api";
 import type { ApplyDraft } from "@/types/api";
 
@@ -32,6 +33,7 @@ export default function ApplyByEmailPage() {
   const [body, setBody] = useState("");
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [busy, setBusy] = useState<"draft" | "send" | null>(null);
+  const undoSend = useUndoSend();
   const [msg, setMsg] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
   const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
   const [tplId, setTplId] = useState("");
@@ -76,10 +78,15 @@ export default function ApplyByEmailPage() {
     }
   }
 
-  async function send() {
+  function send() {
     if (draft?.status !== "ready") return;
     setBusy("send");
     setMsg(null);
+    undoSend(`to ${to}`, doSend, { onUndo: () => setBusy(null) });
+  }
+
+  async function doSend() {
+    if (draft?.status !== "ready") return;
     try {
       const r = await request<{ to: string; from: string; file: string }>("/studio/apply/send", {
         method: "POST", body: { resume_id: draft.id, to, subject, body, format, on: localDate() },
@@ -165,8 +172,8 @@ export default function ApplyByEmailPage() {
                     <Button key={f} size="sm" variant={format === f ? "default" : "outline"} onClick={() => setFormat(f)} aria-pressed={format === f}>{f.toUpperCase()}</Button>
                   ))}
                 </div>
-                <Button onClick={() => void send()} disabled={busy !== null || !draft.gmail || !to.includes("@") || body.trim().length < 20}>
-                  <Send /> {busy === "send" ? "Sending…" : "Send from my Gmail"}
+                <Button onClick={send} disabled={busy !== null || !draft.gmail || !to.includes("@") || body.trim().length < 20}>
+                  <Send /> {busy === "send" ? "Sending…" : "Send"}
                 </Button>
               </div>
             </CardContent>

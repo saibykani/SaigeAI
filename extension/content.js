@@ -1,8 +1,8 @@
-// Saige AI v2.1 content script: a Gemini-style side panel on the job or hiring post the user is looking at.
+// Saige AI v2.2 content script: a Gemini-style side panel on the job or hiring post the user is looking at.
 // Reads ONLY what is already on screen for the ONE job or post the user chose (never the whole LinkedIn feed, no crawling, no
 // extra requests to the site, no clicking "see more" for the user). Everything the panel does is user-triggered and goes to the
 // Saige API through the background worker. It NEVER presses Submit/Apply/Save on a site. Emails are sent only when the user
-// presses Send in the panel and confirms "Send to x@y.com?".
+// presses Send in the panel (a 5-second "Sending… Undo" bar, then the send).
 (() => {
   if (window.__saigeV21) return;
   window.__saigeV21 = true;
@@ -404,7 +404,7 @@
       h("p", { className: "dim", textContent: "Built only from your verified profile, aimed at this description." })];
   }
 
-  /** An editable email draft with Copy / Open in Gmail / Send (confirm) / Discard. Saige never sends without the user's click + confirm. */
+  /** An editable email draft with Copy / Open in Gmail / Send (5 s Undo) / Discard. Saige never sends without the user's Send click. */
   function draftBlock(d) {
     const to = h("input", { value: d.to || "", placeholder: "recipient@company.com", type: "email" });
     const subject = h("input", { value: d.subject || "", maxLength: 200 });
@@ -424,40 +424,56 @@
     const actions = h("div", { className: "row" }, send, copy, gmail, discard);
     const box = h("div", { className: "draft" }, h("div", { className: "lbl", textContent: "Draft · not sent" }),
       h("label", {}, "To", to), h("label", {}, "Subject", subject), h("label", {}, "Message (edit freely)", text), attach, actions, note,
-      h("p", { className: "dim", textContent: d.attach_note || "You review it. It is sent only when you press Send and confirm." }));
+      h("p", { className: "dim", textContent: d.attach_note || "You review it. Press Send: you get 5 seconds to undo before it goes." }));
     const setNote = (t, cls = "dim") => { note.className = cls; note.textContent = t; };
+    let timer = null;
+    const finishError = (e) => {
+      actions.hidden = false;
+      [to, subject, text, attach].forEach((x) => { x.disabled = false; });
+      note.className = "err";
+      note.replaceChildren(e.message);
+      if (/Connect Gmail/i.test(e.message)) {
+        const open = h("a", { className: "btn", target: "_blank", rel: "noopener", textContent: "Open Integrations" });
+        call({ type: "config" }).then((c) => { open.href = `${c.web}/integrations`; });
+        note.append(" ", open);
+      }
+    };
+    const doSend = async () => {
+      note.className = "dim";
+      note.replaceChildren("Sending…");
+      try {
+        const r = await api("/ext/send-email", "POST", { draft_id: d.draftId || undefined, to: to.value, subject: subject.value, body: text.value,
+          company: ctx?.company || d.company || "", role: ctx?.title || d.role || "", attach_resume_id: attach.value ? d.resumeId : undefined,
+          format: attach.value || "pdf", confirm: true });
+        const when = new Date(r.sent_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+        actions.replaceChildren();
+        actions.hidden = false;
+        setNote(`Sent to ${r.to} at ${when}${r.attached?.length ? ` with ${r.attached[0]}` : ""}. Replies are tracked in Saige.`, "ok");
+      } catch (e) { finishError(e); }
+    };
+    // One tap: a 5-second "Sending… Undo" bar, then the send call (confirm=true is set here, after the undo window).
     send.onclick = () => {
       if (!to.value || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to.value)) return setNote("Add a valid recipient first.", "err");
-      const yes = h("button", { className: "btn primary", textContent: "Yes, send" });
-      const no = h("button", { className: "btn", textContent: "Cancel" });
-      const conf = h("div", { className: "confirm" }, h("span", { textContent: `Send to ${to.value}?` }), yes, no);
-      actions.hidden = true;
-      note.replaceChildren(conf);
+      let left = 5;
+      const label = h("span", { textContent: `Sending to ${to.value}… ${left}s` });
+      const undo = h("button", { className: "btn", textContent: "Undo" });
       note.className = "";
-      no.onclick = () => { actions.hidden = false; note.replaceChildren(); };
-      yes.onclick = async () => {
-        yes.disabled = no.disabled = true;
-        yes.textContent = "Sending…";
-        try {
-          const r = await api("/ext/send-email", "POST", { draft_id: d.draftId || undefined, to: to.value, subject: subject.value, body: text.value,
-            company: ctx?.company || d.company || "", role: ctx?.title || d.role || "", attach_resume_id: attach.value ? d.resumeId : undefined,
-            format: attach.value || "pdf", confirm: true });
-          const when = new Date(r.sent_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-          [to, subject, text, attach].forEach((e) => { e.disabled = true; });
-          actions.replaceChildren();
-          actions.hidden = false;
-          setNote(`Sent to ${r.to} at ${when}${r.attached?.length ? ` with ${r.attached[0]}` : ""}. Replies are tracked in Saige.`, "ok");
-        } catch (e) {
-          actions.hidden = false;
-          note.className = "err";
-          note.replaceChildren(e.message);
-          if (/Connect Gmail/i.test(e.message)) {
-            const open = h("a", { className: "btn", target: "_blank", rel: "noopener", textContent: "Open Integrations" });
-            call({ type: "config" }).then((c) => { open.href = `${c.web}/integrations`; });
-            note.append(" ", open);
-          }
-        }
+      note.replaceChildren(h("div", { className: "confirm" }, label, undo));
+      actions.hidden = true;
+      [to, subject, text, attach].forEach((x) => { x.disabled = true; });
+      undo.onclick = () => {
+        clearInterval(timer);
+        actions.hidden = false;
+        [to, subject, text, attach].forEach((x) => { x.disabled = false; });
+        setNote("Send cancelled. Nothing was sent.");
       };
+      timer = setInterval(() => {
+        left -= 1;
+        if (left > 0) { label.textContent = `Sending to ${to.value}… ${left}s`; return; }
+        clearInterval(timer);
+        undo.disabled = true;
+        void doSend();
+      }, 1000);
     };
     if (discard) {
       discard.onclick = async () => {

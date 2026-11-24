@@ -1,5 +1,10 @@
 import { AppShell } from "@/components/app-shell";
+import { UndoSendProvider } from "@/components/undo-send";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  return <AppShell>{children}</AppShell>;
+  return (
+    <UndoSendProvider>
+      <AppShell>{children}</AppShell>
+    </UndoSendProvider>
+  );
 }

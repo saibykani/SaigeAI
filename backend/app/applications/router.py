@@ -89,6 +89,20 @@ async def approve(app_id: str, user: dict = Depends(get_current_user), db: Async
     return await svc.approve_and_apply(db, user["_id"], a)
 
 
+@router.post("/applications/{app_id}/approve-and-send")
+async def approve_and_send(app_id: str, variant: str | None = None, follow_up_days: int | None = None,
+                           user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """One click: approve and send this application (email apply from Gmail, otherwise the employer-page hand-off)."""
+    from app.jobs import auto_apply
+
+    await svc.get_owned(db, user["_id"], app_id)
+    out = await auto_apply.approve_many(db, user["_id"], [app_id], variants={app_id: variant} if variant else None, follow_up_days=follow_up_days)
+    row = out["results"][0]
+    if row["status"] == "error":
+        raise HTTPException(status.HTTP_409_CONFLICT, row["message"])
+    return row
+
+
 class BulkApproveIn(BaseModel):
     ids: list[str] = Field(min_length=1, max_length=50)
     variants: dict[str, str] = Field(default_factory=dict)  # application id -> email version id chosen in the preview

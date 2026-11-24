@@ -159,3 +159,25 @@ async def test_followup_reminder_is_scheduled(client, auth, db):
     await auto_apply.schedule_followup(db, a, 5)
     f = await db[c.FOLLOWUPS].find_one({"application_id": aid, "custom": True})
     assert f and f["status"] == "scheduled" and 4 <= (f["due_at"] - utcnow()).days <= 5
+
+
+async def test_approve_and_send_one_call(client, auth, db, monkeypatch):
+    from app.email import imap, smtp
+    from tests.test_discover_send import FakeSMTP
+    from tests.test_gmail_imap import FakeIMAP
+
+    FakeSMTP.sent = []
+    monkeypatch.setattr(smtp, "SMTP_FACTORY", FakeSMTP)
+    monkeypatch.setattr(imap, "IMAP_FACTORY", FakeIMAP)
+    uid, aid = await _app(client, auth, db, "Gamma")
+    no = await client.post(f"/api/applications/{aid}/approve-and-send", headers=auth)
+    assert no.status_code == 409 and "Gmail" in no.json()["detail"] and not FakeSMTP.sent  # inline-friendly error
+    await client.post("/api/auth/connect/gmail-app-password", headers=auth, json={"email": "asha@gmail.com", "app_password": "abcdefghijklmnop"})
+    r = await client.post(f"/api/applications/{aid}/approve-and-send", headers=auth)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "sent" and len(FakeSMTP.sent) == 1 and FakeSMTP.sent[0]["To"] == "hr@acme.com"
+    assert (await db[c.APPLICATIONS].find_one({"_id": aid}))["status"] == "APPLIED"
+    audit = await db[c.AUDIT_LOGS].find_one({"action": "application.approved_and_sent"})
+    assert audit["details"]["approval"] == "explicit_user_click"
+    again = await client.post(f"/api/applications/{aid}/approve-and-send", headers=auth)  # 14-day company guard
+    assert again.status_code == 409 and len(FakeSMTP.sent) == 1

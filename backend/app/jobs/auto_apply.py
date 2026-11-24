@@ -328,6 +328,10 @@ async def approve_many(db: AsyncIOMotorDatabase, uid: str, ids: list[str], *, va
         except HTTPException as exc:
             detail = exc.detail if isinstance(exc.detail, str) else (exc.detail or {}).get("message", "Failed")
             results.append({**row, "status": "error", "message": detail})
+    for r in results:
+        if r["status"] != "error":
+            await log_action(db, user_id=uid, action="application.approved_and_sent", entity="application", entity_id=r["id"],
+                             details={"approval": "explicit_user_click", "result": r["status"]})
     sent = sum(r["status"] == "sent" for r in results)
     opened = sum(r["status"] == "open" for r in results)
     if sent or opened:

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Saige AI: job match & capture",
   "short_name": "Saige AI",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "A Saige panel on the job or hiring post you are viewing: match score, ATS resume (PDF/DOCX), a truth-checked application email draft and your own HR contacts. Also fills applications and LinkedIn / Naukri edits. Never sends or submits.",
   "action": {
     "default_popup": "popup.html",

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
+import { useUndoSend } from "@/components/undo-send";
 import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
 import type { ContactRole, Outreach, OutreachKind, OutreachStats, OutreachTemplate, PagedContacts, RecruiterContact } from "@/types/api";
@@ -174,6 +175,9 @@ export default function RecruitersPage() {
   const outreach = useApi<Outreach[]>("/outreach");
   const stats = useApi<OutreachStats>("/outreach/stats");
   const tpls = useApi<OutreachTemplate[]>("/outreach/templates");
+  const undoSend = useUndoSend();
+  const [sendErrs, setSendErrs] = useState<Record<string, string>>({});
+  const [bulkSending, setBulkSending] = useState(false);
   const [tab, setTab] = useState<Tab>("contacts");
   useEffect(() => { const q = new URLSearchParams(window.location.search).get("tab"); if (q === "find" || q === "tracking") setTab(q); }, []);
   const [msg, setMsg] = useState<Msg>(null);
@@ -207,6 +211,29 @@ export default function RecruitersPage() {
   const queue = useMemo(() => (outreach.data ?? []).filter((o) => o.status === "draft" || o.status === "approved"), [outreach.data]);
   const sent = useMemo(() => (outreach.data ?? []).filter((o) => !["draft", "approved", "cancelled"].includes(o.status)), [outreach.data]);
   const s = stats.data;
+  const sendable = useMemo(() => queue.filter((o) => o.channel_hint === "email" && o.kind !== "linkedin_note" && o.validation?.status === "PASSED"), [queue]);
+  /** "Send all": one Undo window, then one approve-and-send call per draft; failures show on that draft. */
+  function sendAll() {
+    const items = [...sendable];
+    setSendErrs({});
+    setBulkSending(true);
+    undoSend(`${items.length} email${items.length === 1 ? "" : "s"}`, async () => {
+      const errs: Record<string, string> = {};
+      let ok = 0;
+      for (const o of items) {
+        try {
+          await request(`/outreach/${o.id}/send`, { method: "POST", query: { approve: "true" } });
+          ok += 1;
+        } catch (e) {
+          errs[o.id] = e instanceof Error ? e.message : "Couldn't send";
+        }
+      }
+      setSendErrs(errs);
+      setBulkSending(false);
+      setMsg({ tone: Object.keys(errs).length ? "warning" : "success", text: `Sent ${ok} of ${items.length}.${Object.keys(errs).length ? " Failed ones show their reason below." : ""}` });
+      reload();
+    }, { onUndo: () => setBulkSending(false) });
+  }
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: "contacts", label: "Contacts", count: s?.contacts },
     { id: "queue", label: "Queue", count: queue.length },
@@ -298,10 +325,10 @@ export default function RecruitersPage() {
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span className="font-medium">{s.queued_bulk} approved emails are Ready to send tomorrow.</span>
             <span className="text-muted-foreground">{s.remaining_today} left in today&apos;s cap.</span>
-            <Button size="sm" disabled={s.remaining_today === 0 || !s.can_send_from_saige} onClick={() => { if (confirm(`Send up to ${s.remaining_today} queued emails now? They were approved when you queued them.`)) void run(async () => {
+            <Button size="sm" disabled={s.remaining_today === 0 || !s.can_send_from_saige} onClick={() => undoSend("queued emails", () => run(async () => {
               const r = await request<{ sent: number; still_queued: number }>("/recruiters/bulk/send-queued", { method: "POST", query: { confirm: "true" } });
               setMsg({ tone: "success", text: `Sent ${r.sent}; ${r.still_queued} still queued.` });
-            }); }}>Send queued now</Button>
+            }))}>Send queued now</Button>
           </div>
         </Card>
       )}
@@ -336,12 +363,17 @@ export default function RecruitersPage() {
 
       {tab === "queue" && (
         <div className="flex flex-col gap-4">
+          {s?.can_send_from_saige && sendable.length > 1 && (
+            <div className="flex justify-end">
+              <Button size="sm" disabled={bulkSending} onClick={sendAll}><Send /> {bulkSending ? "Sending…" : `Send all (${sendable.length})`}</Button>
+            </div>
+          )}
           {queue.length === 0 ? (
             <Card className="flex flex-col items-center gap-3 py-12 text-center">
               <Send className="size-7 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">No messages waiting. Draft one from a contact, or use “Get a referral” on any job.</p>
             </Card>
-          ) : queue.map((o, i) => <OutreachCard key={o.id + o.updated_at} item={o} onChange={reload} delay={i * 40} canSend={!!s?.can_send_from_saige} />)}
+          ) : queue.map((o, i) => <OutreachCard key={o.id + o.updated_at} item={o} onChange={reload} delay={i * 40} canSend={!!s?.can_send_from_saige} error={sendErrs[o.id] ?? null} />)}
         </div>
       )}
 
@@ -360,7 +392,7 @@ export default function RecruitersPage() {
       {tab === "templates" && (
         <div className="flex flex-col gap-4">
           <Notice>
-            Templates are filled from your verified profile. Bracketed parts like [First name] and [Company] are replaced automatically when you draft for a contact. Emails go out only after you approve them.
+            Templates are filled from your verified profile. Bracketed parts like [First name] and [Company] are replaced automatically when you draft for a contact. Emails go out when you press Send (you get 5 seconds to undo).
           </Notice>
           {!tpls.data ? <div className="skeleton h-72 rounded-3xl" /> : (
             ([["email", "Email templates"], ["linkedin", "LinkedIn"], ["whatsapp", "WhatsApp messages"]] as const).map(([ch, title]) => {
