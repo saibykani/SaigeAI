@@ -15,8 +15,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, Input, Textarea } from "@/components/ui/form";
 import { useApi } from "@/hooks/use-api";
 import { SkillConfirm } from "@/components/skill-confirm";
+import { StudioInsights } from "@/components/studio-insights";
 import { downloadFile, request } from "@/services/api";
-import type { StudioGenerated, StudioResumeRow, StudioTemplates } from "@/types/api";
+import type { StudioGenerated, StudioInsightsData, StudioResumeRow, StudioTemplates } from "@/types/api";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/format";
 
@@ -267,6 +268,14 @@ function Builder() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {result && (
+        <StudioInsights resumeId={result.id} data={result as unknown as StudioInsightsData} onChanged={async () => {
+          const fresh = await request<StudioGenerated & StudioInsightsData>(`/studio/resumes/${result.id}`);
+          setResult((r) => (r ? { ...r, ats: fresh.ats ?? r.ats, html: fresh.html ?? r.html } : r));
+          if (fresh.html) setPreview(fresh.html);
+        }} />
       )}
 
       {result && ats && (

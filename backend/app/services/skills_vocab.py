@@ -50,6 +50,14 @@ SKILL_CATEGORIES: dict[str, str] = {
     # databases
     "MySQL": "databases", "PostgreSQL": "databases", "MongoDB": "databases",
     "Oracle": "databases", "SQL Server": "databases", "Redis": "databases",
+    # more languages, frameworks, data and infrastructure (recognition only; a candidate still has to list them)
+    "Rust": "programming_languages", "PHP": "programming_languages", "Swift": "programming_languages", "Dart": "programming_languages",
+    "Bash": "programming_languages", ".NET": "frameworks", "Angular": "frameworks", "Vue": "frameworks", "Next.js": "frameworks",
+    "Django": "frameworks", "Flask": "frameworks", "FastAPI": "frameworks", "Spring": "frameworks", "Flutter": "frameworks",
+    "Terraform": "tools", "Ansible": "tools", "Nginx": "tools", "Kafka": "tools", "RabbitMQ": "tools", "Elasticsearch": "databases",
+    "Snowflake": "databases", "BigQuery": "databases", "Airflow": "tools", "Spark": "tools", "dbt": "tools", "Hadoop": "tools",
+    "Pandas": "frameworks", "NumPy": "frameworks", "TensorFlow": "frameworks", "PyTorch": "frameworks", "Tableau": "tools",
+    "Power BI": "tools", "Machine Learning": "secondary",
 }
 
 ALIASES: dict[str, str] = {
@@ -62,6 +70,16 @@ ALIASES: dict[str, str] = {
     "github actions": "GitHub Actions", "gitlab": "GitLab CI", "k8s": "Kubernetes",
     "ci cd": "CI/CD", "cicd": "CI/CD", "atlassian jira": "JIRA", "jira": "JIRA",
     "load runner": "LoadRunner", "pytest": "PyTest", "testng": "TestNG", "soap ui": "SoapUI",
+    # spelling variants people and JDs use for the same skill
+    "reactjs": "React", "react.js": "React", "react js": "React", "vuejs": "Vue", "vue.js": "Vue", "angularjs": "Angular",
+    "nextjs": "Next.js", "node js": "Node.js", "es6": "JavaScript", "ecmascript": "JavaScript",
+    "ci / cd": "CI/CD", "ci-cd": "CI/CD", "continuous integration": "CI/CD", "continuous delivery": "CI/CD",
+    "continuous integration and delivery": "CI/CD", "continuous integration/continuous delivery": "CI/CD",
+    "apache airflow": "Airflow", "apache spark": "Spark", "apache kafka": "Kafka", "ms sql": "SQL Server", "sql server": "SQL Server",
+    "microsoft sql server": "SQL Server", "mongo db": "MongoDB", "mongo": "MongoDB", "elastic search": "Elasticsearch",
+    "selenium web driver": "Selenium", "web driver": "Selenium", "bdd cucumber": "Cucumber",
+    "springboot": "Spring Boot", "spring-boot": "Spring Boot", "dotnet": ".NET", ".net core": ".NET", "powerbi": "Power BI",
+    "git hub": "GitHub", "github action": "GitHub Actions",
 }
 
 _CANON_BY_KEY = {k.lower(): k for k in SKILL_CATEGORIES}
@@ -101,25 +119,29 @@ def _pattern(term: str) -> re.Pattern[str]:
 
 
 # Short/ambiguous terms that are only matched case-sensitively to avoid false positives.
-_CASE_SENSITIVE = {"REST", "ALM", "UAT", "SQL", "BDD", "AWS", "GCP", "Git", "React", "Oracle"}
+_CASE_SENSITIVE = {"REST", "ALM", "UAT", "SQL", "BDD", "AWS", "GCP", "Git", "React", "Oracle", "Spring", "Vue", "Swift", "Rust", "Flask", "Spark",
+                   "Bash", "Dart", "Mongo", "Airflow"}
 # Terms that are ordinary English words; recognised only via unambiguous aliases (e.g. golang).
 _NOT_SCANNED = {"Go"}
-_PATTERNS: list[tuple[str, re.Pattern[str]]] = []
+_PATTERNS: list[tuple[str, re.Pattern[str], int]] = []
 for _term in list(SKILL_CATEGORIES) + list(ALIASES):
     if _term in _NOT_SCANNED:
         continue
     _canon = canonical(_term)
     if _term in _CASE_SENSITIVE:
         _PATTERNS.append((_canon, re.compile(r"(?<![A-Za-z0-9])" + re.escape(_term)
-                                             + r"(?![A-Za-z0-9+#])")))
+                                             + r"(?![A-Za-z0-9+#])"), len(_term)))
     else:
-        _PATTERNS.append((_canon, _pattern(_term)))
+        _PATTERNS.append((_canon, _pattern(_term), len(_term)))
+_VOCAB_ORDER = {canon: i for i, (canon, _p, _n) in reversed(list(enumerate(_PATTERNS)))}  # keep the vocabulary order for results
+_PATTERNS.sort(key=lambda t: -t[2])  # longest term first, so "GitHub Actions" is read before "GitHub"
 
 
 def find_skills(text: str) -> list[str]:
     """Recognised vocabulary skills mentioned anywhere in `text` (canonical, de-duplicated)."""
     found: dict[str, None] = {}
-    for canon, pat in _PATTERNS:
+    for canon, pat, _n in _PATTERNS:
         if pat.search(text):
             found[canon] = None
-    return list(found)
+            text = pat.sub(lambda m: " " * len(m.group(0)), text)  # a span read as a longer skill isn't read again as a shorter one
+    return sorted(found, key=lambda k: _VOCAB_ORDER.get(k, 0))

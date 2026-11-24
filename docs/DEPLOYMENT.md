@@ -140,6 +140,26 @@ when the request carries `Authorization: Bearer <CRON_SECRET>`, which Vercel add
 3. Deployments → latest → ⋯ → Redeploy, so the running functions see it.
 4. Check: Settings → Cron Jobs lists `/api/cron/daily`; after the next run, Saige shows the scheduler history.
 
+### Every-15-minutes tick: job refresh + "best-fit roles" emails (`/api/cron/tick`)
+
+Vercel Hobby cron only runs daily, so a free external scheduler calls `GET` or `POST /api/cron/tick` every 15 minutes
+with `Authorization: Bearer <CRON_SECRET>` (same secret as above). Each call has a ~45 s budget: it refreshes the job
+feed and a slice of career portals for the most overdue active users (signed in within 30 days, not paused), then emails
+each user their best new roles every `careers.alert_hours` hours (default 4; 2/3/4/6/12/24 or 0 = off; quiet hours
+22:00-07:00 in the user's timezone, IST by default; nothing is sent when nothing is new). A lock document in `cron_locks`
+makes overlapping calls safe.
+
+**Option A: GitHub Actions (workflow already in `.github/workflows/cron-tick.yml`)**
+1. GitHub repo `saibykani/SaigeAI` → Settings → Secrets and variables → Actions → **New repository secret**.
+2. Name: `CRON_SECRET`. Value: exactly the `CRON_SECRET` set in the `saige-ai-api` Vercel project. Save.
+3. Actions tab → **cron-tick** → Run workflow once to test (expect a JSON reply with `refreshed`, `digests_sent`).
+   GitHub may delay scheduled runs by several minutes and pauses them after 60 days without repo activity.
+
+**Option B: cron-job.org (more punctual)**
+1. Create a free account, **Create cronjob**: URL `https://saige-ai-api.vercel.app/api/cron/tick`, every 15 minutes.
+2. Advanced → Request method `POST` (or GET), add header `Authorization` = `Bearer <CRON_SECRET>`.
+3. Timeout 60 s. Save and use "Test run": the response must be HTTP 200.
+
 More frequent updates come from the app itself: while it is open, `POST /api/live/tick` runs every 3 minutes.
 
 ### LinkedIn Posts (daily posting agent)

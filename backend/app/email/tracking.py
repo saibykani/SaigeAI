@@ -72,7 +72,7 @@ async def record_sent(db: AsyncIOMotorDatabase, uid: str, *, kind: str, to: str,
                       company: str | None = None, role: str | None = None, template_id: str | None = None,
                       template_name: str | None = None, application_id: str | None = None, outreach_id: str | None = None,
                       contact_id: str | None = None, thread_id: str | None = None, sent_at: datetime | None = None,
-                      status: str = "sent") -> dict | None:
+                      status: str = "sent", resume_id: str | None = None) -> dict | None:
     """Store one sent email. Never raises: tracking must not break sending. Idempotent per (user, message id)."""
     try:
         to_email = _email_of(to) or (to or "").strip().lower()
@@ -84,7 +84,7 @@ async def record_sent(db: AsyncIOMotorDatabase, uid: str, *, kind: str, to: str,
         doc = {"_id": new_id(), "user_id": uid, "kind": kind, "template_id": template_id, "template_name": template_name,
                "to_email": to_email, "to_domain": _domain(to_email), "company": company, "role": role, "subject": (subject or "")[:300],
                "message_id": mid, "thread_id": thread_id, "application_id": application_id, "outreach_id": outreach_id,
-               "contact_id": contact_id, "sent_at": sent_at or utcnow(), "status": status, "replied_at": None,
+               "contact_id": contact_id, "resume_id": resume_id, "sent_at": sent_at or utcnow(), "status": status, "replied_at": None,
                "reply_email_id": None, "reply_category": None, "reply_snippet": None, "created_at": utcnow()}
         await db[c.SENT_EMAILS].insert_one(doc)
         return doc

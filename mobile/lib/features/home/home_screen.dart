@@ -13,6 +13,7 @@ import '../shell/shell.dart';
 import '../mock/mock_setup_screen.dart';
 import '../resume/ats_coach_screen.dart';
 import '../search/find_jobs_screen.dart';
+import 'next_actions.dart';
 import 'streak_card.dart';
 import 'today_feed.dart';
 
@@ -137,6 +138,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       _Action('Mock interview', Icons.record_voice_over_rounded, C.violet, () => pushDepth(context, (_) => const MockSetupScreen())),
                       _Action('Ask Saige', Icons.auto_awesome_rounded, C.warn, () => ShellNav.go(3)),
                     ]),
+                  ),
+                  ListenableBuilder(
+                    listenable: _tips,
+                    builder: (context, _) => NextActions(key: ValueKey('na-${_tips.data?.length}-$_n'), dash: d, tips: _tips.data ?? const []),
                   ),
                   const SectionTitle('Today'),
                   ListenableBuilder(

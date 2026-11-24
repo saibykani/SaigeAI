@@ -1,12 +1,12 @@
 :root {
-  color-scheme: light;
-  --bg: #fbf6f6;
-  --card: #ffffff;
-  --muted: #f6eeef;
-  --border: #f0dfe1;
-  --fg: #1f1a1b;
-  --dim: #6b5f61;
-  --brand: #b8102e;
+  color-scheme: dark;
+  --bg: #000000;
+  --card: #0b0b0c;
+  --muted: #1c1c1e;
+  --border: #2c2c2e;
+  --fg: #f5f5f7;
+  --dim: #8e8e93;
+  --brand: #30d158;
   --green: #30d158;
   --orange: #ff9f0a;
   --red: #ff453a;
@@ -61,8 +61,8 @@ input:focus-visible, textarea:focus-visible, .btn:focus-visible { outline: 2px s
 }
 .btn:hover { background: var(--muted); }
 .btn:active { transform: scale(0.98); }
-.btn.primary { background: var(--brand); color: #fff; border-color: transparent; }
-.btn.primary:hover { background: #9d0d27; }
+.btn.primary { background: var(--brand); color: #000; border-color: transparent; }
+.btn.primary:hover { background: #28b84c; }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn.small { flex: none; height: 26px; padding: 0 10px; font-size: 11px; }
 #result { margin: 6px 0 10px; padding: 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); animation: rise 0.35s ease both; }
@@ -77,14 +77,14 @@ input:focus-visible, textarea:focus-visible, .btn:focus-visible { outline: 2px s
 .cls { font-weight: 600; margin: 0; }
 .label { font-size: 11px; color: var(--dim); margin: 8px 0 4px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.chips span { padding: 2px 8px; border-radius: 999px; font-size: 11px; background: rgba(48, 209, 88, 0.15); color: var(--green); }
-.chips.muted span { background: var(--muted); color: var(--dim); }
+.chips span { padding: 2px 8px; border-radius: 999px; font-size: 11px; border: 1px solid var(--green); color: var(--green); }
+.chips.muted span { border-color: var(--border); color: var(--dim); }
 details { margin-top: 6px; border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; }
 summary { cursor: pointer; font-weight: 500; }
 .answer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
 .answer q { display: block; font-size: 11px; color: var(--dim); quotes: none; }
 .answer p { margin: 4px 0; white-space: pre-wrap; }
-.review { color: var(--orange); font-size: 10px; }
+.review { color: var(--dim); font-size: 10px; }
 .status { min-height: 16px; margin: 8px 0 0; font-size: 12px; color: var(--dim); }
 .status.error { color: var(--red); }
 .status.ok { color: var(--green); }

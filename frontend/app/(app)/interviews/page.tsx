@@ -83,6 +83,7 @@ export default function InterviewsPage() {
                         <li key={i.id}>
                           {i.application_id ? <Link href={`/applications/${i.application_id}`} className="font-medium hover:underline">{i.role} · {i.company}</Link> : <span className="font-medium">{i.role} · {i.company}</span>}
                           <p className="text-xs text-muted-foreground">{i.round || "Interview"} · {formatDateTime(i.scheduled_at)}</p>
+                          {k === "completed" && <Link href="/debrief" className="mt-1 inline-flex h-7 items-center rounded-full border px-3 text-xs font-medium hover:bg-muted">Debrief</Link>}
                         </li>
                       ))}
                     </ul>

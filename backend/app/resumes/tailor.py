@@ -107,6 +107,9 @@ def template_summary(profile: Profile, job_title: str, matched: list[str], jd_te
     top = craft.jd_emphasis(matched, jd_text)[:5] if jd_text else matched[:5]
     if top:
         parts.append(f"Hands-on with {', '.join(top[:-1])} and {top[-1]}." if len(top) > 1 else f"Hands-on with {top[0]}.")
+    more = (craft.jd_emphasis(matched, jd_text) if jd_text else matched)[5:8]
+    if more:
+        parts.append(f"Also experienced with {', '.join(more)}.")
     low = (jd_text or "").lower()
     doms = [d for d in kb.domains if (not jd_text) or d.lower() in low]
     if doms:

@@ -35,11 +35,11 @@ type NavItem = { href: string; label: string; icon: LucideIcon; tone: Tone; grou
 const NAV: NavItem[] = [
   { group: "Home", href: "/recruiter", label: "Hiring", icon: Building2, tone: "teal", only: "recruiter" },
   { group: "Home", href: "/", label: "Dashboard", icon: LayoutDashboard, tone: "green", tabs: [
-    { href: "/", label: "Overview" }, { href: "/goals", label: "Weekly goals" }, { href: "/wrapped", label: "Career Wrapped" }, { href: "/analytics", label: "Analytics" }, { href: "/analytics/companies", label: "Company insights" }, { href: "/activity", label: "Activity log" }] },
+    { href: "/", label: "Overview" }, { href: "/wrapped", label: "Career Wrapped" }, { href: "/analytics", label: "Analytics" }, { href: "/analytics/companies", label: "Company insights" }, { href: "/activity", label: "Activity log" }] },
   { group: "Job search", href: "/jobs", label: "Find jobs", icon: Briefcase, tone: "orange", tabs: [
-    { href: "/jobs", label: "Jobs for you" }, { href: "/radar", label: "Job Match Radar" }, { href: "/careers", label: "Career portals" }, { href: "/salary", label: "Salary insights" }, { href: "/offers", label: "Offer calculator" }] },
+    { href: "/jobs", label: "Jobs for you" }, { href: "/radar", label: "Job Match Radar" }, { href: "/careers", label: "Career portals" }, { href: "/offers", label: "Offer calculator" }] },
   { group: "Job search", href: "/applications", label: "Track applications", icon: Send, tone: "yellow", tabs: [
-    { href: "/applications", label: "Applications" }, { href: "/followups", label: "Follow-ups" }, { href: "/interviews", label: "Interviews" }, { href: "/war-room", label: "War room" }, { href: "/mock-interview", label: "Mock interview" }, { href: "/debrief", label: "Debrief" }] },
+    { href: "/applications", label: "Applications" }, { href: "/followups", label: "Follow-ups" }, { href: "/interviews", label: "Interviews" }, { href: "/war-room", label: "War room" }, { href: "/mock-interview", label: "Mock interview" }] },
   { group: "Resume & ATS", href: "/resumes", label: "Resume & ATS", icon: ScanText, tone: "purple", tabs: [
     { href: "/resumes", label: "My resumes & ATS coach" }, { href: "/studio", label: "Resume builder" }, { href: "/studio/analyze", label: "JD analyzer" },
     { href: "/studio/apply", label: "Apply by email" }, { href: "/learning", label: "Learning path" }] },
@@ -47,10 +47,10 @@ const NAV: NavItem[] = [
   { group: "Network", href: "/recruiters", label: "Recruiters", icon: Users, tone: "lime" },
   { group: "Network", href: "/inbox", label: "Inbox", icon: Mail, tone: "teal" },
   { group: "Network", href: "/profiles", label: "LinkedIn & Naukri", icon: Linkedin, tone: "mint", tabs: [
-    { href: "/profiles", label: "Profile suggestions" }, { href: "/linkedin", label: "Daily posts" }, { href: "/profile-sync", label: "Resume sync" }] },
+    { href: "/profiles", label: "Profile suggestions" }, { href: "/linkedin", label: "Daily posts" }] },
   { group: "Account", href: "/profile", label: "Profile", icon: UserRound, tone: "mint" },
   { group: "Account", href: "/alerts", label: "Settings", icon: Settings, tone: "red", tabs: [
-    { href: "/alerts", label: "Alerts & templates" }, { href: "/agent", label: "Agent" }, { href: "/settings", label: "Automation & privacy" }] },
+    { href: "/alerts", label: "Alerts & templates" }, { href: "/settings", label: "Automation & privacy" }] },
   { group: "Account", href: "/help", label: "Help & Guide", icon: LifeBuoy, tone: "green" },
   { group: "Account", href: "/integrations", label: "Integrations", icon: Plug, tone: "orange" },
   { group: "Account", href: "/admin", label: "Admin", icon: ShieldCheck, tone: "red", only: "admin" },

@@ -1007,6 +1007,9 @@ export interface CareerSettings {
   categories: string[];
   exp_years: number | null;
   min_salary_lpa: number | null;
+  alert_hours: number;
+  quiet_start: string;
+  quiet_end: string;
 }
 
 export interface CareerPortal {
@@ -1266,3 +1269,46 @@ export interface RadarJob {
 }
 export interface RadarResponse { generated_from: { feed: number; careers: number }; total: number; items: RadarJob[] }
 export interface RadarDigestResult { sent: number; to?: string; notified?: number; reason?: string; skipped?: string; error?: string }
+
+// ---------------------------------------------------------------- ATS Studio v2, apply preview, model metrics
+export interface BeforeAfterItem { kind: string; text: string; items?: string[] }
+export interface BeforeAfter { before: number | null; after: number; delta: number | null; required_before?: number; required_after?: number; items: BeforeAfterItem[] }
+export interface ChecklistSkill { skill: string; kind: "required" | "preferred"; confirmed: boolean }
+export interface KeywordMapRow { keyword: string; required: boolean; verified: boolean; on_resume: boolean; mirrored: boolean }
+export interface StudioInsightsData { before_after?: BeforeAfter | null; skill_checklist?: ChecklistSkill[]; keyword_map?: KeywordMapRow[]; section_order?: string[] }
+export interface BulletFlag { code: string; message: string }
+export interface BulletCheck { original: string; flags: BulletFlag[]; score: number; rewrite: string | null; ask: { field: string; prompt: string } | null; where?: string }
+export interface RecruiterView {
+  seen_first: { name: string | null; headline: string | null; contact: string[]; summary_start: string | null; latest_role: string | null; top_skills: string[] };
+  top_third_sections: string[]; top_third_coverage: number | null;
+  heatmap: { keyword: string; counts: Record<"summary" | "skills" | "experience" | "projects", number>; total: number; in_top_third: boolean }[];
+  one_page: { estimated_lines: number; pages: number; fits: boolean; hint: string | null };
+}
+export interface CoverageChip { keyword: string; required: boolean; state: "on_resume" | "can_add" | "needs_confirmation" }
+export interface ResumeVersionRow {
+  id: string; name: string; company: string | null; title: string | null; template: string | null; created_at: string; ats_score: number | null;
+  sent: number; replies: number; interviews: number; reply_rate: number | null;
+}
+export interface VersionDiff {
+  a: ResumeVersionRow & { ats_score: number | null }; b: ResumeVersionRow & { ats_score: number | null };
+  diff: { summary: { a: string | null; b: string | null; changed: boolean }; skills_added: string[]; skills_removed: string[]; bullets_added: string[]; bullets_removed: string[]; bullets_reordered: boolean };
+}
+export interface RecruiterReview {
+  verdict: "shortlist" | "maybe" | "reject"; score: number; parts: Record<string, number>; top_fixes: { fix: string; points: number; how: string; kind: string }[];
+  rewrites: { where: string; original: string; rewrite: string; ask: { prompt: string } | null; flags: string[] }[]; red_flags: string[]; note: string | null; engine: string;
+}
+export interface AutoImproveResult {
+  before: number; after: number; reached_100: boolean; max_truthful_score: number; score_if_confirmed: number | null; saved: boolean; message: string; applied: string[];
+  rounds: { round: number; score: number; applied: string[]; gain?: number; stopped?: string }[];
+  blockers: { missing_skills: { skill: string; kind: "required" | "preferred" }[]; failed_checks: string[] };
+}
+export interface ApplyPreview {
+  id: string; company?: string; role?: string; to?: string; subject?: string; body?: string; variant?: string; variant_reason?: string; error?: string;
+  variants?: { id: string; name: string; subject: string }[]; diff?: { op: "add" | "del" | "same"; text: string }[];
+  resume?: { id: string | null; name: string | null; tailored: boolean; will_tailor: boolean; ats_score: number | null };
+  company_guard?: { blocked: boolean; last_sent: string | null; days: number };
+  template_stats?: { key: string; sent: number; replies: number; rate: number | null; enough_data: boolean }[];
+}
+export interface MlModelMetrics { accuracy: number; auc: number | null; folds: number; brier?: number; brier_calibrated?: number; calibration?: [number, number]; n?: number }
+export interface MlHistoryEntry { version: number; trained_at: string | null; trigger: string; samples: number; metrics: MlModelMetrics; score: number | null; promoted: boolean }
+export interface SuggestionV2 { id: string; area: string; priority: number; title: string; why: string; link: string; items: string[]; impact: number; explain: string }

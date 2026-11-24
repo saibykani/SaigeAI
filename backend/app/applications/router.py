@@ -91,6 +91,26 @@ async def approve(app_id: str, user: dict = Depends(get_current_user), db: Async
 
 class BulkApproveIn(BaseModel):
     ids: list[str] = Field(min_length=1, max_length=50)
+    variants: dict[str, str] = Field(default_factory=dict)  # application id -> email version id chosen in the preview
+    follow_up_days: int | None = Field(default=None, ge=1, le=30)
+
+
+@router.post("/applications/approve-preview")
+async def approve_preview(body: BulkApproveIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """What approving would send for each application (nothing is sent). Approve afterwards with /approve-bulk."""
+    from app.jobs import auto_apply
+
+    items = []
+    for app_id in body.ids:
+        a = await db[c.APPLICATIONS].find_one({"_id": app_id, "user_id": user["_id"]})
+        if not a or not a.get("apply_email"):
+            items.append({"id": app_id, "error": "No contact email: this one opens the employer's page instead."})
+            continue
+        try:
+            items.append(await auto_apply.preview(db, user["_id"], a, body.variants.get(app_id)))
+        except HTTPException as exc:
+            items.append({"id": app_id, "error": str(exc.detail)})
+    return {"items": items}
 
 
 @router.post("/applications/approve-bulk")
@@ -98,7 +118,7 @@ async def approve_bulk(body: BulkApproveIn, user: dict = Depends(get_current_use
     """Approve many prepared applications at once: email applications are sent from Gmail, the rest open for submission."""
     from app.jobs import auto_apply
 
-    return await auto_apply.approve_many(db, user["_id"], body.ids)
+    return await auto_apply.approve_many(db, user["_id"], body.ids, variants=body.variants, follow_up_days=body.follow_up_days)
 
 
 @router.post("/applications/{app_id}/mark-applied")

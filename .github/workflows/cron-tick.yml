@@ -1,0 +1,26 @@
+name: cron-tick
+
+# Calls the Saige backend every 15 minutes: refreshes job sources and sends due "best-fit roles" emails.
+# Needs the repository secret CRON_SECRET (same value as CRON_SECRET in the saige-ai-api Vercel project).
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: cron-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call /api/cron/tick
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BACKEND_URL: https://saige-ai-api.vercel.app
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET secret is not set"; exit 1; fi
+          curl --fail-with-body --silent --show-error --max-time 100 --retry 2 --retry-delay 5 \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" "$BACKEND_URL/api/cron/tick"

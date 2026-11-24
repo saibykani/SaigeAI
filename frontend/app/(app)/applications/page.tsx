@@ -13,7 +13,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
-import type { Application, ApplicationStatus } from "@/types/api";
+import type { ApplyPreview, Application, ApplicationStatus } from "@/types/api";
 import { formatDate, humanStatus } from "@/utils/format";
 
 /** Pipeline columns; each groups related statuses. Stage order drives an ordinal blue accent. */
@@ -69,15 +69,32 @@ function ApprovalQueue({ apps, onDone }: { apps: Application[]; onDone: () => vo
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<BulkResult[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<ApplyPreview[] | null>(null);
+  const [variants, setVariants] = useState<Record<string, string>>({});
+  const [followUp, setFollowUp] = useState("");
   if (!ready.length && !results) return null;
+
+  async function preview(v: Record<string, string> = variants) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await request<{ items: ApplyPreview[] }>("/applications/approve-preview", { method: "POST", body: { ids: [...picked], variants: v } });
+      setPreviews(r.items);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Preview failed");
+    } finally {
+      setBusy(false);
+    }
+  }
   const all = ready.length > 0 && ready.every((a) => picked.has(a.id));
 
   async function approve() {
     setBusy(true);
     setErr(null);
     try {
-      const r = await request<{ results: BulkResult[] }>("/applications/approve-bulk", { method: "POST", body: { ids: [...picked] } });
+      const r = await request<{ results: BulkResult[] }>("/applications/approve-bulk", { method: "POST", body: { ids: [...picked], variants, follow_up_days: followUp ? Number(followUp) : undefined } });
       setResults(r.results);
+      setPreviews(null);
       setPicked(new Set());
       onDone();
     } catch (e) {
@@ -109,11 +126,43 @@ function ApprovalQueue({ apps, onDone }: { apps: Application[]; onDone: () => vo
           <button type="button" className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium" onClick={() => setPicked(all ? new Set() : new Set(ready.map((a) => a.id)))}>
             {all ? <CheckSquare className="size-4" style={{ color: "var(--tone-purple)" }} /> : <Square className="size-4" />} Select all
           </button>
+          <Button size="sm" variant="outline" disabled={!picked.size || busy} onClick={() => void preview()}>Preview what will be sent</Button>
           <Button size="sm" disabled={!picked.size || busy} onClick={approve}>{busy ? <DotRing size={18} dots={12} /> : <Send />} Approve &amp; apply ({picked.size})</Button>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {err && <Notice tone="error">{err}</Notice>}
+        {previews && (
+          <div className="mb-2 space-y-3 rounded-2xl border p-3 text-sm">
+            <p className="font-medium">Preview: nothing is sent until you press Approve &amp; apply.</p>
+            {previews.map((p) => p.error ? <p key={p.id} className="text-muted-foreground">{p.error}</p> : (
+              <div key={p.id} className="space-y-1.5 rounded-xl bg-muted/40 p-3">
+                <p><b>{p.role}</b> · {p.company} → <span className="text-muted-foreground">{p.to}</span></p>
+                <p className="text-xs">Subject: <b>{p.subject}</b></p>
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  {(p.variants ?? []).map((v) => (
+                    <button key={v.id} type="button" aria-pressed={p.variant === v.id}
+                      className={`rounded-full border px-2.5 py-1 ${p.variant === v.id ? "border-foreground" : "text-muted-foreground"}`}
+                      onClick={() => { const nv = { ...variants, [p.id]: v.id }; setVariants(nv); void preview(nv); }}>{v.name}</button>
+                  ))}
+                  <span className="text-muted-foreground">{p.variant_reason}</span>
+                </div>
+                <pre className="whitespace-pre-wrap rounded-lg bg-background p-2 text-xs">{(p.diff?.length ? p.diff : (p.body ?? "").split("\n").map((t) => ({ op: "same" as const, text: t })))
+                  .map((d) => (d.op === "add" ? "+ " : d.op === "del" ? "- " : "  ") + d.text).join("\n")}</pre>
+                <p className="text-xs text-muted-foreground">
+                  Resume: {p.resume?.tailored ? `tailored for this job${p.resume.ats_score != null ? ` (ATS ${p.resume.ats_score})` : ""}` : p.resume?.will_tailor ? "will be tailored to this job's JD before sending" : "your best resume (no JD text to tailor to)"}
+                </p>
+                {p.company_guard?.blocked && <p className="text-xs text-[var(--tone-red)]">You already emailed {p.company} in the last {p.company_guard.days} days: this one will be blocked.</p>}
+                {(p.template_stats ?? []).length > 0 && p === previews.find((x) => !x.error) && (
+                  <p className="text-xs text-muted-foreground">Reply rate by version: {p.template_stats!.map((t) => `${t.key} ${t.rate ?? 0}% of ${t.sent}${t.enough_data ? "" : " (too few to compare)"}`).join(" · ")}</p>
+                )}
+              </div>
+            ))}
+            <label className="flex items-center gap-2 text-xs">Remind me to follow up after
+              <input type="number" min={1} max={30} className="h-8 w-16 rounded-lg border bg-transparent px-2" value={followUp} onChange={(e) => setFollowUp(e.target.value)} aria-label="Follow-up reminder in days" /> days (optional)
+            </label>
+          </div>
+        )}
         {results && (
           <ul className="mb-2 flex flex-col gap-1.5 rounded-2xl border p-3 text-sm">
             {results.map((r) => (

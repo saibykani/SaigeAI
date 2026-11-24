@@ -7,7 +7,6 @@ import '../../core/native_bridge.dart';
 import '../../core/pulse.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
-import '../../core/widgets/bubbles.dart';
 import '../../core/widgets/ui.dart';
 import '../applications/applications_screen.dart';
 import '../assistant/assistant_screen.dart';
@@ -158,7 +157,6 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin, Widg
       onDrawerChanged: (o) => DrawerNav.open.value = o,
       drawer: AppDrawer(tabIndex: ShellNav.index, onTab: ShellNav.go),
       body: Stack(children: [
-        const Positioned.fill(child: FloatingBubbles()),
         Positioned.fill(
           child: AnimatedBuilder(
             animation: _swap,

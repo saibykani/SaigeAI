@@ -4,6 +4,7 @@ import { Download, Pause, Play, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AgentSettings } from "@/components/agent-settings";
 import { useT } from "@/components/i18n";
 import { Notice, PageHeader } from "@/components/app-shell";
 import { ExtensionTokensCard } from "@/components/extension-tokens";
@@ -75,7 +76,9 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Automation & Privacy" description="Control what Saige may do on your behalf, and manage your data." />
+      <PageHeader title="Automation & Privacy" description="Your agent (outreach, replies, follow-ups, auto-apply), what Saige may do on your behalf, and your data." />
+      <AgentSettings embedded />
+      <h2 className="mb-4 mt-10 text-xl font-semibold">Automation & privacy</h2>
       {msg && (
         <div className="mb-4">
           <Notice tone={msg.tone}>{msg.text}</Notice>

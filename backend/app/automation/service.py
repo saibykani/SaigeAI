@@ -129,6 +129,16 @@ class CareerPortals(BaseModel):
     categories: list[str] = Field(default=[], max_length=4)   # email only these job types; empty: all
     exp_years: float | None = Field(default=None, ge=0, le=50)  # email skips roles needing more experience
     min_salary_lpa: float | None = Field(default=None, ge=0, le=1000)  # email skips roles that state lower pay
+    alert_hours: int = 4                                 # best-fit roles email every N hours (0 = off); sent by /api/cron/tick
+    quiet_start: str = Field(default="22:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")  # no alert emails between these times
+    quiet_end: str = Field(default="07:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")    # (in schedules.timezone)
+
+    @field_validator("alert_hours")
+    @classmethod
+    def _valid_alert_hours(cls, v: int) -> int:
+        if v not in (0, 2, 3, 4, 6, 12, 24):
+            raise ValueError("alert_hours must be 0 (off), 2, 3, 4, 6, 12 or 24")
+        return v
 
 
 class AutomationSettings(BaseModel):

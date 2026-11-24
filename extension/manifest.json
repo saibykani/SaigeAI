@@ -2,15 +2,33 @@
   "manifest_version": 3,
   "name": "Saige AI: job match & capture",
   "short_name": "Saige AI",
-  "version": "1.3.0",
-  "description": "Create an ATS resume for any job posting, score and save jobs, fill application forms with your verified details and resume, and apply prepared LinkedIn / Naukri profile edits.",
+  "version": "2.0.0",
+  "description": "A Saige panel on the job or hiring post you are viewing: match score, ATS resume (PDF/DOCX), a truth-checked application email draft and your own HR contacts. Also fills applications and LinkedIn / Naukri edits. Never sends or submits.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Saige AI",
     "default_icon": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
   },
   "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
   "host_permissions": ["https://saige-ai-api.vercel.app/*", "http://localhost:8000/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.linkedin.com/*", "https://*.naukri.com/*", "https://*.indeed.com/*", "https://*.indeed.co.in/*",
+        "https://boards.greenhouse.io/*", "https://job-boards.greenhouse.io/*", "https://*.greenhouse.io/*",
+        "https://jobs.lever.co/*", "https://jobs.ashbyhq.com/*", "https://*.myworkdayjobs.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-panel": {
+      "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" },
+      "description": "Open or close the Saige panel on this page"
+    }
+  },
   "options_page": "options.html"
 }

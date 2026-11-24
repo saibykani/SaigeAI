@@ -25,12 +25,42 @@ def sigmoid(z: float) -> float:
     return 1.0 / (1.0 + math.exp(-z))
 
 
+def logit(p: float) -> float:
+    p = min(max(p, 1e-4), 1 - 1e-4)
+    return math.log(p / (1 - p))
+
+
+def platt_fit(scores: list[float], y: list[int], steps: int = 300) -> tuple[float, float]:
+    """Platt scaling: p' = sigmoid(a * logit(p) + b), fitted on out-of-fold scores so confident-but-wrong models are pulled back.
+    Returns (1, 0) (identity) when there is too little data or only one class."""
+    if len(scores) < 10 or len(set(y)) < 2:
+        return 1.0, 0.0
+    z = [logit(s) for s in scores]
+    a, b = 1.0, 0.0
+    for i in range(steps):
+        lr = 0.5 / (1 + i * 0.02)
+        ga = gb = 0.0
+        for zi, t in zip(z, y, strict=True):
+            e = sigmoid(a * zi + b) - t
+            ga += e * zi
+            gb += e
+        a -= lr * ga / len(z)
+        b -= lr * gb / len(z)
+    return round(max(0.05, min(a, 5.0)), 4), round(max(-5.0, min(b, 5.0)), 4)
+
+
 class LogisticModel:
-    def __init__(self, weights: dict[str, float] | None = None):
+    def __init__(self, weights: dict[str, float] | None = None, calibration: tuple[float, float] | list[float] | None = None):
         self.w: dict[str, float] = dict(weights or {})
+        self.cal: tuple[float, float] = (float(calibration[0]), float(calibration[1])) if calibration else (1.0, 0.0)
+
+    def raw(self, x: dict[str, float]) -> float:
+        return sigmoid(sum(self.w.get(k, 0.0) * v for k, v in x.items()))
 
     def predict(self, x: dict[str, float]) -> float:
-        return sigmoid(sum(self.w.get(k, 0.0) * v for k, v in x.items()))
+        """Calibrated probability (identical to the raw score until a calibration is set)."""
+        p = self.raw(x)
+        return p if self.cal == (1.0, 0.0) else sigmoid(self.cal[0] * logit(p) + self.cal[1])
 
     def fit(self, X: list[dict[str, float]], y: list[int], sw: list[float] | None = None, *, epochs: int = 40,
             lr: float = 0.15, l2: float = 0.002, seed: int = 7) -> "LogisticModel":
@@ -46,7 +76,7 @@ class LogisticModel:
             step = lr / (1 + ep * 0.05)
             for i in idx:
                 x, t = X[i], y[i]
-                g = (self.predict(x) - t) * sw[i] * bal[t]
+                g = (self.raw(x) - t) * sw[i] * bal[t]
                 for k, v in x.items():
                     self.w[k] = self.w.get(k, 0.0) * (1 - step * l2) - step * g * v
         self.w = {k: round(v, 5) for k, v in self.w.items() if abs(v) > 1e-4}
@@ -114,6 +144,28 @@ def evaluate(X: list[dict[str, float]], y: list[int], sw: list[float], k: int = 
             continue
         m = LogisticModel().fit([X[i] for i in tr], [y[i] for i in tr], [sw[i] for i in tr], epochs=25)
         for i in test:
-            preds[i] = m.predict(X[i])
+            preds[i] = m.raw(X[i])
     acc = sum((p >= 0.5) == bool(t) for p, t in zip(preds, y, strict=True)) / n
-    return {"accuracy": round(acc, 3), "auc": auc(preds, y), "folds": k}
+    a, b = platt_fit(preds, y)
+    cal = [sigmoid(a * logit(p) + b) for p in preds]
+    brier = sum((p - t) ** 2 for p, t in zip(preds, y, strict=True)) / n
+    brier_cal = sum((p - t) ** 2 for p, t in zip(cal, y, strict=True)) / n
+    return {"accuracy": round(acc, 3), "auc": auc(preds, y), "folds": k, "brier": round(brier, 4), "brier_calibrated": round(brier_cal, 4),
+            "calibration": [a, b], "n": n}
+
+
+def metric_score(m: dict | None) -> float | None:
+    """One number to compare two models' k-fold results: AUC when both classes were scored, else accuracy; lower Brier breaks ties."""
+    if not m:
+        return None
+    base = m.get("auc") if m.get("auc") is not None else m.get("accuracy")
+    if base is None:
+        return None
+    brier = m.get("brier_calibrated") if m.get("brier_calibrated") is not None else (m.get("brier") or 0)
+    return round(base - 0.001 * brier, 5)
+
+
+def beats(new: dict | None, current: dict | None) -> bool:
+    """A new model is promoted only when its k-fold score is at least the current one's (ties go to the model with more data)."""
+    a, b = metric_score(new), metric_score(current)
+    return a is not None and (b is None or a >= b)

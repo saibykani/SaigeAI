@@ -53,6 +53,16 @@ async def cron_careers(authorization: str | None = Header(default=None), db: Asy
     return {"users": await watch.tick_all(db)}
 
 
+@router.api_route("/cron/tick", methods=["GET", "POST"])
+async def cron_tick(authorization: str | None = Header(default=None), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Every 15 minutes from a free external scheduler (GitHub Actions / cron-job.org; Bearer $CRON_SECRET):
+    refreshes job sources for the most overdue users, then sends the due "best-fit roles" emails."""
+    _check_cron_auth(authorization)
+    from app.cron_tick import service as tick
+
+    return await tick.run_tick(db)
+
+
 @router.post("/live/tick")
 async def live_tick(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     """Called every minute while Saige is open: syncs Gmail (portal alerts, invites, recruiter mail) when the

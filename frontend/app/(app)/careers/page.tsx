@@ -480,6 +480,12 @@ function SettingsView({ onMsg }: { onMsg: (m: Msg) => void }) {
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-[var(--tone-green)]" checked={s.email_digest} onChange={(e) => upd({ email_digest: e.target.checked })} /> Email me new matches</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-[var(--tone-green)]" checked={s.watch} onChange={(e) => upd({ watch: e.target.checked })} /> Live watch: rescan career pages and email new matches</label>
           <Field label="Live watch interval" hint="Seconds, 30 minimum. Each run scans the next 30 companies"><Input type="number" min={30} max={3600} value={s.watch_seconds} onChange={(e) => upd({ watch_seconds: Math.max(30, Number(e.target.value)) })} /></Field>
+          <Field label="Job alerts by email: every" hint="Best-fit roles you have not been emailed before. Quiet 22:00 to 07:00 IST">
+            <Select value={String(s.alert_hours ?? 4)} onChange={(e) => upd({ alert_hours: Number(e.target.value) })}>
+              {[2, 3, 4, 6, 12, 24].map((h) => <option key={h} value={h}>{h} hours</option>)}
+              <option value="0">Off</option>
+            </Select>
+          </Field>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Time (your timezone)"><Input type="time" value={s.time} onChange={(e) => upd({ time: e.target.value })} /></Field>

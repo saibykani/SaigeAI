@@ -7,6 +7,9 @@ import 'package:saige_mobile/features/shell/app_drawer.dart';
 void main() {
   testWidgets('Drawer groups modules and highlights the active tab', (tester) async {
     Session.I.user = {'name': 'Asha Rao', 'role': 'jobseeker'};
+    tester.view.physicalSize = const Size(900, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     final tab = ValueNotifier(1);
     await tester.pumpWidget(MaterialApp(
       theme: buildTheme(),

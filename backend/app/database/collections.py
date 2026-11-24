@@ -74,6 +74,7 @@ TALENT_REQUESTS = "talent_requests"
 
 SCHEDULER_JOBS = "scheduler_jobs"
 SYSTEM_SETTINGS = "system_settings"
+CRON_LOCKS = "cron_locks"  # global (not per-user): short-lived lock so overlapping /api/cron/tick calls never double-run
 ADMIN_NOTES = "admin_notes"  # super-admin-only notes about a user (user_id = the subject; never exported to the user)
 USER_TAGS = "user_tags"  # one doc per user: {_id: user_id, user_id, tags: [...]}; super-admin only
 ANNOUNCEMENTS = "announcements"  # super-admin broadcasts shown to every user (not user-scoped)

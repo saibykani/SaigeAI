@@ -29,9 +29,13 @@ import '../resume/health_screen.dart';
 import '../resume/studio_screen.dart';
 import '../roles/admin_screen.dart';
 import '../roles/talent_screen.dart';
+import '../offers/offers_screen.dart';
+import '../radar/radar_screen.dart';
 import '../search/careers_screen.dart';
 import '../search/find_jobs_screen.dart';
 import '../settings/settings_screen.dart';
+import '../warroom/war_room_screen.dart';
+import '../wrapped/wrapped_screen.dart';
 
 /// Shell-level handle for the side drawer (so any main screen's menu button can open it).
 class DrawerNav {
@@ -143,38 +147,43 @@ class _Sec {
 
 List<_Sec> _sections() {
   final rec = Session.I.isRecruiter;
+  final notes = _It('notes', 'Notifications', Icons.notifications_active_rounded, C.warn, build: () => const NotificationsScreen(), badge: true);
+  final inbox = _It('inbox', 'Inbox', Icons.mark_email_unread_rounded, C.bad, build: () => const InboxScreen());
   return [
     if (Session.I.isAdmin) _Sec('admin', 'Admin', Icons.shield_rounded, [_It('admin', 'Admin console', Icons.admin_panel_settings_rounded, C.bad, build: () => const AdminScreen())]),
     if (rec)
       _Sec('home', 'Hiring', Icons.groups_rounded, [
         _It('hiring', 'Hiring', Icons.groups_rounded, C.violet, tab: 0),
         _It('saige', 'Saige assistant', Icons.auto_awesome_rounded, C.primary, tab: 1),
-        _It('notes', 'Notifications', Icons.notifications_active_rounded, C.warn, build: () => const NotificationsScreen(), badge: true),
-        _It('inbox', 'Inbox', Icons.mark_email_unread_rounded, C.bad, build: () => const InboxScreen()),
+        notes,
+        inbox,
       ])
-    else
-      _Sec('home', 'Home', Icons.home_rounded, [
+    else ...[
+      _Sec('home', 'Today', Icons.home_rounded, [
         _It('dash', 'Dashboard', Icons.space_dashboard_rounded, C.primary, tab: 0),
-        _It('notes', 'Notifications', Icons.notifications_active_rounded, C.warn, build: () => const NotificationsScreen(), badge: true),
         _It('approvals', 'Approvals', Icons.task_alt_rounded, C.good, build: () => const ApprovalsScreen(), badge: true, counter: Pulse.I.waiting),
+        _It('radar', 'Match Radar', Icons.radar_rounded, C.violet, build: () => const RadarScreen()),
+        _It('warroom', 'Interview war room', Icons.shield_moon_rounded, C.good, build: () => const WarRoomListScreen()),
+        notes,
+        inbox,
+        _It('saige', 'Saige assistant', Icons.auto_awesome_rounded, C.warn, tab: 3),
       ]),
-    if (!rec) ...[
       _Sec('jobs', 'Job search', Icons.work_rounded, [
         _It('foryou', 'Jobs for you', Icons.style_rounded, C.violet, tab: 1),
         _It('find', 'Find jobs', Icons.travel_explore_rounded, C.teal, build: () => const FindJobsScreen()),
         _It('careers', 'Career portals', Icons.business_center_rounded, C.warn, build: () => const CareersScreen()),
         _It('pipeline', 'Applications', Icons.view_kanban_rounded, C.blue, tab: 2),
         _It('interviews', 'Interviews', Icons.event_available_rounded, C.good, build: () => const InterviewsScreen()),
-        _It('inbox', 'Inbox', Icons.mark_email_unread_rounded, C.bad, build: () => const InboxScreen()),
-        _It('mock', 'Mock interview', Icons.record_voice_over_rounded, C.violet, build: () => const MockSetupScreen()),
-        _It('debrief', 'Interview debrief', Icons.rate_review_rounded, C.warn, build: () => const DebriefScreen()),
+        _It('offers', 'Offer compare', Icons.balance_rounded, C.lime, build: () => const OffersScreen()),
       ]),
-      _Sec('resume', 'Resume & ATS', Icons.description_rounded, [
+      _Sec('prep', 'Resume & prep', Icons.description_rounded, [
         _It('resumes', 'My resumes', Icons.folder_copy_rounded, C.primary, build: () => const ProfileScreen()),
         _It('studio', 'ATS resume (PDF)', Icons.picture_as_pdf_rounded, C.warn, build: () => const StudioScreen()),
         _It('ats', 'ATS coach', Icons.bolt_rounded, C.blue, build: () => const AtsCoachScreen()),
         _It('health', 'Resume health', Icons.monitor_heart_rounded, C.good, build: () => const ResumeHealthScreen()),
         _It('cover', 'Cover letters', Icons.edit_note_rounded, C.violet, build: () => const CoverLetterScreen()),
+        _It('mock', 'Mock interview', Icons.record_voice_over_rounded, C.violet, build: () => const MockSetupScreen()),
+        _It('debrief', 'Interview debrief', Icons.rate_review_rounded, C.warn, build: () => const DebriefScreen()),
         _It('learn', 'Learning path', Icons.school_rounded, C.teal, build: () => const LearningScreen()),
       ]),
     ],
@@ -186,13 +195,13 @@ List<_Sec> _sections() {
       _It('optim', 'Profile optimiser', Icons.auto_fix_high_rounded, C.teal, build: () => const ProfileOptimiserScreen()),
       if (!rec) _It('talent', 'Recruiters find me', Icons.visibility_rounded, C.lime, build: () => const TalentScreen()),
     ]),
-    if (!rec)
-      _Sec('growth', 'Growth', Icons.trending_up_rounded, [
+    _Sec('account', 'You', Icons.manage_accounts_rounded, [
+      if (!rec) ...[
+        _It('wrapped', 'Career Wrapped', Icons.auto_graph_rounded, C.primary, build: () => const WrappedScreen()),
         _It('goals', 'Weekly goals', Icons.flag_rounded, C.good, build: () => const GrowthScreen()),
         _It('insights', 'Insights', Icons.insights_rounded, C.teal, build: () => const InsightsScreen()),
         _It('ghost', 'Ghosting follow-ups', Icons.mark_chat_unread_rounded, C.warn, build: () => const GrowthScreen(initial: 'followups')),
-      ]),
-    _Sec('account', 'Account', Icons.manage_accounts_rounded, [
+      ],
       _It('portfolio', 'Portfolio', Icons.web_rounded, C.violet, build: () => const PortfolioScreen()),
       _It('settings', 'Settings', Icons.settings_rounded, C.primary, build: () => const SettingsScreen()),
       _It('help', 'Help', Icons.help_outline_rounded, C.muted, url: '/help'),
@@ -212,7 +221,7 @@ class AppDrawer extends StatefulWidget {
 class _AppDrawerState extends State<AppDrawer> with SingleTickerProviderStateMixin {
   final _setup = Resource<Map<String, dynamic>>(() async => asMap(await Session.I.api.get('/profile/setup-status')));
   late final AnimationController _in = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-  final _collapsed = <String>{'growth', 'account'};
+  final _collapsed = <String>{'network', 'account'};
   late List<_Sec> _secs = _sections();
 
   @override

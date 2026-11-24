@@ -9,7 +9,9 @@ remote), save them, attach the best resume and prepare the application, then not
   forms on third-party sites or logs into them).
 """
 
+import difflib
 import re
+from datetime import timedelta
 
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -110,7 +112,150 @@ def application_email(profile, a: dict, job: dict) -> tuple[str, str]:
     return subject[:200], "\n".join(lines).strip()
 
 
-async def send_application_email(db: AsyncIOMotorDatabase, uid: str, a: dict) -> dict:
+COMPANY_COOLDOWN_DAYS = 14  # one application email per company in this window, whatever the role
+TEMPLATE_PREFIX = "Auto-apply: "
+
+
+def _clean(items: list[str]) -> list[str]:
+    return [x for x in dict.fromkeys(items) if x]
+
+
+def email_variants(profile, a: dict, job: dict) -> list[dict]:
+    """Truth-checked cover-email variants with their own subject lines. Every line comes from the verified profile; a variant
+    that fails the truth guard is dropped. The reply rate of each variant is tracked (template "Auto-apply: <id>")."""
+    from app.jobs.matching import candidate_skills
+    from app.resumes import craft
+    from app.services.skills_vocab import normalize_key
+    from app.services.truth_guard import GeneratedClaims, validate_claims
+
+    p = profile.personal
+    have = candidate_skills(profile)
+    skills = [x for x in (job.get("analysis") or {}).get("required_skills", []) if normalize_key(x) in have][:4]
+    base_subject, base_body = application_email(profile, a, job)
+    name, role, company = p.name or "", a["role"], a["company"]
+    yrs = f"{int(p.total_experience_years)}+ years" if p.total_experience_years else None
+    proof = craft.best_bullets(profile, {normalize_key(x) for x in skills}, n=1) if skills else []
+    skills_lines = ["Dear Hiring Team,", "", f"I'm applying for the {role} position at {company}."]
+    if skills:
+        skills_lines.append(f"Relevant to the role: {', '.join(skills)}" + (f" ({yrs})." if yrs else "."))
+    if proof:
+        skills_lines.append(f"For example, {craft.lower_first(proof[0].rstrip('.'))}.")
+    skills_lines += ["My resume, tailored to this role, is attached.", "", "Best regards,", name]
+    concise = ["Hello,", "", f"Please find my resume attached for the {role} role at {company}."
+               + (f" I bring {yrs} of experience." if yrs else ""), "", "Thanks,", name]
+    raw = [
+        {"id": "direct", "name": "Direct", "subject": base_subject, "body": base_body},
+        {"id": "skills", "name": "Skills-led",
+         "subject": f"{role} at {company}" + (f" - {skills[0]}" if skills else "") + f" | {name or 'candidate'}",
+         "body": "\n".join(skills_lines).strip()},
+        {"id": "concise", "name": "Concise", "subject": f"Resume for {role} - {name or 'candidate'}", "body": "\n".join(concise).strip()},
+    ]
+    out = []
+    for v in raw:
+        if validate_claims(GeneratedClaims(text=v["body"]), profile).passed:
+            out.append({**v, "subject": v["subject"][:200]})
+    return out
+
+
+async def choose_variant(db: AsyncIOMotorDatabase, uid: str, variants: list[dict], want: str | None = None) -> tuple[dict, str]:
+    """The user's pick wins. Otherwise prefer the variant with the best reply rate (needs enough sends); until then rotate
+    to the least-used one so every variant gets a fair trial."""
+    from app.email import tracking
+
+    if want:
+        v = next((x for x in variants if x["id"] == want), None)
+        if v:
+            return v, "chosen by you"
+    rows = {r["key"]: r for r in (await tracking.stats(db, uid))["by_template"]}
+    stats = [(v, rows.get(TEMPLATE_PREFIX + v["name"])) for v in variants]
+    ranked = sorted((x for x in stats if x[1] and x[1]["enough_data"] and x[1]["rate"]), key=lambda x: -x[1]["rate"])
+    if ranked:
+        v, r = ranked[0]
+        return v, f"best reply rate so far ({r['rate']}% of {r['sent']} sent)"
+    v = min(stats, key=lambda x: (x[1] or {}).get("sent", 0))[0]
+    return v, "trying each version until one has enough sends to compare"
+
+
+async def template_stats(db: AsyncIOMotorDatabase, uid: str) -> list[dict]:
+    """Reply rate per email version, for the approval screen."""
+    from app.email import tracking
+
+    return [{**r, "key": r["key"].removeprefix(TEMPLATE_PREFIX)} for r in (await tracking.stats(db, uid))["by_template"]
+            if r["key"].startswith(TEMPLATE_PREFIX)]
+
+
+async def company_recently_emailed(db: AsyncIOMotorDatabase, uid: str, company: str | None, days: int = COMPANY_COOLDOWN_DAYS) -> dict | None:
+    """The last application email to this company inside the cool-down window, if any (per-company duplicate guard)."""
+    key = _norm(company)
+    if not key:
+        return None
+    since = utcnow() - timedelta(days=days)
+    async for e in db[c.SENT_EMAILS].find({"user_id": uid, "kind": {"$in": ["apply", "auto_apply"]}, "sent_at": {"$gte": since}}).sort("sent_at", -1):
+        if _norm(e.get("company")) == key:
+            return {"role": e.get("role"), "sent_at": e["sent_at"], "to": e.get("to_email")}
+    return None
+
+
+async def ensure_tailored_resume(db: AsyncIOMotorDatabase, uid: str, a: dict, job: dict) -> tuple[str | None, bool]:
+    """The resume attached to a job's email is built for that job's JD (ATS Studio), never just the master resume.
+    Returns (resume_id, built_now)."""
+    from app.studio import router as studio
+    from app.studio.router import ResumeIn
+
+    if a.get("resume_id"):
+        r = await db[c.RESUMES].find_one({"_id": a["resume_id"]}, {"kind": 1, "job_id": 1})
+        if r and r.get("kind") == studio.KIND and r.get("job_id") == a.get("job_id"):
+            return a["resume_id"], False
+    text = job.get("description") or ""
+    if len(text) < 30:
+        return a.get("resume_id"), False
+    out = await studio._build(db, uid, ResumeIn(jd_text=text, title=a["role"], company=a["company"], job_id=a.get("job_id")), text,
+                              a["role"], a["company"])
+    await db[c.APPLICATIONS].update_one({"_id": a["_id"]}, {"$set": {"resume_id": out["id"], "updated_at": utcnow()}})
+    return out["id"], True
+
+
+def _diff(before: str, after: str) -> list[dict]:
+    rows = []
+    for ln in difflib.ndiff(before.splitlines(), after.splitlines()):
+        if ln.startswith("? "):
+            continue
+        rows.append({"op": {"+": "add", "-": "del"}.get(ln[0], "same"), "text": ln[2:]})
+    return rows
+
+
+async def preview(db: AsyncIOMotorDatabase, uid: str, a: dict, variant: str | None = None) -> dict:
+    """Exactly what approving would send: recipient, subject, body, which resume, and what differs from the plain default email.
+    Nothing is sent or built here."""
+    profile = await get_profile(db, uid)
+    job = await db[c.JOBS].find_one({"_id": a["job_id"]}) or {}
+    variants = email_variants(profile, a, job)
+    if not variants:
+        raise HTTPException(409, "The application email didn't pass the truth check. Review the job and send it yourself.")
+    v, why = await choose_variant(db, uid, variants, variant)
+    r = await db[c.RESUMES].find_one({"_id": a.get("resume_id")}) if a.get("resume_id") else None
+    tailored = bool(r and r.get("kind") == "ATS Resume" and r.get("job_id") == a.get("job_id"))
+    dup = await company_recently_emailed(db, uid, a["company"])
+    return {"id": a["_id"], "company": a["company"], "role": a["role"], "to": a.get("apply_email"), "subject": v["subject"], "body": v["body"],
+            "variant": v["id"], "variant_reason": why, "variants": [{"id": x["id"], "name": x["name"], "subject": x["subject"]} for x in variants],
+            "diff": _diff(variants[0]["body"], v["body"]) if v["id"] != variants[0]["id"] else [],
+            "resume": {"id": a.get("resume_id"), "name": (r or {}).get("name"), "tailored": tailored,
+                       "will_tailor": not tailored and len(job.get("description") or "") >= 30,
+                       "ats_score": ((r or {}).get("ats") or {}).get("score")},
+            "company_guard": {"blocked": bool(dup), "last_sent": dup["sent_at"].isoformat() if dup else None, "days": COMPANY_COOLDOWN_DAYS},
+            "template_stats": await template_stats(db, uid), "needs_approval": "USER_APPROVAL_REQUIRED"}
+
+
+async def schedule_followup(db: AsyncIOMotorDatabase, a: dict, days: int) -> None:
+    """Optional extra reminder N days after the email goes out (shows in Follow-ups; Saige never sends it on its own)."""
+    from app.utils import new_id
+
+    await db[c.FOLLOWUPS].insert_one({"_id": new_id(), "user_id": a["user_id"], "application_id": a["_id"], "kind": "followup", "sequence": 9,
+                                      "due_at": utcnow() + timedelta(days=days), "status": "scheduled", "custom": True, "created_at": utcnow()})
+
+
+async def send_application_email(db: AsyncIOMotorDatabase, uid: str, a: dict, *, variant: str | None = None,
+                                 follow_up_days: int | None = None) -> dict:
     from app.email.gmail import GmailError
     from app.resumes.docx_export import resume_docx
     from app.schemas.resume import ParsedResume
@@ -121,13 +266,22 @@ async def send_application_email(db: AsyncIOMotorDatabase, uid: str, a: dict) ->
         raise HTTPException(409, "Connect Gmail with an App Password to send email applications.")
     profile = await get_profile(db, uid)
     job = await db[c.JOBS].find_one({"_id": a["job_id"]}) or {}
-    subject, body = application_email(profile, a, job)
+    variants = email_variants(profile, a, job)
+    if not variants:
+        raise HTTPException(409, "The application email didn't pass the truth check. Review the job and send it yourself.")
+    chosen, _why = await choose_variant(db, uid, variants, variant)
+    subject, body = chosen["subject"], chosen["body"]
     check = validate_claims(GeneratedClaims(text=body), profile)
     if not check.passed:
         raise HTTPException(409, "The application email didn't pass the truth check. Review the job and send it yourself.")
+    dup = await company_recently_emailed(db, uid, a["company"])
+    if dup:
+        raise HTTPException(409, f"You already emailed {a['company']} in the last {COMPANY_COOLDOWN_DAYS} days. Wait, or apply on their site.")
     attachments = []
-    if a.get("resume_id"):
-        r = await db[c.RESUMES].find_one({"_id": a["resume_id"]})
+    rid, _built = await ensure_tailored_resume(db, uid, a, job)
+    if rid:
+        a = {**a, "resume_id": rid}
+        r = await db[c.RESUMES].find_one({"_id": rid})
         v = r and await db[c.RESUME_VERSIONS].find_one({"_id": r.get("current_version_id")})
         if v:
             name = re.sub(r"[^A-Za-z0-9 _-]", "", profile.personal.name or "Resume").strip() or "Resume"
@@ -141,13 +295,18 @@ async def send_application_email(db: AsyncIOMotorDatabase, uid: str, a: dict) ->
     from app.email import tracking
 
     await tracking.record_sent(db, uid, kind="auto_apply", to=a["apply_email"], subject=subject, message_id=mid, company=a.get("company"),
-                               role=a.get("role"), template_name="Auto-apply", application_id=a["_id"])
+                               role=a.get("role"), template_name=TEMPLATE_PREFIX + chosen["name"], application_id=a["_id"], resume_id=rid)
     await db[c.APPLICATIONS].update_one({"_id": a["_id"]}, {"$set": {"applied_via": "email", "apply_message_id": mid,
                                                                      "updated_at": utcnow()}})
-    return {"to": a["apply_email"], "subject": subject, "attached_resume": bool(attachments)}
+    if follow_up_days:
+        await schedule_followup(db, a, follow_up_days)
+    await log_action(db, user_id=uid, action="auto_apply.email_sent", entity="application", entity_id=a["_id"],
+                     details={"to": a["apply_email"], "variant": chosen["id"], "resume_id": rid, "follow_up_days": follow_up_days})
+    return {"to": a["apply_email"], "subject": subject, "attached_resume": bool(attachments), "variant": chosen["id"], "resume_id": rid}
 
 
-async def approve_many(db: AsyncIOMotorDatabase, uid: str, ids: list[str]) -> dict:
+async def approve_many(db: AsyncIOMotorDatabase, uid: str, ids: list[str], *, variants: dict[str, str] | None = None,
+                       follow_up_days: int | None = None) -> dict:
     from app.applications import service as apps
 
     s = await get_settings_doc(db, uid)
@@ -160,7 +319,7 @@ async def approve_many(db: AsyncIOMotorDatabase, uid: str, ids: list[str]) -> di
         row = {"id": app_id, "company": a["company"], "role": a["role"]}
         try:
             if a.get("apply_email") and s.auto_apply.email_apply:
-                sent = await send_application_email(db, uid, a)
+                sent = await send_application_email(db, uid, a, variant=(variants or {}).get(app_id), follow_up_days=follow_up_days)
                 await apps.mark_applied(db, a, source="email")
                 results.append({**row, "status": "sent", "message": f"Emailed {sent['to']}"})
                 continue
@@ -245,6 +404,10 @@ async def apply_feed(db: AsyncIOMotorDatabase, uid: str, ids: list[str]) -> dict
                 if await _already_applied(db, uid, it["company"], it["title"]):
                     results.append({**row, "status": "skipped", "to": emails[0], "url": link,
                                     "message": "Already applied to this company and role."})
+                    continue
+                if await company_recently_emailed(db, uid, it["company"]):
+                    results.append({**row, "status": "skipped", "to": emails[0], "url": link,
+                                    "message": f"Already emailed {it['company']} in the last {COMPANY_COOLDOWN_DAYS} days."})
                     continue
                 if sum(r["status"] == "sent" for r in results) >= room:
                     results.append({**row, "status": "skipped", "to": emails[0], "url": link,

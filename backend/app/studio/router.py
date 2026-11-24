@@ -19,7 +19,7 @@ from app.resumes import service as resumes
 from app.resumes.ai_router import _base_parsed, _matched
 from app.schemas.resume import ParsedResume
 from app.services.audit import log_action
-from app.studio import analyzer, polish, render
+from app.studio import analyzer, insights, polish, render
 from app.utils import new_id, utcnow
 
 router = APIRouter(prefix="/studio", tags=["studio"])
@@ -37,6 +37,7 @@ class JDIn(BaseModel):
 class ResumeIn(JDIn):
     template: str = Field(default="modern", max_length=30)
     base_resume_id: str | None = None
+    section_order: list[str] | None = Field(default=None, max_length=8)
 
 
 async def _jd_source(db: AsyncIOMotorDatabase, uid: str, body: JDIn) -> tuple[str, str, str]:
@@ -218,6 +219,9 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
     await _learn(db, uid, body.career_job_id, "resume")
     report = tailor.ats_report(parsed, jd)
     analysis = analyzer.analyze(profile, text, title, company)
+    delta = insights.before_after(base_parsed, parsed, jd, report, changes or [])
+    todo = insights.checklist(profile, report)
+    order = render.clean_order(body.section_order)
     template = body.template if body.template in render.TEMPLATES else "modern"
     headline = _compose_headline(_role_headline(title) or _role_headline(analyzer.infer_role(text)), profile)
     now = utcnow()
@@ -226,7 +230,8 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
            "career_job_id": body.career_job_id, "company": company or None, "target_title": title, "template": template,
            "jd_text": text[:20000], "headline": headline,
            "base_resume_id": base["_id"] if base else None, "current_version_id": None, "version_count": 0,
-           "created_at": now, "updated_at": now, "ats": report, "engine": engine}
+           "created_at": now, "updated_at": now, "ats": report, "engine": engine,
+           "ats_before_after": delta, "skill_checklist": todo, "section_order": order}
     await db[c.RESUMES].insert_one(doc)
     await resumes.add_version(db, doc, parsed=parsed, raw_text=tailor.resume_text(parsed), source="studio",
                               changes=changes or ["Generated for this job"], base_resume_id=doc["base_resume_id"], job_id=body.job_id)
@@ -235,7 +240,7 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
     drive_link = None
     if await drive.drive_integration(db, uid):  # backup to the user's own Google Drive (best effort)
         fname = render.filename(profile.personal.name or parsed.name, company, date.today().isoformat(), "pdf", _role_headline(title))
-        drive_link = await drive.upload(db, uid, fname, render.render(parsed, template, "pdf", headline))
+        drive_link = await drive.upload(db, uid, fname, render.render(parsed, template, "pdf", headline, order))
         if drive_link:
             await db[c.RESUMES].update_one({"_id": doc["_id"]}, {"$set": {"drive_link": drive_link}})
     await log_action(db, user_id=uid, action="studio.resume_generated", entity="resume", entity_id=doc["_id"],
@@ -244,7 +249,9 @@ async def _build(db: AsyncIOMotorDatabase, uid: str, body: ResumeIn, text: str, 
             "resume": parsed.model_dump(), "ats": report, "changes": changes, "improve": _improve(report, analysis),
             "verdict": analysis["verdict"], "headline": headline, "experience_years": profile.personal.total_experience_years,
             "company_detected": bool(company) and not body.company.strip() and not body.career_job_id,
-            "html": render.to_html(parsed, render.TEMPLATES[template], headline), "drive_link": drive_link}
+            "before_after": delta, "skill_checklist": todo, "keyword_map": insights.keyword_map(profile, parsed, jd),
+            "section_order": order or list(render.TEMPLATES[template].order),
+            "html": render.to_html(parsed, render.with_order(render.TEMPLATES[template], order), headline), "drive_link": drive_link}
 
 
 def _jd_first(skills: list[str], keys: set[str], jd_text: str) -> list[str]:
@@ -334,16 +341,42 @@ async def _parsed(db: AsyncIOMotorDatabase, uid: str, resume_id: str) -> tuple[d
 async def get_resume(resume_id: str, template: str | None = None, user: dict = Depends(get_current_user),
                      db: AsyncIOMotorDatabase = Depends(db_dep)):
     d, parsed = await _parsed(db, user["_id"], resume_id)
-    t = render.TEMPLATES.get(template or d.get("template") or "modern", render.TEMPLATES["modern"])
+    t = render.with_order(render.TEMPLATES.get(template or d.get("template") or "modern", render.TEMPLATES["modern"]), d.get("section_order"))
     return {**_out(d), "ats": d.get("ats"), "resume": parsed.model_dump(), "headline": _hl(d),
-            "html": render.to_html(parsed, t, _hl(d))}
+            "before_after": d.get("ats_before_after"), "skill_checklist": await _open_checklist(db, user["_id"], d),
+            "section_order": list(t.order), "html": render.to_html(parsed, t, _hl(d))}
+
+
+async def _open_checklist(db: AsyncIOMotorDatabase, uid: str, d: dict) -> list[dict]:
+    """Checklist items still missing from the verified profile (ones confirmed since drop off)."""
+    from app.jobs.matching import _skill_key, candidate_skills
+
+    have = candidate_skills(await get_profile(db, uid))
+    return [x for x in d.get("skill_checklist") or [] if _skill_key(x["skill"]) not in have]
+
+
+class OrderIn(BaseModel):
+    order: list[str] = Field(min_length=1, max_length=8)
+
+
+@router.post("/resumes/{resume_id}/order")
+async def set_order(resume_id: str, body: OrderIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Choose the section order (summary, skills, experience, projects, education, certifications) for previews and downloads."""
+    order = render.clean_order(body.order)
+    if not order:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Pick at least one known section.")
+    await resumes.get_owned(db, user["_id"], resume_id)
+    await db[c.RESUMES].update_one({"_id": resume_id, "user_id": user["_id"]}, {"$set": {"section_order": order, "updated_at": utcnow()}})
+    return {"section_order": order}
 
 
 @router.get("/resumes/{resume_id}/previews")
 async def previews(resume_id: str, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     """The same resume rendered in every template, for the template gallery."""
     d, parsed = await _parsed(db, user["_id"], resume_id)
-    return {"templates": [{"id": t.id, "name": t.name, "description": t.description, "html": render.to_html(parsed, t, _hl(d))}
+    order = d.get("section_order")
+    return {"templates": [{"id": t.id, "name": t.name, "description": t.description,
+                           "html": render.to_html(parsed, render.with_order(t, order), _hl(d))}
                           for t in render.TEMPLATES.values()]}
 
 
@@ -371,7 +404,7 @@ async def file_for(db: AsyncIOMotorDatabase, uid: str, resume_id: str, format: s
                    on: str | None = None) -> tuple[bytes, str]:
     d, parsed = await _parsed(db, uid, resume_id)
     tid = template if template in render.TEMPLATES else d.get("template") or "modern"
-    data = render.render(parsed, tid, format, _hl(d))
+    data = render.render(parsed, tid, format, _hl(d), d.get("section_order"))
     profile = await get_profile(db, uid)
     fname = render.filename(profile.personal.name or parsed.name, d.get("company"), on or date.today().isoformat(), format,
                             _role_headline(d.get("target_title")))
@@ -464,7 +497,7 @@ async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), 
             v.model_dump() if hasattr(v, "model_dump") else v for v in check.violations]})
     d, parsed = await _parsed(db, uid, body.resume_id)
     tid = body.template if body.template in render.TEMPLATES else d.get("template") or "modern"
-    data = render.render(parsed, tid, body.format, _hl(d))
+    data = render.render(parsed, tid, body.format, _hl(d), d.get("section_order"))
     fname = render.filename(profile.personal.name or parsed.name, d.get("company"), body.on or date.today().isoformat(), body.format,
                             _role_headline(d.get("target_title")))
     async with agent_run(db, "apply_by_email", uid, {"resume_id": body.resume_id, "to": body.to}) as run:
@@ -480,7 +513,7 @@ async def apply_send(body: ApplySendIn, user: dict = Depends(get_current_user), 
     from app.email import tracking
 
     await tracking.record_sent(db, uid, kind="apply", to=body.to, subject=body.subject, message_id=mid, company=d.get("company"),
-                               role=d.get("target_title"), template_name="Application email", sent_at=now)
+                               role=d.get("target_title"), template_name="Application email", sent_at=now, resume_id=d["_id"])
     await db[c.RESUMES].update_one({"_id": d["_id"]}, {"$push": {"sent": {"to": body.to, "subject": body.subject, "at": now,
                                                                          "message_id": mid, "file": fname}}})
     await log_action(db, user_id=uid, action="studio.application_sent", entity="resume", entity_id=d["_id"],
@@ -514,3 +547,9 @@ async def instruct(resume_id: str, body: InstructIn, user: dict = Depends(get_cu
         await log_action(db, user_id=uid, action="resume.chat_edit", entity="resume", entity_id=resume_id, details={"changes": done[:10]})
     template = body.template if body.template in render.TEMPLATES else (d.get("template") or "modern")
     return {"changes": changes, "saved": bool(done), "html": render.to_html(after, render.TEMPLATES[template], _hl(d))}
+
+
+from app.studio import quality, reviewer  # noqa: E402  (versions, bullet checker, recruiter view, review, auto-improve: same /studio prefix)
+
+router.include_router(quality.router)
+router.include_router(reviewer.router)

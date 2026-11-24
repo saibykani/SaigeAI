@@ -10,6 +10,7 @@ application forms: answers are suggestions the user inserts.
 
 import hashlib
 import secrets
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -288,3 +289,183 @@ async def ext_resume_download(resume_id: str, format: str = "pdf", on: str | Non
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "format must be pdf or docx")
     data, fname = await studio.file_for(db, user["_id"], resume_id, format, None, on)
     return studio.file_response(data, fname, format)
+
+
+# ------------------------------------------------------------------ extension v2: side panel (user-triggered, never sends)
+
+class JDPageIn(BaseModel):
+    """The job (or hiring post) text the user has open. Title and company are optional: they are detected."""
+    url: HttpUrl | None = None
+    title: str = Field(default="", max_length=200)
+    company: str = Field(default="", max_length=200)
+    location: str | None = Field(default=None, max_length=200)
+    text: str = Field(min_length=30, max_length=60000)
+    template: str = Field(default="modern", max_length=30)
+
+
+def _hiring_info(body: JDPageIn) -> dict:
+    from app.studio import analyzer, apply
+
+    title = body.title.strip() or analyzer.extract_title(body.text) or ""
+    company = body.company.strip() or analyzer.extract_company(body.text) or ""
+    return {"title": title, "company": company, "emails": apply.emails_in(body.text)[:5], "contact_first_name": apply.contact_name(body.text)}
+
+
+@router.post("/ext/analyze-jd")
+async def ext_analyze_jd(body: JDPageIn, user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Match score, have/missing skills, eligibility and the post's emails/company/role. Saves nothing."""
+    from app.studio import analyzer
+
+    info = _hiring_info(body)
+    a = analyzer.analyze(await get_profile(db, user["_id"]), body.text, info["title"], info["company"])
+    existing = await _existing(db, user["_id"], body.url)
+    sk = a["skills"]
+    both = sk["required"] + sk["preferred"]
+    return {**info, "title": a["title"], "score": a["score"], "classification": a["classification"], "verdict": a["verdict"],
+            "have": [s["name"] for s in both if s["have"]][:16], "missing": [s["name"] for s in both if not s["have"]][:12],
+            "missing_required": [s["name"] for s in sk["required"] if not s["have"]][:8],
+            "eligibility": a["eligibility"], "strengths": a["strengths"][:4], "gaps": a["gaps"][:4], "summary": a["summary"],
+            "is_hiring_post": bool(info["emails"]), "saved_job_id": existing["_id"] if existing else None}
+
+
+def _downloads(resume_id: str) -> dict:
+    return {fmt: f"/api/ext/studio/{resume_id}/download?format={fmt}" for fmt in ("pdf", "docx")}
+
+
+@router.post("/ext/generate-resume", status_code=201)
+async def ext_generate_resume(body: JDPageIn, user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """ATS resume for this JD (ATS Studio engine, verified profile only) plus download paths for PDF and DOCX."""
+    info = _hiring_info(body)
+    out = await ext_build_resume(PageResumeIn(url=body.url, title=info["title"] or "Target role", company=info["company"], text=body.text,
+                                              template=body.template), user, db)
+    return {**out, "downloads": _downloads(out["id"])}
+
+
+class ApplicationEmailIn(JDPageIn):
+    resume_id: str | None = Field(default=None, max_length=64)  # reuse a resume generated a moment ago
+    to: str | None = Field(default=None, max_length=200, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+@router.post("/ext/draft-application-email")
+async def ext_draft_application_email(body: ApplicationEmailIn, user: dict = Depends(token_user),
+                                      db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Tailored resume + a truth-checked application email (same drafter as ATS Studio "apply by email").
+    Nothing is sent: the user opens the draft in their own mail client and attaches the downloaded resume."""
+    from urllib.parse import quote
+
+    from app.services.agent_runs import agent_run
+    from app.services.truth_guard import GeneratedClaims, validate_claims
+    from app.studio import apply
+    from app.studio import router as studio
+
+    uid = user["_id"]
+    info = _hiring_info(body)
+    profile = await get_profile(db, uid)
+    async with agent_run(db, "extension_application_email", uid, {"company": info["company"], "title": info["title"]}) as run:
+        if body.resume_id:
+            r = await db[c.RESUMES].find_one({"_id": body.resume_id, "user_id": uid})
+            if not r:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume not found")
+            out = {"id": r["_id"], "title": r.get("target_title") or info["title"], "ats": r.get("ats") or {}}
+        else:
+            out = await studio._build(db, uid, studio.ResumeIn(jd_text=body.text, title=info["title"], company=info["company"],
+                                                               template=body.template), body.text, info["title"], info["company"])
+        subject, mail = apply.draft(profile, out["title"], info["company"], out["ats"].get("matched_keywords", []), body.text)
+        check = validate_claims(GeneratedClaims(text=mail), profile)
+        if not check.passed:
+            run.errors.append("truth guard blocked the draft")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"status": "VALIDATION FAILED", "violations": [
+                v.model_dump() if hasattr(v, "model_dump") else v for v in check.violations]})
+        to = body.to or (info["emails"][0] if info["emails"] else "")
+        run.actions.append(f"Drafted application email for {info['company'] or 'this role'} (not sent)")
+        run.output = {"resume_id": out["id"], "to": to}
+    await log_action(db, user_id=uid, action="extension.application_drafted", entity="resume", entity_id=out["id"],
+                     details={"company": info["company"], "to": to})
+    to_q = quote(to) if to else ""
+    return {"resume_id": out["id"], "score": out["ats"].get("score"), "title": out["title"], "company": info["company"],
+            "to": to, "emails_found": info["emails"], "subject": subject, "body": mail, "validation": {"status": "PASSED"},
+            "downloads": _downloads(out["id"]), "attach_note": "Attach the downloaded resume before sending.",
+            "mailto": f"mailto:{to_q}?subject={quote(subject)}&body={quote(mail)}",
+            "gmail_compose": f"https://mail.google.com/mail/?view=cm&fs=1&to={to_q}&su={quote(subject)}&body={quote(mail)}"}
+
+
+async def _caps(db: AsyncIOMotorDatabase, uid: str, company: str) -> dict:
+    from app.jobs.dedupe import company_key
+    from app.recruiters import service as rec
+
+    now = utcnow()
+    limit = await rec.daily_limit(db, uid)
+    today = await rec.sent_today(db, uid, now)
+    week = await db[c.OUTREACH].count_documents({"user_id": uid, "company_key": company_key(company),
+                                                 "sent_at": {"$gte": now - timedelta(days=7)}}) if company else 0
+    return {"daily_limit": limit, "sent_today": today, "company_week_cap": rec.PER_COMPANY_WEEKLY_CAP, "company_sent_this_week": week,
+            "can_send_more": today < limit and week < rec.PER_COMPANY_WEEKLY_CAP}
+
+
+@router.get("/ext/company-contacts")
+async def ext_company_contacts(company: str, user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """The user's OWN contacts at this company (added by them, from their inbox, or from postings they saved). Nothing is looked up
+    on the web and no address is guessed."""
+    from app.jobs.dedupe import company_key
+    from app.recruiters import service as rec
+
+    uid = user["_id"]
+    key = company_key(company)
+    if not key:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Company name required")
+    await rec.sync_contacts(db, uid)  # only already-imported mail and saved jobs
+    docs = await db[c.RECRUITER_CONTACTS].find({"user_id": uid, "company_key": key}).sort("created_at", DESCENDING).to_list(30)
+    return {"company": company, "contacts": [rec.contact_out(d) for d in docs if not d.get("unsubscribed")],
+            "caps": await _caps(db, uid, company)}
+
+
+class SaveDraftIn(BaseModel):
+    company: str = Field(min_length=1, max_length=160)
+    outreach_id: str | None = Field(default=None, max_length=64)  # re-save the user's edits to a draft saved a moment ago
+    contact_id: str | None = Field(default=None, max_length=64)
+    name: str | None = Field(default=None, max_length=120)  # a contact seen on the page (e.g. the email in a hiring post)
+    email: str | None = Field(default=None, max_length=200, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    kind: str = Field(default="cold", pattern="^(cold|referral|hiring_manager|employee_intro)$")
+    page: PageIn | None = None  # the job on screen; saved to Saige so the draft can name the role
+    context: str | None = Field(default=None, max_length=600)
+    subject: str | None = Field(default=None, max_length=200)  # the user's edited wording, if any
+    body: str | None = Field(default=None, max_length=5000)
+
+
+@router.post("/ext/save-draft", status_code=201)
+async def ext_save_draft(body: SaveDraftIn, user: dict = Depends(token_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Save a truth-checked outreach DRAFT in Saige (Outreach). It waits for the user's approval; nothing is sent, and the
+    10/day + 3/company/week caps are applied when it is sent later."""
+    from app.recruiters import service as rec
+    from app.schemas.recruiter import ContactIn, DraftIn
+
+    uid = user["_id"]
+    if body.outreach_id:
+        if not (body.subject and body.body):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Subject and body required to update a draft")
+        out = await rec.edit_draft(db, uid, body.outreach_id, body.subject, body.body)
+        return {"draft": out, "caps": await _caps(db, uid, body.company), "path": "/recruiters",
+                "note": "Draft updated. Still waiting for your approval."}
+    if body.contact_id:
+        contact = await rec.get_contact(db, uid, body.contact_id)
+    elif body.email:
+        contact, _ = await rec.create_contact(db, uid, ContactIn(
+            name=(body.name or body.email.split("@")[0].replace(".", " ").title())[:120], company=body.company, email=body.email,
+            source="job", role="recruiter"))
+    else:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Pick a contact or give an email address")
+    job_id = None
+    if body.page:
+        job, _ = await jobs.ingest(db, uid, _job_in(body.page))
+        job_id = job["_id"]
+    out = await rec.create_draft(db, uid, DraftIn(contact_id=contact["_id"], kind=body.kind, job_id=job_id, context=body.context))
+    if body.subject and body.body:  # the user's edited wording, truth-checked again
+        try:
+            out = await rec.edit_draft(db, uid, out["id"], body.subject, body.body)
+        except HTTPException:
+            await db[c.OUTREACH].delete_one({"_id": out["id"], "user_id": uid, "status": "draft"})  # no half-saved draft
+            raise
+    await log_action(db, user_id=uid, action="extension.draft_saved", entity="outreach", entity_id=out["id"],
+                     details={"company": body.company, "kind": body.kind})
+    return {"draft": out, "caps": await _caps(db, uid, body.company), "path": "/recruiters",
+            "note": "Saved as a draft. Approve it in Saige (Outreach) before it can be sent."}

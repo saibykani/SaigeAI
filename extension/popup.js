@@ -348,3 +348,7 @@ async function download(format) {
 }
 $("dlPdf").onclick = () => download("pdf");
 $("dlDocx").onclick = () => download("docx");
+
+// v2: open the on-page Saige panel (injects the content script on pages it doesn't auto-run on)
+$("openPanel").onclick = () => { chrome.runtime.sendMessage({ type: "open-panel-from-popup" }); window.close(); };
+$("scanPanel").onclick = () => { chrome.runtime.sendMessage({ type: "open-panel-from-popup", scan: true }); window.close(); };

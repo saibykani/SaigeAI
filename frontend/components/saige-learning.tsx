@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApi } from "@/hooks/use-api";
 import { request } from "@/services/api";
-import type { MlStatus, MlTask, MlTrainResult } from "@/types/api";
+import type { MlHistoryEntry, MlModelMetrics, MlStatus, MlTask, MlTrainResult } from "@/types/api";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/format";
 
@@ -51,6 +51,43 @@ const SOURCES: [string, string, string][] = [
 ];
 
 const pct = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v * 100)}%`);
+
+/** Model history with cross-validated metrics; a new version only replaces the current one when it scores at least as well. */
+function ModelMetrics({ rel }: { rel: { history?: MlHistoryEntry[]; calibration?: [number, number] | null; metrics: MlModelMetrics | null; promotion_rule?: string } }) {
+  const hist = rel.history ?? [];
+  const m = rel.metrics;
+  if (!m && !hist.length) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Model quality and history</CardTitle>
+        <CardDescription>{rel.promotion_rule ?? "A new model replaces the current one only if it scores at least as well in cross-validation."}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {m && (
+          <p className="text-sm text-muted-foreground">
+            Current: accuracy {pct(m.accuracy)} · AUC {m.auc != null ? m.auc.toFixed(2) : "–"} · Brier {m.brier_calibrated ?? m.brier ?? "–"} (lower is better, calibrated)
+            {rel.calibration && (rel.calibration[0] !== 1 || rel.calibration[1] !== 0) ? " · probabilities are calibrated" : ""} · {m.folds}-fold
+          </p>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1 pr-3">Version</th><th className="pr-3">When</th><th className="pr-3">Trigger</th><th className="pr-3">Samples</th><th className="pr-3">Accuracy</th><th className="pr-3">AUC</th><th>Result</th></tr></thead>
+            <tbody>
+              {hist.map((h) => (
+                <tr key={`${h.version}-${h.trained_at}`} className="border-t">
+                  <td className="py-1.5 pr-3">v{h.version}</td><td className="pr-3">{h.trained_at ? timeAgo(h.trained_at) : "–"}</td><td className="pr-3">{h.trigger}</td>
+                  <td className="pr-3">{h.samples}</td><td className="pr-3">{pct(h.metrics.accuracy)}</td><td className="pr-3">{h.metrics.auc != null ? h.metrics.auc.toFixed(2) : "–"}</td>
+                  <td className={h.promoted ? "text-[var(--tone-green)]" : "text-muted-foreground"}>{h.promoted ? "Promoted" : "Kept current"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function LearningView() {
   const st = useApi<MlStatus>("/ml/status");
@@ -105,6 +142,8 @@ export function LearningView() {
         <CountKpi label="Ranking quality (AUC)" value={rel.metrics?.auc != null ? Math.round(rel.metrics.auc * 100) : 0} hint="50 is a coin flip, 100 is perfect" icon={Brain} tone="orange" delay={120} />
         <CountKpi label="Job-type corrections" value={s.labels.type_corrections} hint={s.job_type.trained ? "Job-type model trained" : `${s.job_type.min_samples} needed to train`} icon={Brain} tone="teal" delay={180} />
       </div>
+
+      <ModelMetrics rel={rel as unknown as { history?: MlHistoryEntry[]; calibration?: [number, number] | null; metrics: MlModelMetrics | null; promotion_rule?: string }} />
 
       <Card>
         <CardHeader>

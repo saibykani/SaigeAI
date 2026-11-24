@@ -10,7 +10,7 @@ import html
 import io
 import re
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
@@ -34,7 +34,7 @@ class Template:
     body_size: float
     centered: bool
     order: tuple[str, ...]
-    heading: str                   # "rule" (line under), "bar" (accent bar left), "plain", "caps"
+    heading: str                   # "rule" (line under), "bar" (accent bar left), "plain", "caps", "accent" (accent-coloured line under)
     band: bool = False             # dark header band with the name in white
     compact: bool = False
 
@@ -65,6 +65,12 @@ TEMPLATES = {t.id: t for t in (
              "Georgia", "Times", (127, 29, 29), 24, 10.5, True, ORDER, "caps"),
     Template("technical", "Technical", "Sans-serif, amber bars, skills and projects up front. For SDET, automation and performance roles.",
              "Arial", "Helvetica", (180, 83, 9), 22, 10, False, PROJECTS_FIRST, "bar", compact=True),
+    Template("refined", "Refined", "Navy accent, tracked small headings with a fine accent line, generous whitespace. Calm and polished.",
+             "Calibri", "Helvetica", (30, 58, 138), 25, 10.5, False, ORDER, "accent"),
+    Template("studio", "Studio", "Bold name, charcoal text and a thin accent line under each heading. Modern without decoration.",
+             "Arial", "Helvetica", (17, 94, 89), 26, 10.5, False, SKILLS_FIRST, "accent"),
+    Template("atelier", "Atelier", "Centered serif name, plum accent line, airy spacing. Elegant for design, product and client roles.",
+             "Georgia", "Times", (112, 26, 117), 24, 10.5, True, ORDER, "accent"),
     Template("corporate", "Corporate", "Left-aligned slate headings with rules, classic order. Works for every enterprise ATS.",
              "Cambria", "Times", (51, 65, 85), 22, 10.5, False, ORDER, "rule"),
 )}
@@ -163,6 +169,7 @@ def to_docx(r: ParsedResume, t: Template, headline: str | None = None) -> bytes:
     st = doc.styles["Normal"]
     st.font.name, st.font.size = t.font, Pt(t.body_size)
     st.paragraph_format.space_after = Pt(1 if t.compact else 2)
+    st.paragraph_format.line_spacing = 1.05 if t.compact else 1.1
     sec = doc.sections[0]
     sec.left_margin = sec.right_margin = Pt(42 if t.compact else 50)
     sec.top_margin = sec.bottom_margin = Pt(32 if t.compact else 40)
@@ -203,16 +210,23 @@ def to_docx(r: ParsedResume, t: Template, headline: str | None = None) -> bytes:
             hr.font.small_caps = True
         h.paragraph_format.space_before = Pt(6 if t.compact else 11)
         h.paragraph_format.space_after = Pt(3)
+        h.paragraph_format.keep_with_next = True
         if t.heading == "rule":
             _border(h, "bottom", "A3A3A3", "4")
+        elif t.heading == "accent":
+            _border(h, "bottom", hexacc, "8", "2")
         elif t.heading == "bar":
             _border(h, "left", hexacc, "24", "6")
         for kind, s, right in rows:
             if kind == "b":
-                doc.add_paragraph(s, style="List Bullet")
+                bp = doc.add_paragraph(s, style="List Bullet")
+                bp.paragraph_format.space_before = Pt(0)
+                bp.paragraph_format.space_after = Pt(1 if t.compact else 2)
             elif kind == "h":
                 hp = doc.add_paragraph()
-                hp.paragraph_format.space_before = Pt(4)
+                hp.paragraph_format.space_before = Pt(3 if t.compact else 6)
+                hp.paragraph_format.space_after = Pt(0)
+                hp.paragraph_format.keep_with_next = True
                 hp.paragraph_format.tab_stops.add_tab_stop(width, WD_TAB_ALIGNMENT.RIGHT)
                 hp.add_run(s).bold = True
                 if right:
@@ -315,6 +329,10 @@ def to_pdf(r: ParsedResume, t: Template, headline: str | None = None) -> bytes:
             put(label.upper() if t.heading == "caps" else label, margin, "F2", size + (0.5 if t.heading == "caps" else 1.5), t.accent)
         if t.heading == "rule":
             pages[-1].append(f"0.64 0.64 0.64 RG 0.6 w {margin} {y - 1:.1f} m {W - margin} {y - 1:.1f} l S")
+        elif t.heading == "accent":
+            r_, g_, b_ = (v / 255 for v in t.accent)
+            pages[-1].append(f"{r_:.3f} {g_:.3f} {b_:.3f} RG 0.9 w {margin} {y - 1.5:.1f} m {W - margin} {y - 1.5:.1f} l S")
+            y -= 2
         y -= 3
         for kind, s, right in rows:
             if kind == "b":
@@ -413,7 +431,8 @@ def to_html(r: ParsedResume, t: Template, headline: str | None = None) -> str:
     h2 = {"rule": "border-bottom:1px solid #a3a3a3;padding-bottom:2px;text-transform:uppercase;letter-spacing:.06em",
           "bar": f"border-left:4px solid {acc};padding-left:9px;text-transform:uppercase;letter-spacing:.06em",
           "caps": "font-variant:small-caps;letter-spacing:.12em;font-weight:600",
-          "plain": "text-transform:uppercase;letter-spacing:.04em"}[t.heading]
+          "plain": "text-transform:uppercase;letter-spacing:.04em",
+          "accent": f"border-bottom:1.5px solid {acc};padding-bottom:3px;text-transform:uppercase;letter-spacing:.1em;font-weight:600"}[t.heading]
     band = ("header.band{background:#18181b;color:#fff;margin:-36px -40px 18px;padding:28px 40px 20px;border-bottom:4px solid "
             f"{acc}}}header.band .headline{{color:#fff}}header.band .contact{{color:#d4d4d8}}") if t.band else ""
     css = (f"body{{font-family:'{t.font}',Arial,sans-serif;font-size:{t.body_size}pt;color:#171717;background:#fff;max-width:780px;"
@@ -448,8 +467,21 @@ def to_txt(r: ParsedResume, t: Template, headline: str | None = None) -> str:
     return "\n".join(out)
 
 
-def render(r: ParsedResume, template: str, fmt: str, headline: str | None = None) -> bytes:
-    t = TEMPLATES.get(template, TEMPLATES["modern"])
+def clean_order(order: list[str] | None) -> list[str] | None:
+    """Known sections only, no repeats; sections left out of the list are appended so nothing is dropped silently."""
+    if not order:
+        return None
+    seen = [k for k in dict.fromkeys(str(x).lower() for x in order) if k in HEADINGS]
+    return [*seen, *[k for k in ORDER if k not in seen]] if seen else None
+
+
+def with_order(t: Template, order: list[str] | None) -> Template:
+    o = clean_order(order)
+    return replace(t, order=tuple(o)) if o else t
+
+
+def render(r: ParsedResume, template: str, fmt: str, headline: str | None = None, order: list[str] | None = None) -> bytes:
+    t = with_order(TEMPLATES.get(template, TEMPLATES["modern"]), order)
     if fmt == "docx":
         return to_docx(r, t, headline)
     if fmt == "pdf":

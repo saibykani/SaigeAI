@@ -53,3 +53,10 @@ async def status(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabas
 @router.get("/tasks")
 async def tasks(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     return {"items": await ml.tasks(db, user["_id"])}
+
+
+@router.get("/history")
+async def history(user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    """Every trained model version with its cross-validated metrics and whether it was promoted."""
+    st = await ml.status(db, user["_id"])
+    return {"items": st["relevance"]["history"], "current_version": st["relevance"]["version"], "rule": st["relevance"]["promotion_rule"]}
