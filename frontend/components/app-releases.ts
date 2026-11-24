@@ -5,6 +5,17 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "2.5",
+    date: "2026-11-25T00:50:00+05:30",
+    size: "32.1 MB",
+    notes: [
+      "Ask Saige about this job: a chat for any job with your match, quick buttons (ATS resume, email to HR, HR contacts, interview questions, what's missing) and free questions",
+      "Read screenshots: share or pick a screenshot of a LinkedIn hiring post and Saige reads the role, company and email on your phone",
+      "Send from your phone: edit the email, tap Send, confirm, and it goes from your Gmail with your resume attached",
+      "Drafts & approvals: every pending email in one place to edit, send or discard",
+    ],
+  },
+  {
     version: "2.4",
     date: "2026-11-25T00:29:00+05:30",
     size: "32.0 MB",

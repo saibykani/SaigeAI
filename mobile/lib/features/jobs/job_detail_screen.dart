@@ -8,6 +8,8 @@ import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/ui.dart';
+import '../jobchat/job_chat_screen.dart';
+import '../jobchat/job_context.dart';
 import '../resume/studio_screen.dart';
 import '../shell/shell.dart';
 import 'jobs_screen.dart' show salaryText;
@@ -164,6 +166,34 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               },
             ),
             Positioned(left: 12, top: 8, child: Pressable(onTap: () => Navigator.of(context).maybePop(), child: Container(width: 46, height: 46, decoration: BoxDecoration(shape: BoxShape.circle, color: C.surface2, border: Border.all(color: C.line)), child: const Icon(Icons.arrow_back_rounded)))),
+            Positioned(
+              right: 16,
+              top: 8,
+              child: Pressable(
+                onTap: () {
+                  final j = _job.data;
+                  if (j == null) return;
+                  final loc = j['location'] as String?;
+                  final ctx = JobContext(
+                    title: '${j['title'] ?? ''}',
+                    company: '${j['company'] ?? ''}',
+                    text: '${j['description'] ?? ''}',
+                    location: loc,
+                    link: j['application_url'] as String?,
+                    jobId: widget.jobId,
+                    score: (j['score'] as num?),
+                  );
+                  ctx.emails = extractEmails(ctx.text);
+                  openJobChat(context, job: ctx);
+                },
+                child: Container(
+                  height: 46,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(99), color: C.primary),
+                  child: Row(children: [Icon(Icons.auto_awesome_rounded, size: 18, color: C.onPrimary), const SizedBox(width: 6), Text('Ask Saige', style: TextStyle(color: C.onPrimary, fontWeight: FontWeight.w800))]),
+                ),
+              ),
+            ),
             Positioned(
               left: 16,
               right: 16,

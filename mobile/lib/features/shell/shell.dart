@@ -12,6 +12,7 @@ import '../applications/applications_screen.dart';
 import '../assistant/assistant_screen.dart';
 import '../home/home_screen.dart';
 import '../interviews/interview_day_screen.dart';
+import '../jobchat/job_chat_screen.dart';
 import '../jobs/job_share_screen.dart';
 import '../jobs/jobs_screen.dart';
 import '../notifications/approvals_screen.dart';
@@ -84,7 +85,13 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin, Widg
     final r = NativeBridge.I.take()!;
     final recruiter = Session.I.isRecruiter;
     if (r.kind == 'share') {
-      if (!recruiter) pushDepth(context, (_) => JobShareScreen(sharedText: r.text, imagePath: r.image));
+      if (!recruiter) {
+        if (r.image != null) {
+          pushDepth(context, (_) => JobChatScreen(imagePath: r.image)); // screenshot: read on the phone, then chat
+        } else {
+          pushDepth(context, (_) => JobShareScreen(sharedText: r.text));
+        }
+      }
       return;
     }
     switch (r.route) {

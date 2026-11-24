@@ -5,10 +5,16 @@ import '../../core/pulse.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/confetti.dart';
 import '../../core/widgets/ui.dart';
+import '../../core/api.dart';
+import '../../core/session.dart';
+import '../../core/widgets/forms.dart';
+import '../../core/widgets/kit.dart';
 import '../inbox/inbox_screen.dart';
+import '../jobchat/email_draft.dart';
 
-/// Everything waiting for the user (applications and recruiter emails ready to send) plus recent replies.
-/// Approving here is the user's approval; it sends through the normal endpoints (truth guard + caps apply).
+/// The single place for everything waiting for the user: recruiter email drafts and application emails, plus recent replies.
+/// Open a draft to edit it, then Send (a confirm sheet shows the recipient first). Sending is the user's approval and goes
+/// through the normal endpoints, so the truth guard, pauses and daily caps still apply.
 class ApprovalsScreen extends StatefulWidget {
   const ApprovalsScreen({super.key});
   @override
@@ -23,6 +29,58 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
   void initState() {
     super.initState();
     Pulse.I.check();
+  }
+
+  /// Outreach: open the editable draft (review, edit, confirm, send). Applications: confirm, then approve.
+  Future<void> _primary(Map a) async {
+    final key = '${a['type']}:${a['id']}';
+    if (a['type'] == 'outreach') {
+      setState(() => _busy.add(key));
+      EmailDraft? d;
+      try {
+        d = await loadOutreachDraft('${a['id']}');
+      } on ApiException catch (e) {
+        if (mounted) toast(context, e.message, error: true);
+      }
+      if (!mounted) return;
+      setState(() => _busy.remove(key));
+      if (d == null) return toast(context, 'That draft is no longer waiting.', error: true);
+      final done = await openDraftSheet(context, d, discard: () => _discard(a, ask: true));
+      if (done) {
+        setState(() => _skipped.add(key));
+        Pulse.I.check();
+      }
+      return;
+    }
+    final ok = await confirmSheet(
+      context,
+      title: 'Send this application?',
+      body: '${a['subject'] ?? 'Email your resume'} from your Gmail, with your resume attached.'
+          ' ${a['title']}${a['company'] != null ? ' at ${a['company']}' : ''}',
+      action: 'Send now',
+    );
+    if (ok) await _approve(a);
+  }
+
+  /// Discards an unsent draft (outreach is cancelled, an application is withdrawn). Returns true when it was discarded.
+  Future<bool> _discard(Map a, {bool ask = false}) async {
+    if (!await confirmSheet(context, title: 'Discard this draft?', body: 'It will not be sent.', action: 'Discard', danger: true)) return false;
+    try {
+      if (a['type'] == 'outreach') {
+        await Session.I.api.post('/outreach/${a['id']}/outcome/cancelled');
+      } else {
+        await Session.I.api.post('/applications/${a['id']}/reject');
+      }
+      if (mounted) {
+        setState(() => _skipped.add('${a['type']}:${a['id']}'));
+        toast(context, 'Draft discarded');
+      }
+      Pulse.I.check();
+      return true;
+    } catch (e) {
+      if (mounted) toast(context, friendly(e), error: true);
+      return false;
+    }
   }
 
   Future<void> _approve(Map a) async {
@@ -50,9 +108,9 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 64, 20, 120),
                     sliver: SliverList.list(children: [
-                      Text('Approvals', style: T.display),
+                      Text('Drafts & approvals', style: T.display),
                       const SizedBox(height: 4),
-                      Text('Nothing is sent until you approve it here or on a notification.', style: T.small),
+                      Text('Open a draft to edit it. Nothing is sent until you tap Send and confirm.', style: T.small),
                       const SizedBox(height: 18),
                       SectionTitle('Waiting for you${approvals.isEmpty ? '' : ' · ${approvals.length}'}'),
                       const SizedBox(height: 8),
@@ -115,9 +173,14 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
         if ('${a['preview'] ?? ''}'.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text('${a['preview']}', style: T.small, maxLines: 4, overflow: TextOverflow.ellipsis)),
         const SizedBox(height: 12),
         Row(children: [
+          Pressable(
+            onTap: () => _discard(a),
+            child: Container(width: 56, height: 56, decoration: BoxDecoration(shape: BoxShape.circle, color: C.surface2, border: Border.all(color: C.line)), child: Icon(Icons.delete_outline_rounded, color: C.bad, size: 21)),
+          ),
+          const SizedBox(width: 10),
           Expanded(child: PrimaryButton(label: 'Not now', ghost: true, onTap: () => setState(() => _skipped.add(key)))),
           const SizedBox(width: 10),
-          Expanded(child: PrimaryButton(label: email ? 'Approve & send' : 'Approve & apply', busy: _busy.contains(key), onTap: () => _approve(a))),
+          Expanded(child: PrimaryButton(label: email ? 'Edit & send' : 'Approve', busy: _busy.contains(key), onTap: () => _primary(a))),
         ]),
       ]),
     );

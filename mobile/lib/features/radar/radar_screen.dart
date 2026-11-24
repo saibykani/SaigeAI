@@ -7,6 +7,8 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
+import '../jobchat/job_chat_screen.dart';
+import '../jobchat/job_context.dart';
 import '../resume/studio_screen.dart';
 
 /// Job Match Radar: today's best-fit jobs from the feed and career portals, ranked by the verified-profile match.
@@ -45,6 +47,29 @@ class _RadarScreenState extends State<RadarScreen> {
     } else {
       toast(context, '${r['error'] ?? r['reason'] ?? r['skipped'] ?? 'Nothing to send yet'}', error: r['error'] != null);
     }
+  }
+
+  /// Career-portal jobs let the backend load the full description; feed jobs only have a summary, so the chat starts from
+  /// what the radar knows (skills, location) and the user can paste the full post for a deeper check.
+  void _ask(Map<String, dynamic> j) {
+    final matched = (j['matched_skills'] as List? ?? const []).map((e) => '$e').toList();
+    final missing = (j['missing_skills'] as List? ?? const []).map((e) => '$e').toList();
+    final careers = j['origin'] == 'careers';
+    final text = '${j['title']} at ${j['company']}. ${j['location'] ?? ''}\n'
+        '${matched.isEmpty ? '' : 'Skills asked for that you have: ${matched.join(', ')}.\n'}'
+        '${missing.isEmpty ? '' : 'Skills asked for that you do not list: ${missing.join(', ')}.\n'}';
+    openJobChat(
+      context,
+      job: JobContext(
+        title: '${j['title']}',
+        company: '${j['company']}',
+        location: j['location'] as String?,
+        link: '${j['url'] ?? ''}'.isEmpty ? null : '${j['url']}',
+        text: text,
+        careerJobId: careers ? '${j['id']}' : null,
+        score: j['score'] as num?,
+      ),
+    );
   }
 
   Color _fit(num s) => s >= 75 ? C.good : s >= 55 ? C.warn : C.muted;
@@ -128,6 +153,8 @@ class _RadarScreenState extends State<RadarScreen> {
                       Wrap(spacing: 6, runSpacing: 6, children: [for (final s in missing) Pill(s, color: C.warn)]),
                     ],
                     const SizedBox(height: 16),
+                    PrimaryButton(label: 'Ask Saige about this job', icon: Icons.auto_awesome_rounded, onTap: () => _ask(j)),
+                    const SizedBox(height: 10),
                     Row(children: [
                       Expanded(
                         child: PrimaryButton(

@@ -1,4 +1,3 @@
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -9,6 +8,8 @@ import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
+import '../jobchat/job_chat_screen.dart';
+import '../jobchat/job_context.dart';
 import '../mock/mock_setup_screen.dart';
 
 /// A job that arrived from outside the app: shared text or link (LinkedIn, Naukri, Chrome...),
@@ -103,32 +104,40 @@ class _JobShareScreenState extends State<JobShareScreen> {
   Future<void> _gallery() async {
     try {
       final f = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 2400);
-      if (f != null) await _recognise(f.path);
+      if (f != null) await _recognise(f.path, openChat: true);
     } catch (_) {
       if (mounted) toast(context, 'Could not open the photo.', error: true);
     }
   }
 
-  /// On-device OCR (ML Kit, Latin script). The image never leaves the phone.
-  Future<void> _recognise(String path) async {
+  /// On-device OCR (ML Kit, Latin script). The image never leaves the phone. The text is cleaned (UI chrome such as
+  /// "Like Comment Repost" and counters removed) and the role, company and emails are pulled out before the chat opens.
+  Future<void> _recognise(String path, {bool openChat = false}) async {
     setState(() => _ocr = true);
-    final rec = TextRecognizer(script: TextRecognitionScript.latin);
-    try {
-      final r = await rec.processImage(InputImage.fromFilePath(path));
-      final text = r.text.trim();
-      if (text.isEmpty) {
-        _note = 'No text found in the picture. Try again in better light, or type the description.';
-      } else {
-        _jd.text = _jd.text.trim().isEmpty ? text : '${_jd.text.trim()}\n$text';
-        _note = 'Check the recognised text and fix any mistakes before you continue.';
-      }
-    } catch (_) {
-      _note = 'Could not read the picture. You can paste the description instead.';
-    } finally {
-      await rec.close();
+    final text = await readImageText(path);
+    if (text == null) {
+      _note = 'No text found in the picture. Try again in better light, or type the description.';
+    } else {
+      final ctx = jobContextFromText(text);
+      _jd.text = _jd.text.trim().isEmpty ? ctx.text : '${_jd.text.trim()}\n${ctx.text}';
+      if (_title.text.trim().isEmpty) _title.text = ctx.title;
+      if (_company.text.trim().isEmpty) _company.text = ctx.company;
+      _note = 'Check the recognised text and fix any mistakes before you continue.';
     }
     if (mounted) setState(() => _ocr = false);
-    if (_jd.text.trim().length >= 30 && mounted) await _analyze();
+    if (!mounted) return;
+    if (openChat && text != null) return _chat();
+    if (_jd.text.trim().length >= 30) await _analyze();
+  }
+
+  /// "Ask Saige about this job": the chat for the job as it stands on this screen.
+  Future<void> _chat() async {
+    final text = _jd.text.trim();
+    final ctx = jobContextFromText(text, link: _link)
+      ..title = _title.text.trim().isEmpty ? jobContextFromText(text).title : _title.text.trim()
+      ..company = _company.text.trim().isEmpty ? jobContextFromText(text).company : _company.text.trim()
+      ..score = (_analysis?['score'] as num?);
+    await openJobChat(context, job: ctx);
   }
 
   Future<void> _analyze() async {
@@ -246,6 +255,8 @@ class _JobShareScreenState extends State<JobShareScreen> {
           if (a != null) ..._analysisView(a),
           if (ready) ...[
             const SizedBox(height: 18),
+            PrimaryButton(label: 'Ask Saige about this job', icon: Icons.auto_awesome_rounded, onTap: _chat),
+            const SizedBox(height: 10),
             PrimaryButton(label: 'Build ATS resume (PDF)', icon: Icons.description_rounded, busy: _building, onTap: _build),
             const SizedBox(height: 10),
             PrimaryButton(label: _saved ? 'Saved' : 'Save job', icon: Icons.bookmark_add_rounded, ghost: true, onTap: _saved ? null : _save),
