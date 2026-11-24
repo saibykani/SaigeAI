@@ -469,3 +469,9 @@ async def ext_save_draft(body: SaveDraftIn, user: dict = Depends(token_user), db
                      details={"company": body.company, "kind": body.kind})
     return {"draft": out, "caps": await _caps(db, uid, body.company), "path": "/recruiters",
             "note": "Saved as a draft. Approve it in Saige (Outreach) before it can be sent."}
+
+
+# extension 2.1 panel endpoints (extract, chat, read-image, drafts, send-email)
+from app.extension.panel import router as _panel_router  # noqa: E402
+
+router.include_router(_panel_router)
