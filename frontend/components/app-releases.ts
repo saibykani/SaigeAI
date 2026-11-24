@@ -5,6 +5,19 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "2.4",
+    date: "2026-11-25T00:29:00+05:30",
+    size: "32.0 MB",
+    notes: [
+      "Do this next on Home: one tap to your interview prep, approvals waiting, top matches, follow-ups due and resume fixes",
+      "Match Radar: today's best-fit jobs ranked, with why you fit, missing skills, an ATS resume button and email me the top 5",
+      "Interview War Room: countdown, Join, the brief, likely questions with your verified stories, and a checklist",
+      "Career Wrapped: your job search as swipeable story slides",
+      "Offer Compare: weigh saved offers on in-hand pay, 4-year totals, commute and what matters to you",
+      "Cleaner side menu: 5 sections, no duplicates, and the floating background bubbles are gone",
+    ],
+  },
+  {
     version: "2.3",
     date: "2026-11-20T15:33:00+05:30",
     size: "31.9 MB",
