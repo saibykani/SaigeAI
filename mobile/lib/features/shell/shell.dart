@@ -5,17 +5,23 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/motion.dart';
 import '../../core/native_bridge.dart';
 import '../../core/pulse.dart';
+import '../../core/reminders.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/ui.dart';
 import '../applications/applications_screen.dart';
 import '../assistant/assistant_screen.dart';
+import '../briefing/briefing_screen.dart';
 import '../home/home_screen.dart';
 import '../interviews/interview_day_screen.dart';
 import '../jobchat/job_chat_screen.dart';
 import '../jobs/job_share_screen.dart';
 import '../jobs/jobs_screen.dart';
+import '../jobchat/email_draft.dart';
 import '../notifications/approvals_screen.dart';
+import '../quickapply/quick_apply_store.dart';
+import '../reply/reply_screen.dart';
+import '../warroom/war_room_screen.dart';
 import '../roles/hiring_screen.dart';
 import 'app_drawer.dart';
 
@@ -52,13 +58,21 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin, Widg
     if (!Session.I.isRecruiter) {
       Pulse.I.pending.addListener(_notification);
       Pulse.I.start().then((_) => _notification());
-      _pulseTimer = Timer.periodic(const Duration(minutes: 3), (_) => Pulse.I.check());
+      Reminders.I.sync(force: true);
+      QuickApplyStore.I.ensure();
+      _pulseTimer = Timer.periodic(const Duration(minutes: 3), (_) {
+        Pulse.I.check();
+        Reminders.I.sync(); // throttled to every 20 minutes
+      });
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
-    if (s == AppLifecycleState.resumed && !Session.I.isRecruiter) Pulse.I.check();
+    if (s == AppLifecycleState.resumed && !Session.I.isRecruiter) {
+      Pulse.I.check();
+      Reminders.I.sync();
+    }
   }
 
   /// A tap or button on a Saige notification. "Approve & send" is the user's approval for that one item.
@@ -71,12 +85,24 @@ class _ShellState extends State<Shell> with SingleTickerProviderStateMixin, Widg
     final type = i < 0 ? payload : payload.substring(0, i);
     final id = i < 0 ? '' : payload.substring(i + 1);
     if (action == 'approve' && id.isNotEmpty && (type == 'outreach' || type == 'application')) {
-      final msg = await Pulse.I.approve(type, id);
-      if (mounted) toast(context, msg);
+      var msg = '';
+      final out = await sendWithUndo(context, label: 'Sending...', send: () async {
+        msg = await Pulse.I.approve(type, id);
+        return msg.startsWith('Sent') || msg.startsWith('Emailed') || msg.startsWith('Open') || msg.startsWith('Approved') ? null : msg;
+      });
+      if (mounted) toast(context, out.undone ? 'Not sent. It is still waiting in Drafts and approvals.' : (out.sent ? msg : '${out.error}'), error: out.error != null);
       return;
     }
     if (action == 'skip') return;
-    pushDepth(context, (_) => const ApprovalsScreen());
+    if (type == 'briefing') {
+      pushDepth(context, (_) => const BriefingScreen());
+    } else if (type == 'interview' && id.isNotEmpty) {
+      pushDepth(context, (_) => WarRoomScreen(interviewId: id)); // interview reminder: open the war room
+    } else if (type == 'reply' && id.isNotEmpty) {
+      pushDepth(context, (_) => ReplyScreen(replyId: id)); // recruiter reply: read it and send a reviewed reply
+    } else {
+      pushDepth(context, (_) => const ApprovalsScreen());
+    }
   }
 
   /// Shortcuts, the widget and share intents land here (only a signed-in Shell consumes them).

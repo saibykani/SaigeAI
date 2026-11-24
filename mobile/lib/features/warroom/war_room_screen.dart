@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/api.dart';
+import '../../core/config.dart';
 import '../../core/motion.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
@@ -9,6 +11,7 @@ import '../../core/theme.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
 import '../../core/widgets/ui.dart';
+import '../mock/interview_room.dart';
 
 String _countdown(DateTime at) {
   final d = at.difference(DateTime.now());
@@ -98,6 +101,7 @@ class _WarRoomScreenState extends State<WarRoomScreen> {
   Timer? _t;
   List<Map<String, dynamic>> _items = const [];
   String? _openQ;
+  bool _practising = false;
 
   @override
   void initState() {
@@ -130,6 +134,45 @@ class _WarRoomScreenState extends State<WarRoomScreen> {
     _patch({'item_id': it['id'], 'done': done});
   }
 
+  /// 5-minute voice practice: starts the mock interview room for this interview's job (5 questions, spoken by the interviewer,
+  /// answered by voice or text, scored, then the short report). The backend writes the questions from the job; the mock API
+  /// cannot take a ready-made question list, so the job is passed by application id, or by the war room's own requirements.
+  Future<void> _practice(Map<String, dynamic> d) async {
+    if (_practising) return;
+    setState(() => _practising = true);
+    try {
+      String? appId;
+      try {
+        final g = asMap(await Session.I.api.get('/interviews'));
+        for (final k in ['upcoming', 'rescheduled']) {
+          for (final i in asList(g[k])) {
+            if ('${i['id']}' == widget.interviewId && i['application_id'] != null) appId = '${i['application_id']}';
+          }
+        }
+      } catch (_) {}
+      final reqs = [for (final q in asList(d['requirements']).take(10)) '${q['text']}'];
+      final skills = (d['skills'] as List? ?? const []).map((e) => '$e').toList();
+      final jd = [...reqs, if (skills.isNotEmpty) 'Skills: ${skills.join(', ')}'].join(' ');
+      final role = '${d['role'] ?? ''}'.trim().isNotEmpty ? '${d['role']}' : 'Interview at ${d['company'] ?? 'the company'}';
+      final lang = mockLocales.containsKey(AppConfig.lang) ? AppConfig.lang : 'en';
+      final s = asMap(await Session.I.api.post('/mock-interview/sessions', data: {
+        'role': role,
+        if (appId != null) 'application_id': appId else if (jd.length >= 20) 'jd_text': jd,
+        'interview_type': 'mixed',
+        'difficulty': 'medium',
+        'num_questions': 5,
+        'language': lang,
+        'persona': 'priya',
+      }));
+      thump();
+      if (!mounted) return;
+      await pushDepth(context, (_) => InterviewRoom(session: s));
+    } on ApiException catch (e) {
+      if (mounted) toast(context, e.message, error: true);
+    }
+    if (mounted) setState(() => _practising = false);
+  }
+
   void _addItem() {
     final t = _add.text.trim();
     if (t.isEmpty) return;
@@ -159,6 +202,21 @@ class _WarRoomScreenState extends State<WarRoomScreen> {
                   if (at != null) Text(_countdown(at), style: T.display.copyWith(color: C.primary)),
                   if (at != null) Text('${_clock(at)}  ·  ${d['duration_minutes'] ?? 60} min${d['interviewer'] == null ? '' : '  ·  ${d['interviewer']}'}', style: T.small),
                   if (join.isNotEmpty) ...[const SizedBox(height: 16), PrimaryButton(label: 'Join interview', icon: Icons.videocam_rounded, onTap: () => openUrl(context, join))],
+                ]),
+              ),
+              const SizedBox(height: 14),
+              GlassCard(
+                onTap: _practising ? null : () => _practice(d),
+                child: Row(children: [
+                  IconBadge(Icons.record_voice_over_rounded, C.violet, size: 48),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('5-minute voice practice', style: T.h2.copyWith(fontSize: 17)),
+                      Text('Five questions for this role, spoken aloud. Short scored report at the end.', style: T.small),
+                    ]),
+                  ),
+                  if (_practising) const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5)) else Icon(Icons.play_circle_fill_rounded, color: C.violet, size: 34),
                 ]),
               ),
               if (brush.isNotEmpty) ...[

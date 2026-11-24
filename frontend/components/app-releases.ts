@@ -5,6 +5,18 @@ export type Release = { version: string; date: string; size: string; notes: stri
 
 export const RELEASES: Release[] = [
   {
+    version: "2.6",
+    date: "2026-11-25T03:33:00+05:30",
+    size: "32.6 MB",
+    notes: [
+      "Morning briefing: a notification each morning (8:30 by default, change it in Settings) with new top jobs, interviews, replies, approvals and your streak",
+      "Quick apply: swipe right on a match to get a tailored resume and email ready in the Ready to send tray, swipe left to skip",
+      "Interview reminders 24 hours and 1 hour before, plus a 5-minute voice practice in the War Room",
+      "Reply assistant: when a recruiter replies, open their message with a ready reply to edit and send",
+      "One-tap Send with a 5-second Undo everywhere, plus Send all; no more confirm pop-ups",
+    ],
+  },
+  {
     version: "2.5",
     date: "2026-11-25T00:50:00+05:30",
     size: "32.1 MB",

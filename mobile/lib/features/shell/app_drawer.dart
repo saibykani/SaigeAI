@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../core/widgets/dot_ring.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
+import '../briefing/briefing_screen.dart';
 import '../growth/growth_screen.dart';
 import '../growth/insights_screen.dart';
 import '../growth/learning_screen.dart';
@@ -30,6 +31,9 @@ import '../resume/studio_screen.dart';
 import '../roles/admin_screen.dart';
 import '../roles/talent_screen.dart';
 import '../offers/offers_screen.dart';
+import '../quickapply/quick_apply_screen.dart';
+import '../quickapply/quick_apply_store.dart';
+import '../quickapply/ready_tray_screen.dart';
 import '../radar/radar_screen.dart';
 import '../search/careers_screen.dart';
 import '../search/find_jobs_screen.dart';
@@ -161,8 +165,11 @@ List<_Sec> _sections() {
     else ...[
       _Sec('home', 'Today', Icons.home_rounded, [
         _It('dash', 'Dashboard', Icons.space_dashboard_rounded, C.primary, tab: 0),
+        _It('briefing', 'Morning briefing', Icons.wb_sunny_rounded, C.warn, build: () => const BriefingScreen()),
         _It('approvals', 'Drafts & approvals', Icons.task_alt_rounded, C.good, build: () => const ApprovalsScreen(), badge: true, counter: Pulse.I.waiting),
         _It('radar', 'Match Radar', Icons.radar_rounded, C.violet, build: () => const RadarScreen()),
+        _It('quickapply', 'Quick apply', Icons.style_rounded, C.primary, build: () => const QuickApplyScreen()),
+        _It('ready', 'Ready to send', Icons.outbox_rounded, C.good, build: () => const ReadyTrayScreen(), badge: true, counter: QuickApplyStore.count),
         _It('warroom', 'Interview war room', Icons.shield_moon_rounded, C.good, build: () => const WarRoomListScreen()),
         notes,
         inbox,

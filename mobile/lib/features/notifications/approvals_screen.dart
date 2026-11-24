@@ -9,7 +9,7 @@ import '../../core/api.dart';
 import '../../core/session.dart';
 import '../../core/widgets/forms.dart';
 import '../../core/widgets/kit.dart';
-import '../inbox/inbox_screen.dart';
+import '../reply/reply_screen.dart';
 import '../jobchat/email_draft.dart';
 
 /// The single place for everything waiting for the user: recruiter email drafts and application emails, plus recent replies.
@@ -52,14 +52,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
       }
       return;
     }
-    final ok = await confirmSheet(
-      context,
-      title: 'Send this application?',
-      body: '${a['subject'] ?? 'Email your resume'} from your Gmail, with your resume attached.'
-          ' ${a['title']}${a['company'] != null ? ' at ${a['company']}' : ''}',
-      action: 'Send now',
-    );
-    if (ok) await _approve(a);
+    await _approve(a); // tapping Approve is the approval; a 5 second Undo bar comes first
   }
 
   /// Discards an unsent draft (outreach is cancelled, an application is withdrawn). Returns true when it was discarded.
@@ -83,15 +76,46 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
     }
   }
 
+  static bool _isOk(String msg) => msg.startsWith('Sent') || msg.startsWith('Emailed') || msg.startsWith('Open') || msg.startsWith('Approved');
+
   Future<void> _approve(Map a) async {
     final key = '${a['type']}:${a['id']}';
     setState(() => _busy.add(key));
-    final msg = await Pulse.I.approve('${a['type']}', '${a['id']}');
+    var msg = '';
+    final out = await sendWithUndo(context, label: 'Sending ${a['title']}...', send: () async {
+      msg = await Pulse.I.approve('${a['type']}', '${a['id']}');
+      return _isOk(msg) ? null : msg;
+    });
     if (!mounted) return;
     setState(() => _busy.remove(key));
-    final ok = msg.startsWith('Sent') || msg.startsWith('Emailed') || msg.startsWith('Open') || msg.startsWith('Approved');
-    if (ok) Confetti.burst(context);
-    toast(context, msg, error: !ok);
+    if (out.undone) return toast(context, 'Not sent. It is still waiting here.');
+    if (out.sent) Confetti.burst(context);
+    toast(context, out.sent ? msg : '${out.error}', error: !out.sent);
+  }
+
+  /// Sends everything waiting, under one Undo window. Each item still goes through the normal send path, so caps, pauses and
+  /// the truth guard apply item by item; the summary says what was held back and why.
+  Future<void> _sendAll(List<Map> list) async {
+    final keys = [for (final a in list) '${a['type']}:${a['id']}'];
+    setState(() => _busy.addAll(keys));
+    var sent = 0;
+    final problems = <String>[];
+    final out = await sendWithUndo(context, label: 'Sending ${list.length} ${list.length == 1 ? 'item' : 'items'}...', send: () async {
+      for (final a in list) {
+        final m = await Pulse.I.approve('${a['type']}', '${a['id']}');
+        if (_isOk(m)) {
+          sent++;
+        } else {
+          problems.add(m);
+        }
+      }
+      return null;
+    });
+    if (!mounted) return;
+    setState(() => _busy.removeAll(keys));
+    if (out.undone) return toast(context, 'Not sent. Everything is still waiting here.');
+    if (sent > 0) Confetti.burst(context);
+    toast(context, 'Sent $sent of ${list.length}.${problems.isEmpty ? '' : ' ${problems.first}'}', error: sent == 0);
   }
 
   @override
@@ -110,9 +134,10 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                     sliver: SliverList.list(children: [
                       Text('Drafts & approvals', style: T.display),
                       const SizedBox(height: 4),
-                      Text('Open a draft to edit it. Nothing is sent until you tap Send and confirm.', style: T.small),
+                      Text('Tap Send to send. You get 5 seconds to undo. Open a draft to edit it first.', style: T.small),
                       const SizedBox(height: 18),
-                      SectionTitle('Waiting for you${approvals.isEmpty ? '' : ' · ${approvals.length}'}'),
+                      SectionTitle('Waiting for you${approvals.isEmpty ? '' : ' · ${approvals.length}'}',
+                          trailing: approvals.length < 2 ? null : Pressable(onTap: () => _sendAll(approvals), child: Pill('Send all (${approvals.length})', color: C.primary, filled: true))),
                       const SizedBox(height: 8),
                       if (approvals.isEmpty)
                         const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: EmptyState(icon: Icons.task_alt_rounded, title: 'All clear', body: 'Applications and recruiter emails that are ready to send will appear here.'))
@@ -130,7 +155,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                             child: GlassCard(
                               radius: R.md,
                               padding: const EdgeInsets.all(16),
-                              onTap: () => pushDepth(context, (_) => const InboxScreen()),
+                              onTap: () => pushDepth(context, (_) => ReplyScreen(replyId: '${r['id']}')),
                               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Icon(r['status'] == 'bounced' ? Icons.error_outline_rounded : Icons.reply_rounded, color: r['status'] == 'bounced' ? C.bad : C.good),
                                 const SizedBox(width: 14),
@@ -180,7 +205,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
           const SizedBox(width: 10),
           Expanded(child: PrimaryButton(label: 'Not now', ghost: true, onTap: () => setState(() => _skipped.add(key)))),
           const SizedBox(width: 10),
-          Expanded(child: PrimaryButton(label: email ? 'Edit & send' : 'Approve', busy: _busy.contains(key), onTap: () => _primary(a))),
+          Expanded(child: PrimaryButton(label: email ? 'Edit & send' : 'Send', busy: _busy.contains(key), onTap: () => _primary(a))),
         ]),
       ]),
     );

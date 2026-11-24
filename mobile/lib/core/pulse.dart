@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'api.dart';
+import 'briefing.dart';
+import 'reminders.dart';
+import '../features/quickapply/quick_apply_store.dart';
 import 'config.dart';
 import 'session.dart';
 
@@ -58,7 +61,7 @@ class Pulse {
   Future<void> start() async {
     if (!Platform.isAndroid) return;
     await initPlugin();
-    if (!AppConfig.getFlag(flag)) return;
+    if (!AppConfig.getFlag(flag) && !await BriefingService.I.isEnabled()) return; // alerts and the briefing both off
     await _n.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
     final prefs = await SharedPreferences.getInstance();
     if ((prefs.getString(_kToken) ?? '').isEmpty) {
@@ -76,6 +79,9 @@ class Pulse {
     } catch (_) {}
     await check();
   }
+
+  /// Applies the alerts and briefing switches: background checks run while either is on.
+  Future<void> reconcile() async => (AppConfig.getFlag(flag) || await BriefingService.I.isEnabled()) ? await start() : await stop();
 
   /// Turns alerts off: cancels background checks and revokes the token.
   Future<void> stop() async {
@@ -97,6 +103,11 @@ class Pulse {
     await prefs.remove(_kSeen);
     await prefs.remove(_kSince);
     await prefs.remove(_kSummary);
+    for (final k in [BriefingService.kCache, BriefingService.kSeen, BriefingService.kNew, BriefingService.kNewDay, BriefingService.kLastDay]) {
+      await prefs.remove(k);
+    }
+    await Reminders.I.cancelAll();
+    await QuickApplyStore.I.reset();
     data.value = {'replies': [], 'approvals': []};
     waiting.value = 0;
   }
@@ -109,8 +120,9 @@ class Pulse {
       waiting.value = (d['approvals'] as List? ?? const []).length;
       if (AppConfig.getFlag(flag)) {
         await notifyNew(d);
-        await _dailySummary(d);
+        if (!await BriefingService.I.isEnabled()) await _dailySummary(d); // the morning briefing replaces this summary
       }
+      await BriefingService.I.foregroundTick();
     } catch (_) {}
   }
 
@@ -180,11 +192,27 @@ class Pulse {
     await prefs.setStringList(_kSeen, seen.length > 300 ? seen.sublist(seen.length - 300) : seen);
   }
 
-  Future<void> _show(String key, String title, String body, {required String payload, required String channel, bool actions = false}) async {
-    final details = AndroidNotificationDetails(
+  static const _channels = {
+    'replies': ('Recruiter replies', 'Replies and bounces to emails you sent'),
+    'approvals': ('Waiting for approval', 'Applications and emails ready to send after you approve'),
+    'briefing': ('Morning briefing', 'One summary each morning at the time you choose'),
+    'interviews': ('Interview reminders', '24 hours and 1 hour before each interview'),
+  };
+
+  Future<void> _show(String key, String title, String body, {required String payload, required String channel, bool actions = false}) =>
+      show(key.hashCode & 0x7fffffff, title, body, payload: payload, channel: channel, actions: actions);
+
+  /// Shows a notification now. [channel] is one of replies, approvals, briefing, interviews.
+  Future<void> show(int id, String title, String body, {required String payload, required String channel, bool actions = false}) async {
+    await _n.show(id: id, title: title, body: body, notificationDetails: NotificationDetails(android: details(channel, body, actions: actions)), payload: payload);
+  }
+
+  AndroidNotificationDetails details(String channel, String body, {bool actions = false}) {
+    final c = _channels[channel] ?? _channels['approvals']!;
+    return AndroidNotificationDetails(
       channel,
-      channel == 'replies' ? 'Recruiter replies' : 'Waiting for approval',
-      channelDescription: channel == 'replies' ? 'Replies and bounces to emails you sent' : 'Applications and emails ready to send after you approve',
+      c.$1,
+      channelDescription: c.$2,
       importance: Importance.high,
       priority: Priority.high,
       styleInformation: BigTextStyleInformation(body),
@@ -195,8 +223,9 @@ class Pulse {
             ]
           : null,
     );
-    await _n.show(id: key.hashCode & 0x7fffffff, title: title, body: body, notificationDetails: NotificationDetails(android: details), payload: payload);
   }
+
+  FlutterLocalNotificationsPlugin get plugin => _n;
 
   /// Approves one item through the normal endpoints. Returns a message for the user.
   Future<String> approve(String type, String id) async {
@@ -228,14 +257,17 @@ void pulseDispatcher() {
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
       final token = prefs.getString(Pulse._kToken) ?? '';
-      if (token.isEmpty || !(prefs.getBool(Pulse.flag) ?? true)) return true;
+      final alerts = prefs.getBool(Pulse.flag) ?? true;
+      final briefing = prefs.getBool(BriefingService.kOn) ?? true;
+      if (token.isEmpty || !(alerts || briefing)) return true;
       final since = prefs.getString(Pulse._kSince);
       final dio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl, connectTimeout: const Duration(seconds: 15), receiveTimeout: const Duration(seconds: 30),
           headers: {'Authorization': 'Bearer $token', 'X-Requested-With': 'saige'}));
       final r = await dio.get<dynamic>('/mobile/pulse/bg', queryParameters: {'since': ?since});
       final d = Map<String, dynamic>.from(r.data as Map);
       await Pulse.I.initPlugin(foreground: false);
-      await Pulse.I.notifyNew(d);
+      if (alerts) await Pulse.I.notifyNew(d);
+      await BriefingService.I.backgroundTick(d);
       if (d['now'] is String) await prefs.setString(Pulse._kSince, d['now'] as String);
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {

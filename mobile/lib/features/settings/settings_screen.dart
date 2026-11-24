@@ -1,9 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/api.dart';
+import '../../core/briefing.dart';
+import '../../core/briefing_logic.dart';
 import '../../core/config.dart';
 import '../../core/motion.dart';
 import '../../core/pulse.dart';
+import '../../core/reminders.dart';
 import '../../core/resource.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
@@ -33,6 +36,34 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   String _lang = AppConfig.lang;
   bool _alerts = AppConfig.getFlag(Pulse.flag);
+  bool _briefing = true;
+  int _briefingMin = defaultBriefingMinutes;
+  bool _reminders = true;
+
+  @override
+  void initState() {
+    super.initState();
+    () async {
+      final b = await BriefingService.I.isEnabled();
+      final m = await BriefingService.I.minutes();
+      final r = await Reminders.I.isEnabled();
+      if (mounted) {
+        setState(() {
+          _briefing = b;
+          _briefingMin = m;
+          _reminders = r;
+        });
+      }
+    }();
+  }
+
+  Future<void> _pickTime() async {
+    final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: _briefingMin ~/ 60, minute: _briefingMin % 60), helpText: 'BRIEFING TIME (IST)');
+    if (t == null) return;
+    final m = t.hour * 60 + t.minute;
+    setState(() => _briefingMin = m);
+    await BriefingService.I.setMinutes(m);
+  }
 
   @override
   Widget build(BuildContext context) => FeatureScaffold(
@@ -73,7 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) async {
                     setState(() => _alerts = v);
                     await AppConfig.setFlag(Pulse.flag, v);
-                    v ? await Pulse.I.start() : await Pulse.I.stop();
+                    await Pulse.I.reconcile();
                   },
                 ),
               ]),
@@ -97,6 +128,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ]),
             ),
+          ),
+          const Stagger(index: 4, child: SectionTitle('Morning briefing & reminders')),
+          Stagger(
+            index: 4,
+            child: RowsCard(children: [
+              ToggleRow(
+                icon: Icons.wb_sunny_rounded,
+                title: 'Morning briefing',
+                sub: 'One notification each morning with your matches, interviews, replies and approvals',
+                value: _briefing,
+                onChanged: (v) async {
+                  setState(() => _briefing = v);
+                  await BriefingService.I.setEnabled(v);
+                  await Pulse.I.reconcile();
+                },
+              ),
+              NavRow(
+                icon: Icons.schedule_rounded,
+                title: 'Briefing time',
+                sub: '${clockLabel(_briefingMin)} IST. Shown once a day, only if there is something real to say',
+                trailing: Text(clockLabel(_briefingMin), style: TextStyle(color: _briefing ? C.primary : C.muted, fontWeight: FontWeight.w800)),
+                onTap: _briefing ? _pickTime : null,
+              ),
+              NavRow(
+                icon: Icons.notifications_active_rounded,
+                title: 'Send a test briefing',
+                sub: "Shows today's briefing notification now",
+                onTap: () async {
+                  await BriefingService.I.test();
+                  if (context.mounted) toast(context, 'Test briefing sent. Check your notification shade.');
+                },
+              ),
+              ToggleRow(
+                icon: Icons.event_available_rounded,
+                title: 'Interview reminders',
+                sub: 'A notification 24 hours and 1 hour before each interview. Tap to open the war room',
+                value: _reminders,
+                onChanged: (v) async {
+                  setState(() => _reminders = v);
+                  await Reminders.I.setEnabled(v);
+                },
+              ),
+            ]),
           ),
           const Stagger(index: 4, child: SectionTitle('Automation')),
           const Stagger(index: 5, child: _AutomationCard()),

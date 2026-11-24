@@ -84,16 +84,43 @@ String sendErrorText(Object e) {
   return e.offline ? 'You are offline. Connect and try again.' : m;
 }
 
-/// "Send to x@y.com from your Gmail?" confirmation. Returns true when the user confirms.
-Future<bool> confirmSend(BuildContext context, EmailDraft d) => confirmSheet(
-      context,
-      title: 'Send to ${d.to.trim()}?',
-      body: 'From ${d.from ?? 'your Gmail'}.'
-          '${d.resumeAttached ? ' Your resume is attached.' : ''}\n\nSubject: ${d.subject.trim()}\n\nThis goes out as soon as you confirm.',
-      action: 'Send now',
-    );
+/// Result of [sendWithUndo]: the user undid it, or the send ran and returned [error] (null = sent).
+class SendOutcome {
+  const SendOutcome({this.undone = false, this.error});
+  final bool undone;
+  final String? error;
+  bool get sent => !undone && error == null;
+}
 
-/// Sends [d] after the user confirmed. Returns null on success or the friendly error text.
+/// One-tap send: tapping Send is the approval. A 5 second "Sending... Undo" bar is shown first; if the user taps Undo
+/// nothing is sent, otherwise [send] runs when the bar closes (the normal send endpoint, so the truth guard, pauses and
+/// daily caps still apply). Returns after the send finished.
+Future<SendOutcome> sendWithUndo(BuildContext context, {required String label, required Future<String?> Function() send, Duration wait = const Duration(seconds: 5)}) async {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.clearSnackBars();
+  final bar = messenger.showSnackBar(SnackBar(
+    behavior: SnackBarBehavior.floating,
+    duration: wait,
+    persist: false, // a SnackBar with an action stays until dismissed unless this is false
+    backgroundColor: C.dark ? C.surface3 : C.surface,
+    margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+    shape: StadiumBorder(side: BorderSide(color: C.line)),
+    content: Row(children: [
+      Icon(Icons.send_rounded, color: C.primary, size: 20),
+      const SizedBox(width: 10),
+      Expanded(child: Text(label, style: TextStyle(color: C.text))),
+    ]),
+    action: SnackBarAction(label: 'Undo', textColor: C.primary, onPressed: () {}),
+  ));
+  final reason = await bar.closed;
+  if (reason == SnackBarClosedReason.action) {
+    tick();
+    return const SendOutcome(undone: true);
+  }
+  return SendOutcome(error: await send());
+}
+
+/// Sends [d] (call it through [sendWithUndo]). Returns null on success or the friendly error text.
 Future<String?> sendDraft(EmailDraft d) async {
   final api = Session.I.api;
   try {
@@ -153,24 +180,24 @@ class _EmailDraftCardState extends State<EmailDraftCard> {
     if (d.subject.trim().length < 3) return toast(context, 'Add a subject first.', error: true);
     if (d.body.trim().length < 20) return toast(context, 'The message is too short to send.', error: true);
     FocusScope.of(context).unfocus();
-    if (!await confirmSend(context, d)) return;
     setState(() {
       _busy = true;
       _error = null;
     });
-    final err = await sendDraft(d);
+    final out = await sendWithUndo(context, label: 'Sending to ${d.to.trim()}${d.resumeAttached ? ' with your resume' : ''}...', send: () => sendDraft(d));
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _error = err;
+      _error = out.error;
     });
-    if (err == null) {
+    if (out.undone) return toast(context, 'Not sent. Your draft is still here.');
+    if (out.sent) {
       Confetti.burst(context);
       toast(context, 'Sent to ${d.to.trim()}');
       widget.onSent?.call();
     } else {
       thump();
-      toast(context, err, error: true);
+      toast(context, out.error!, error: true);
     }
   }
 
@@ -257,7 +284,7 @@ Future<bool> openDraftSheet(BuildContext context, EmailDraft d, {Future<bool> Fu
     (c) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text(title, style: T.h2),
       const SizedBox(height: 4),
-      Text('Nothing is sent until you tap Send and confirm.', style: T.small),
+      Text('Tap Send to send it. You get 5 seconds to undo.', style: T.small),
       const SizedBox(height: 16),
       EmailDraftCard(
         draft: d,
