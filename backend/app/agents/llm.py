@@ -28,6 +28,7 @@ class AnthropicProvider:
     def __init__(self, api_key: str, model: str) -> None:
         self.client = anthropic.AsyncAnthropic(api_key=api_key, max_retries=2, timeout=90.0)
         self.model = model
+        self.last_error: str | None = None
 
     async def extract(self, *, system: str, prompt: str, schema: type[T]) -> T | None:
         """Structured extraction. Returns None on any failure so callers fall back to the
@@ -63,7 +64,10 @@ class AnthropicProvider:
                 output_config={"effort": "low"},  # quick, conversational answers
             )
         except (anthropic.RateLimitError, anthropic.APIStatusError, anthropic.APIConnectionError) as exc:
-            logger.warning("Assistant LLM call failed: %s", type(exc).__name__)
+            status = getattr(exc, "status_code", None)
+            detail = str(getattr(exc, "message", "") or exc)[:300]
+            self.last_error = f"{type(exc).__name__} {status or ''} {detail}".strip()
+            logger.warning("Assistant LLM call failed: %s", self.last_error)
             return None
         if response.stop_reason == "refusal":
             return None

@@ -143,9 +143,10 @@ async def test_tick_refreshes_then_is_idempotent(client, auth, db, sent):
 
 async def test_tick_skips_inactive_and_paused_users(client, auth, db, sent):
     uid = await _user(client, auth, db)
-    await db[c.USERS].update_one({"_id": uid}, {"$set": {"last_active_at": utcnow() - timedelta(days=31)}})
+    # use the tick's (fixed) clock, not the real one, so this doesn't break as the calendar moves on
+    await db[c.USERS].update_one({"_id": uid}, {"$set": {"last_active_at": tick.utcnow() - timedelta(days=31)}})
     assert (await tick.run_tick(db))["users"] == 0
-    await db[c.USERS].update_one({"_id": uid}, {"$set": {"last_active_at": utcnow()}})
+    await db[c.USERS].update_one({"_id": uid}, {"$set": {"last_active_at": tick.utcnow()}})
     r = await client.put("/api/automation/settings", headers=auth, json={"pauses": {"job_discovery": True}})
     assert r.status_code == 200
     out = await tick.run_tick(db)

@@ -86,3 +86,27 @@ async def test_interviews_today_checks_gmail_and_answers_conversationally(client
     assert r.status_code == 200, r.text
     reply = r.json()["reply"]
     assert calls == [me["id"]] and "checked your Gmail" in reply and "PayCo" in reply and "Other" not in reply
+
+
+async def test_chat_drops_leading_greeting_and_explains_failures(client, auth, db):
+    """The UI history starts with Saige's greeting; the API needs the user first. Failures say why."""
+    seen = {}
+
+    class Fake:
+        last_error = None
+
+        async def chat(self, *, system, messages):
+            seen["first_role"] = messages[0]["role"]
+            if "fail" in messages[-1]["content"]:
+                self.last_error = "BadRequestError 400 Your credit balance is too low to access the Anthropic API."
+                return None
+            return "Claude says hi"
+
+    llm.set_provider(Fake())
+    await client.put("/api/profile", headers=auth, json=PROFILE)
+    r = await client.post("/api/assistant/chat", headers=auth, json={"messages": [
+        {"role": "assistant", "content": "Hi Sai! How can I help?"}, {"role": "user", "content": "hello"}]})
+    assert r.json()["reply"] == "Claude says hi" and seen["first_role"] == "user"
+    r = await client.post("/api/assistant/chat", headers=auth, json={"messages": [{"role": "user", "content": "please fail"}]})
+    assert r.json()["engine"] == "builtin" and "no credit" in r.json()["reply"]
+    llm.set_provider(None)

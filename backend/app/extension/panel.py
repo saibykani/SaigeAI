@@ -426,6 +426,8 @@ async def ext_chat(body: ChatIn, user: dict = Depends(token_user), db: AsyncIOMo
                       "\nYou are in a small browser side panel: answer in under 150 words, use **bold** and '- ' bullets only. Never claim the user has "  # noqa: E501
                       "a skill, employer, title or number of years that is not in <records>. Drafts are written for the user to review; you cannot send.")  # noqa: E501
             msgs = [m.model_dump() for m in body.history[-10:]] + [{"role": "user", "content": body.message}]
+            while msgs and msgs[0].get("role") != "user":  # the API needs the user first; the panel opens with a greeting
+                msgs.pop(0)
             reply = await provider.chat(system=system, messages=msgs)
             engine = "claude" if reply else engine
         if not reply:

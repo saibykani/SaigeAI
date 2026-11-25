@@ -195,6 +195,20 @@ def _iv_reply(b: dict, first: str) -> str:
     return f"{hi}{checked}Nothing is scheduled for today.{tail}"
 
 
+def _llm_hint(err: str | None) -> str:
+    """A short, honest note when Claude was configured but did not answer."""
+    e = (err or "").lower()
+    if "credit balance" in e or "billing" in e:
+        return "Claude is set up but the Anthropic account has no credit. Add funds at platform.claude.com, then try again."
+    if "authentication" in e or "invalid x-api-key" in e or " 401" in e:
+        return "Claude is set up but the API key was rejected. Check ANTHROPIC_API_KEY in Vercel."
+    if "ratelimit" in e or " 429" in e:
+        return "Claude is busy (rate limit). Try again in a minute."
+    if "not_found" in e or " 404" in e:
+        return "Claude is set up but the model name isn't available to this key. Check LLM_MODEL."
+    return f"Claude is set up but didn't answer this time ({(err or 'unknown error')[:120]})."
+
+
 @router.post("/chat", dependencies=[Depends(limiter.dependency("assistant"))])
 async def chat(body: ChatIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
     import json
@@ -215,16 +229,23 @@ async def chat(body: ChatIn, user: dict = Depends(get_current_user), db: AsyncIO
         system += f"\nAlways reply in {v.LANG_NAMES[body.language]}, in its native script."
     if body.voice:
         system += "\nYour reply will be spoken aloud: plain sentences only, no markdown, lists or links, at most 3 short sentences."
+    llm_note = None
     if provider is not None and hasattr(provider, "chat"):
-        reply = await provider.chat(system=system,
-                                    messages=[m.model_dump() for m in body.messages[-16:]])
+        msgs = [m.model_dump() for m in body.messages[-16:]]
+        while msgs and msgs[0].get("role") != "user":  # the API requires the first message to be the user's (the UI starts with a greeting)
+            msgs.pop(0)
+        reply = await provider.chat(system=system, messages=msgs) if msgs else None
         engine = "claude" if reply else engine
+        if not reply:
+            llm_note = _llm_hint(getattr(provider, "last_error", None))
     if not reply and brief is not None and body.language == "en":
         first = ((await get_profile(db, user["_id"])).personal.name or "").split(" ")[0]
         reply = _iv_reply(brief, first)
     if not reply:
         intent = v.detect_intent(question) if (body.voice or body.language != "en") else None
         reply = v.answer(intent or "help", ctx, body.language) if (intent or body.language != "en") else builtin(question, ctx)
+    if llm_note and not body.voice:
+        reply = reply + "\n\n_" + llm_note + "_"
     if body.voice:
         reply = v.speakable(reply)
     return {"reply": reply, "engine": engine, "actions": actions_for(question + " " + reply)}
