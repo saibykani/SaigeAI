@@ -51,6 +51,9 @@ class AnthropicProvider:
         except anthropic.APIConnectionError:
             logger.warning("LLM unreachable; using deterministic analysis")
             return None
+        except Exception as exc:  # noqa: BLE001 - enrichment must never break the core workflow
+            logger.warning("LLM extraction failed: %s %s", type(exc).__name__, str(exc)[:200])
+            return None
         if response.stop_reason in {"refusal", "max_tokens"}:
             logger.warning("LLM stopped with %s; using deterministic analysis", response.stop_reason)
             return None
@@ -63,15 +66,19 @@ class AnthropicProvider:
                 model=self.model, max_tokens=8000, system=system, messages=messages,
                 output_config={"effort": "low"},  # quick, conversational answers
             )
-        except (anthropic.RateLimitError, anthropic.APIStatusError, anthropic.APIConnectionError) as exc:
+        except Exception as exc:  # noqa: BLE001 - never break the chat; record why and fall back
             status = getattr(exc, "status_code", None)
             detail = str(getattr(exc, "message", "") or exc)[:300]
             self.last_error = f"{type(exc).__name__} {status or ''} {detail}".strip()
             logger.warning("Assistant LLM call failed: %s", self.last_error)
             return None
         if response.stop_reason == "refusal":
+            self.last_error = "refusal"
             return None
-        return "".join(b.text for b in response.content if b.type == "text").strip() or None
+        text = "".join(getattr(b, "text", "") for b in response.content if getattr(b, "type", "") == "text").strip()
+        if not text:
+            self.last_error = f"empty reply (stop_reason={response.stop_reason})"
+        return text or None
 
 
 _provider: LLMProvider | None = None
