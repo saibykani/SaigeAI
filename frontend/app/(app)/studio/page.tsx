@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Download, FileText, Pencil, Sparkles, XCircle } from "lucide-react";
+import { CheckCircle2, Download, FileText, Pencil, Printer, Sparkles, XCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
@@ -170,6 +170,15 @@ function Builder() {
     return () => { live = false; };
   }, [result?.id]);
 
+  useEffect(() => {
+    function onMsg(e: MessageEvent) {
+      if (e.origin !== window.location.origin || e.data?.saige !== "download" || typeof e.data.fmt !== "string") return;
+      void download(e.data.fmt);
+    }
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  });
+
   async function switchTemplate(id: string) {
     setTemplate(id);
     if (!result) return;
@@ -277,11 +286,13 @@ function Builder() {
               <CardTitle>Your resume</CardTitle>
               <CardDescription>{(gallery.find((g) => g.id === template) ?? tpl.data?.templates.find((t) => t.id === template))?.name ?? "Selected"} template</CardDescription>
             </div>
-            <Button size="sm" variant="outline" onClick={() => {
-              const url = URL.createObjectURL(new Blob([preview || result.html || ""], { type: "text/html" }));
-              window.open(url, "_blank", "noopener");
-              setTimeout(() => URL.revokeObjectURL(url), 60_000);
-            }}>Open in new tab</Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              {(tpl.data?.formats ?? []).map((f) => (
+                <Button key={f.id} variant={f.id === "pdf" ? "default" : "outline"} size="sm" onClick={() => void download(f.id)}><Download /> {f.name}</Button>
+              ))}
+              <Button size="sm" variant="outline" onClick={() => printResume(preview || result.html || "")}><Printer /> Print</Button>
+              <Button size="sm" variant="outline" onClick={() => openTab(preview || result.html || "", tpl.data?.formats ?? [])}>Open in new tab</Button>
+            </div>
           </CardHeader>
           <CardContent>
             <iframe title="Resume preview" srcDoc={preview || result.html} sandbox="" className="h-[1000px] w-full rounded-xl border bg-white" />
@@ -422,4 +433,32 @@ function Builder() {
 
 export default function StudioPage() {
   return <Suspense fallback={<div className="py-16"><Loader3D label="Loading" /></div>}><Builder /></Suspense>;
+}
+
+/** Print the resume on its own (no app chrome) through a hidden frame. */
+function printResume(html: string) {
+  const frame = document.createElement("iframe");
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument!;
+  doc.open(); doc.write(html); doc.close();
+  setTimeout(() => { frame.contentWindow?.focus(); frame.contentWindow?.print(); setTimeout(() => frame.remove(), 1000); }, 300);
+}
+
+/** Full-page resume in a new tab with a Download / Print toolbar (hidden when printing).
+ * Downloads are asked of this page (signed in) by postMessage. */
+function openTab(html: string, formats: { id: string; name: string }[]) {
+  const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  const btns = formats.map((f) => `<button data-fmt="${esc(f.id)}">Download ${esc(f.name)}</button>`).join("");
+  const bar = `<style>#sg-bar{position:sticky;top:0;z-index:9;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:10px;background:#111;font:14px system-ui}
+#sg-bar button{border:0;border-radius:999px;padding:8px 16px;background:#fff;color:#111;cursor:pointer;font:inherit}
+@media print{#sg-bar{display:none}}</style>
+<div id="sg-bar">${btns}<button id="sg-print">Print</button></div>
+<script>document.getElementById("sg-print").onclick=function(){window.print()};
+document.querySelectorAll("#sg-bar [data-fmt]").forEach(function(b){b.onclick=function(){
+if(window.opener){window.opener.postMessage({saige:"download",fmt:b.dataset.fmt},location.origin)}else{alert("Go back to the Saige tab to download.")}}});<\/script>`;
+  const w = window.open("", "_blank");
+  if (!w) return;
+  const body = /<body[^>]*>/i.test(html) ? html.replace(/<body([^>]*)>/i, `<body$1>${bar}`) : bar + html;
+  w.document.open(); w.document.write(body); w.document.close();
 }
