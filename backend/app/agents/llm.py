@@ -62,8 +62,9 @@ class AnthropicProvider:
     async def chat(self, *, system: str, messages: list[dict]) -> str | None:
         """Plain conversational reply (the Saige assistant). None on any failure."""
         try:
-            response = await self.client.messages.create(
-                model=self.model, max_tokens=8000, system=system, messages=messages,
+            # Vercel stops the function at 60 s and the web proxy earlier: answer within ~25 s or explain why not.
+            response = await self.client.with_options(timeout=25.0, max_retries=0).messages.create(
+                model=self.model, max_tokens=4000, system=system, messages=messages,
                 output_config={"effort": "low"},  # quick, conversational answers
             )
         except Exception as exc:  # noqa: BLE001 - never break the chat; record why and fall back

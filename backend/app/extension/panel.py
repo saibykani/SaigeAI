@@ -270,7 +270,8 @@ async def _vision(data: bytes, media_type: str) -> str | None:
     if client is None:
         return None
     try:
-        resp = await client.messages.create(model=p.model, max_tokens=8000, messages=[{"role": "user", "content": [
+        fast = client.with_options(timeout=40.0, max_retries=0)
+        resp = await fast.messages.create(model=p.model, max_tokens=8000, messages=[{"role": "user", "content": [
             {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": base64.b64encode(data).decode()}},
             {"type": "text", "text": _VISION_PROMPT}]}])
     except Exception:  # noqa: BLE001 - the panel falls back to the alt text

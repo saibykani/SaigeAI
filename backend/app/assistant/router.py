@@ -202,6 +202,8 @@ def _llm_hint(err: str | None) -> str:
         return "Claude is set up but the Anthropic account has no credit. Add funds at platform.claude.com, then try again."
     if "authentication" in e or "invalid x-api-key" in e or " 401" in e:
         return "Claude is set up but the API key was rejected. Check ANTHROPIC_API_KEY in Vercel."
+    if "timeout" in e:
+        return "Claude took too long to answer this time. Try a shorter question, or ask again."
     if "ratelimit" in e or " 429" in e:
         return "Claude is busy (rate limit). Try again in a minute."
     if "not_found" in e or " 404" in e:
