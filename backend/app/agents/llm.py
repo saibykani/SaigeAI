@@ -59,7 +59,7 @@ class AnthropicProvider:
         """Plain conversational reply (the Saige assistant). None on any failure."""
         try:
             response = await self.client.messages.create(
-                model=self.model, max_tokens=2000, system=system, messages=messages,
+                model=self.model, max_tokens=8000, system=system, messages=messages,
                 output_config={"effort": "low"},  # quick, conversational answers
             )
         except (anthropic.RateLimitError, anthropic.APIStatusError, anthropic.APIConnectionError) as exc:
