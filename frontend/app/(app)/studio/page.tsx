@@ -270,6 +270,25 @@ function Builder() {
         </Card>
       )}
 
+      {result && (preview || result.html) && (
+        <Card className="overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Your resume</CardTitle>
+              <CardDescription>{(gallery.find((g) => g.id === template) ?? tpl.data?.templates.find((t) => t.id === template))?.name ?? "Selected"} template</CardDescription>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => {
+              const url = URL.createObjectURL(new Blob([preview || result.html || ""], { type: "text/html" }));
+              window.open(url, "_blank", "noopener");
+              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            }}>Open in new tab</Button>
+          </CardHeader>
+          <CardContent>
+            <iframe title="Resume preview" srcDoc={preview || result.html} sandbox="" className="h-[1000px] w-full rounded-xl border bg-white" />
+          </CardContent>
+        </Card>
+      )}
+
       {result && (
         <StudioInsights resumeId={result.id} data={result as unknown as StudioInsightsData} onChanged={async () => {
           const fresh = await request<StudioGenerated & StudioInsightsData>(`/studio/resumes/${result.id}`);
@@ -279,8 +298,8 @@ function Builder() {
       )}
 
       {result && ats && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-          <div className="space-y-6">
+        <div>
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardContent className="flex items-center gap-5 pt-5">
                 <ProgressRing value={ats.score} trackClass="stroke-muted" barClass={scoreTone(ats.score)}>
@@ -377,12 +396,6 @@ function Builder() {
               </Card>
             )}
           </div>
-          <Card className="overflow-hidden">
-            <CardHeader><CardTitle>Preview</CardTitle><CardDescription>{tpl.data?.templates.find((t) => t.id === template)?.name} template</CardDescription></CardHeader>
-            <CardContent>
-              <iframe title="Resume preview" srcDoc={preview} sandbox="" className="h-[900px] w-full rounded-xl border bg-white" />
-            </CardContent>
-          </Card>
         </div>
       )}
 
