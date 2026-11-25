@@ -5,7 +5,9 @@ it, a built-in assistant answers the common questions from the same data. Either
 facts about you: anything not in your verified profile is described as unknown.
 """
 
+import logging
 import re
+import traceback
 
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -213,6 +215,17 @@ def _llm_hint(err: str | None) -> str:
 
 @router.post("/chat", dependencies=[Depends(limiter.dependency("assistant"))])
 async def chat(body: ChatIn, user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(db_dep)):
+    try:
+        return await _chat(body, user, db)
+    except Exception as exc:  # noqa: BLE001 - the chat must always answer; show the cause so it can be fixed
+        logging.getLogger(__name__).error("assistant chat failed: %s", traceback.format_exc())
+        where = traceback.extract_tb(exc.__traceback__)[-1]
+        return {"reply": f"Sorry, something went wrong on my side ({type(exc).__name__}: {str(exc)[:160]} at "
+                         f"{where.filename.rsplit(chr(47), 1)[-1].rsplit(chr(92), 1)[-1]}:{where.lineno}). Please send this to support.",
+                "engine": "error", "actions": []}
+
+
+async def _chat(body: ChatIn, user: dict, db: AsyncIOMotorDatabase):
     import json
 
     from app.agents.llm import get_provider
