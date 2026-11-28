@@ -2,6 +2,29 @@
 
 **AI-powered job search, resume optimization, profile management and application command center.**
 
+<p align="center">
+  <a href="https://saige-ai.vercel.app"><b>Live app</b></a> ·
+  <a href="https://saige-ai.vercel.app/download"><b>Android app & Chrome extension</b></a> ·
+  <a href="docs/ARCHITECTURE.md"><b>Architecture</b></a>
+</p>
+
+## Demo
+
+<p align="center"><img src="docs/demo/saige-demo.gif" width="860" alt="Saige AI demo: sign in, dashboard, jobs, resume builder, apply by email, tracker, inbox, recruiters, assistant, analytics, portfolio"/></p>
+
+<details open>
+<summary><b>Screenshots</b></summary>
+
+<table>
+<tr><td align="center"><img src="frontend/public/help/dashboard.jpg" width="400" alt="Dashboard"/><br/><b>Dashboard</b></td><td align="center"><img src="frontend/public/help/jobs.jpg" width="400" alt="Jobs for you"/><br/><b>Jobs for you</b></td></tr>
+<tr><td align="center"><img src="frontend/public/help/ats.jpg" width="400" alt="Resume builder & ATS score"/><br/><b>Resume builder & ATS score</b></td><td align="center"><img src="frontend/public/help/apply-email.jpg" width="400" alt="Apply by email"/><br/><b>Apply by email</b></td></tr>
+<tr><td align="center"><img src="frontend/public/help/applications.jpg" width="400" alt="Application tracker"/><br/><b>Application tracker</b></td><td align="center"><img src="frontend/public/help/inbox.jpg" width="400" alt="Inbox (Gmail)"/><br/><b>Inbox (Gmail)</b></td></tr>
+<tr><td align="center"><img src="frontend/public/help/recruiters.jpg" width="400" alt="Recruiters & outreach"/><br/><b>Recruiters & outreach</b></td><td align="center"><img src="frontend/public/help/assistant.jpg" width="400" alt="Saige assistant"/><br/><b>Saige assistant</b></td></tr>
+<tr><td align="center"><img src="frontend/public/help/analytics.jpg" width="400" alt="Analytics"/><br/><b>Analytics</b></td><td align="center"><img src="frontend/public/help/portfolio.jpg" width="400" alt="Portfolio builder"/><br/><b>Portfolio builder</b></td></tr>
+</table>
+
+</details>
+
 Saige AI is a personal career automation platform. It keeps a verified master profile and uses
 it to discover and match jobs, tailor resumes, track applications and monitor recruiter email.
 Two rules hold across every module:
