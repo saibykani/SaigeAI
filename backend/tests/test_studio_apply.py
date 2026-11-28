@@ -131,3 +131,31 @@ async def test_inbox_keeps_only_job_mail(client, auth, db):
                                    "received_at": __import__("datetime").datetime(2026, 11, 1), "confidence": 0.3})
     subjects = [e["subject"] for e in (await client.get("/api/emails", headers=auth)).json()]
     assert subjects == ["Your application for SDET"]
+
+
+async def test_apply_to_several_addresses_as_text_and_read_a_post_file(client, auth, db, monkeypatch):
+    FakeSMTP.sent = []
+    from app.email import imap
+
+    monkeypatch.setattr(smtp, "SMTP_FACTORY", FakeSMTP)
+    monkeypatch.setattr(imap, "IMAP_FACTORY", FakeIMAP)
+    assert (await client.put("/api/profile", headers=auth, json=PROFILE)).status_code == 200
+    # job post uploaded as a text file
+    up = await client.post("/api/studio/apply/extract", headers=auth, files={"file": ("post.txt", POST.encode(), "text/plain")})
+    assert up.status_code == 200 and up.json()["emails_found"][0] == "careers@acmelabs.io"
+    bad = await client.post("/api/studio/apply/extract", headers=auth, files={"file": ("x.exe", b"MZ", "application/octet-stream")})
+    assert bad.status_code == 415
+    answers = {"current_ctc": "12", "expected_ctc": "18", "notice_period_days": "30", "phone": "+91 90000 00000"}
+    d = (await client.post("/api/studio/apply/draft", headers=auth, json={"jd_text": up.json()["text"], "title": "SDET", "answers": answers})).json()
+    assert d["status"] == "ready", d
+    await client.post("/api/auth/connect/gmail-app-password", headers=auth,
+                      json={"email": "asha@gmail.com", "app_password": FakeSMTP.password})
+    send = {"resume_id": d["id"], "to": "hr@a.io, jobs@b.io; HR@a.io", "subject": d["subject"], "body": d["body"], "format": "text"}
+    s = await client.post("/api/studio/apply/send", headers=auth, json=send)
+    assert s.status_code == 200, s.text
+    assert s.json()["sent"] == ["hr@a.io", "jobs@b.io"]  # duplicates removed, one email each
+    assert [m["To"] for m in FakeSMTP.sent] == ["hr@a.io", "jobs@b.io"]
+    m = FakeSMTP.sent[0]
+    assert not list(m.iter_attachments()) and "Resume" in m.get_body(("plain",)).get_content()
+    assert await db[c.AUDIT_LOGS].count_documents({"action": "studio.application_sent"}) == 2
+    assert (await client.post("/api/studio/apply/send", headers=auth, json={**send, "to": "hr@a.io, nope"})).status_code == 422

@@ -1,8 +1,8 @@
 "use client";
 
-import { Download, Mail, Pencil, RotateCcw, Send, Sparkles } from "lucide-react";
+import { Download, Mail, Pencil, RotateCcw, Send, Sparkles, Upload } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ScanLoader } from "@/components/scan-loader";
 import { Notice, PageHeader } from "@/components/app-shell";
@@ -31,7 +31,8 @@ export default function ApplyByEmailPage() {
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [format, setFormat] = useState<"pdf" | "docx">("pdf");
+  const [format, setFormat] = useState<"pdf" | "docx" | "text">("pdf");
+  const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<"draft" | "send" | null>(null);
   const undoSend = useUndoSend();
   const [msg, setMsg] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
@@ -59,6 +60,24 @@ export default function ApplyByEmailPage() {
     setTo(""); setSubject(""); setBody(""); setTplId(""); setEditing(false); setMsg(null);
   }
 
+  const toList = to.split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean);
+  const toValid = toList.length > 0 && toList.length <= 10 && toList.every((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
+
+  async function readFile(f: File) {
+    setMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const r = await request<{ text: string; emails_found: string[] }>("/studio/apply/extract", { method: "POST", form: fd });
+      setPost(r.text);
+      setMsg({ tone: "success", text: `Read ${f.name}${r.emails_found.length ? `: found ${r.emails_found.join(", ")}` : ""}. Now click Draft.` });
+    } catch (e) {
+      setMsg({ tone: "error", text: e instanceof Error ? e.message : "Couldn't read that file." });
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   async function makeDraft() {
     setBusy("draft");
     setMsg(null);
@@ -82,16 +101,17 @@ export default function ApplyByEmailPage() {
     if (draft?.status !== "ready") return;
     setBusy("send");
     setMsg(null);
-    undoSend(`to ${to}`, doSend, { onUndo: () => setBusy(null) });
+    undoSend(toList.length > 1 ? `to ${toList.length} addresses` : `to ${to}`, doSend, { onUndo: () => setBusy(null) });
   }
 
   async function doSend() {
     if (draft?.status !== "ready") return;
     try {
-      const r = await request<{ to: string; from: string; file: string }>("/studio/apply/send", {
-        method: "POST", body: { resume_id: draft.id, to, subject, body, format, on: localDate() },
+      const r = await request<{ to: string; from: string; file: string; failed: { to: string; error: string }[] }>("/studio/apply/send", {
+        method: "POST", body: { resume_id: draft.id, to: toList.join(", "), subject, body, format, on: localDate() },
       });
-      setMsg({ tone: "success", text: `Sent from ${r.from} to ${r.to} with ${r.file} attached.` });
+      const fail = r.failed.length ? ` Not sent to ${r.failed.map((f) => f.to).join(", ")}: ${r.failed[0].error}` : "";
+      setMsg({ tone: r.failed.length ? "info" : "success", text: `Sent from ${r.from} to ${r.to} (${r.file}).${fail}` });
     } catch (e) {
       const text = e instanceof Error ? e.message : "Couldn't send.";
       setMsg({ tone: "error", text: /unexpectedly closed|Gmail API|refusing/i.test(text) ? `${text} Fix: Settings → Integrations → “Send through the Gmail API”.` : text });
@@ -109,10 +129,14 @@ export default function ApplyByEmailPage() {
         <CardContent className="grid gap-4 pt-5 lg:grid-cols-2">
           <Field label="Company"><Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional: read from the post if empty" /></Field>
           <Field label="Job title"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Optional: read from the post if empty" /></Field>
-          <Field label="Job description or LinkedIn post" className="lg:col-span-2">
+          <Field label="Job description or LinkedIn post" className="lg:col-span-2"
+                 hint="Paste the text, or upload the post as a PDF, Word or text file.">
             <Textarea rows={9} value={post} onChange={(e) => setPost(e.target.value)} placeholder="Paste the post, including the email address to apply to" />
           </Field>
-          <div className="flex justify-end lg:col-span-2">
+          <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" className="hidden"
+                 onChange={(e) => { const f = e.target.files?.[0]; if (f) void readFile(f); }} />
+          <div className="flex flex-wrap justify-end gap-2 lg:col-span-2">
+            <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={busy !== null}><Upload /> Upload PDF / Word / text</Button>
             <Button onClick={() => void makeDraft()} disabled={busy !== null || post.trim().length < 30}>
               <Sparkles /> {busy === "draft" ? "Building resume and email…" : "Draft resume & email"}
             </Button>
@@ -154,9 +178,18 @@ export default function ApplyByEmailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="To" hint={draft.emails_found.length > 1 ? `Also in the post: ${draft.emails_found.filter((e) => e !== to).join(", ")}` : undefined}>
-                <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="No email in the post: type the address" />
+              <Field label="To" hint="Several addresses? Separate them with commas. Each one gets its own email (up to 10).">
+                <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="hr@company.com, careers@company.com" />
               </Field>
+              {draft.emails_found.filter((e) => !toList.includes(e)).length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Also in the post:</span>
+                  {draft.emails_found.filter((e) => !toList.includes(e)).map((e) => (
+                    <Button key={e} size="sm" variant="outline" onClick={() => setTo([...toList, e].join(", "))}>+ {e}</Button>
+                  ))}
+                  <Button size="sm" variant="ghost" onClick={() => setTo([...new Set([...toList, ...draft.emails_found])].join(", "))}>Add all</Button>
+                </div>
+              )}
               <Field label="Email template" hint="Fills the subject and message from your verified profile. Edit anything after.">
                 <select value={tplId} onChange={(e) => void applyTemplate(e.target.value)} className="h-10 w-full rounded-xl border bg-transparent px-3 text-sm">
                   <option value="">Saige's draft for this post</option>
@@ -168,12 +201,15 @@ export default function ApplyByEmailPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-muted-foreground">Attach as</span>
-                  {(["pdf", "docx"] as const).map((f) => (
-                    <Button key={f} size="sm" variant={format === f ? "default" : "outline"} onClick={() => setFormat(f)} aria-pressed={format === f}>{f.toUpperCase()}</Button>
+                  {(["pdf", "docx", "text"] as const).map((f) => (
+                    <Button key={f} size="sm" variant={format === f ? "default" : "outline"} onClick={() => setFormat(f)} aria-pressed={format === f}
+                            title={f === "text" ? "No attachment: your resume is pasted as text below the message" : undefined}>
+                      {f === "text" ? "Text in email" : f === "docx" ? "Word" : "PDF"}
+                    </Button>
                   ))}
                 </div>
-                <Button onClick={send} disabled={busy !== null || !draft.gmail || !to.includes("@") || body.trim().length < 20}>
-                  <Send /> {busy === "send" ? "Sending…" : "Send"}
+                <Button onClick={send} disabled={busy !== null || !draft.gmail || !toValid || body.trim().length < 20}>
+                  <Send /> {busy === "send" ? "Sending…" : toList.length > 1 ? `Send to ${toList.length}` : "Send"}
                 </Button>
               </div>
             </CardContent>
@@ -194,8 +230,8 @@ export default function ApplyByEmailPage() {
             <CardContent className="space-y-3">
               <iframe title="Resume preview" srcDoc={draft.html} className="h-[560px] w-full rounded-2xl border bg-white" sandbox="" />
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => void downloadFile(`/studio/resumes/${draft.id}/download?format=${format}&on=${localDate()}`, `resume.${format}`)}>
-                  <Download /> Download {format.toUpperCase()}
+                <Button variant="outline" size="sm" onClick={() => void downloadFile(`/studio/resumes/${draft.id}/download?format=${format === "text" ? "txt" : format}&on=${localDate()}`, `resume.${format === "text" ? "txt" : format}`)}>
+                  <Download /> Download {format === "text" ? "TXT" : format === "docx" ? "Word" : "PDF"}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}><Pencil /> Edit resume</Button>
                 <Link href="/studio"><Button variant="ghost" size="sm">Change template in Resume builder</Button></Link>
